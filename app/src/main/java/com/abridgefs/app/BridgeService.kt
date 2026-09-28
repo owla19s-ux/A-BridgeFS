@@ -16,6 +16,7 @@ class BridgeService:Service(){
     override fun onStartCommand(i:Intent?,flags:Int,startId:Int):Int{
         val rootPath=i?.getStringExtra("root")?:return START_NOT_STICKY
         val text=i.getStringExtra("command")?:return START_NOT_STICKY
+        val projectId=i.getStringExtra("projectId")
         val root=File(rootPath)
         val allowed=i.getStringArrayListExtra("allowed")?.mapNotNull{runCatching{FileAction.valueOf(it)}.getOrNull()}?.toSet() ?: emptySet()
         val confirm=i.getStringArrayListExtra("confirm")?.mapNotNull{runCatching{FileAction.valueOf(it)}.getOrNull()}?.toSet() ?: emptySet()
@@ -29,8 +30,12 @@ class BridgeService:Service(){
             waiting!=null->BridgeReceipt("WAITING_CONFIRMATION",waiting.toString(),"该操作需要用户确认")
             else->BridgeReceipt("SUCCEEDED",commands.joinToString(" | "){it.toString()},commands.map{CommandExecutor(root).execute(it)}.joinToString("\n\n"))
         }
-        sendBroadcast(Intent("com.abridgefs.RESULT").setPackage(packageName)
-            .putExtra("status",receipt.status).putExtra("command",receipt.command).putExtra("message",receipt.message))
+        val result=Intent("com.abridgefs.RESULT").setPackage(packageName)
+            .putExtra("status",receipt.status)
+            .putExtra("command",receipt.command)
+            .putExtra("message",receipt.message)
+        if(projectId!=null) result.putExtra("projectId",projectId)
+        sendBroadcast(result)
         stopSelf(startId)
         return START_NOT_STICKY
     }
