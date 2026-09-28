@@ -61,6 +61,7 @@ class MainActivity:AppCompatActivity(){
         keyInput=EditText(this).apply{hint="API Key";inputType=InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD}
         modelInput=EditText(this).apply{hint="模型名称"}
         rootInput=EditText(this).apply{hint="授权目录"}
+        commandLimitInput=EditText(this).apply{hint="单次 AI 指令上限（默认 3）";inputType=InputType.TYPE_CLASS_NUMBER}
         page.addView(projectTitle)
         page.addView(Button(this).apply{text="项目 / 对话记录";setOnClickListener{showProjects()}})
         page.addView(chatView);page.addView(chatInput)
