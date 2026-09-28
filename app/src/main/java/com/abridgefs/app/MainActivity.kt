@@ -143,7 +143,7 @@ class MainActivity:AppCompatActivity(){
         val config=ApiConfig(apiInput.text.toString().trim(),keyInput.text.toString(),modelInput.text.toString().trim())
         executor.execute{
             try{
-                val system="你是 A-BridgeFS 的本地助手。你可以正常使用自然语言与用户对话。需要本地操作时，必须把操作放进 [bridgefs] ... [/bridgefs] 区块；区块外的文字不会被执行。支持 [list]、[read: 文件]、[write: 文件] 内容 [/write]、[edit: 文件] 旧内容====新内容 [/edit]。每次 AI 回复最多输出 3 条本地指令；不要为了绕过限制拆成多个区块。不要声称已经执行，必须等待 BridgeFS Receipt。收到 Receipt 后，根据真实结果继续当前任务；不要重复已经成功的操作。当前版本只允许少量、有限的自动连续执行，不要自行设计长时间或无限任务。"
+                val limit=maxCommandsPerResponse()\n                val system="你是 A-BridgeFS 的本地助手。你可以正常使用自然语言与用户对话。需要本地操作时，必须把操作放进 [bridgefs] ... [/bridgefs] 区块；区块外的文字不会被执行。支持 [list]、[read: 文件]、[write: 文件] 内容 [/write]、[edit: 文件] 旧内容====新内容 [/edit]。每次 AI 回复最多输出 $limit 条本地指令；不要为了绕过限制拆成多个区块。只使用当前版本明确支持的指令，不要输出 shell、delete、copy、move、mkdir 等未开放操作。不要声称已经执行，必须等待 BridgeFS Receipt。收到 Receipt 后，根据真实结果继续当前任务；不要重复已经成功的操作。当前版本只允许少量、有限的自动连续执行，不要自行设计长时间或无限任务。"
                 val messages=project.messages.map{
                     if(it.role=="tool") ChatMessage("user",it.content) else it
                 }
