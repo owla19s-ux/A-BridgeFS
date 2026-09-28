@@ -35,7 +35,7 @@ class MainActivity:AppCompatActivity(){
             project.messages += ChatMessage("tool","[BridgeFS Receipt]\nstatus="+status+"\ncommand="+command+"\n"+message)
             saveProjects()
             runOnUiThread{renderProject()}
-            if(status=="SUCCEEDED"){
+            if(status=="SUCCEEDED" || status=="FAILED" || status=="DENIED"){
                 continueAfterReceipt(project)
             }
         }
