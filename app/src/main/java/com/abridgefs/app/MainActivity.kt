@@ -22,7 +22,8 @@ class MainActivity:AppCompatActivity(){
     private var projects=mutableListOf<Project>()
     private var current:Project?=null
     private val autoStepByProject=mutableMapOf<String,Int>()
-    private val maxAutoSteps=8
+    private val maxAutoSteps=3
+    private val maxCommandsPerResponse=3
 
     private val receiver=object:BroadcastReceiver(){
         override fun onReceive(context:Context,intent:Intent){
@@ -137,7 +138,7 @@ class MainActivity:AppCompatActivity(){
         val config=ApiConfig(apiInput.text.toString().trim(),keyInput.text.toString(),modelInput.text.toString().trim())
         executor.execute{
             try{
-                val system="你是 A-BridgeFS 的本地助手。你可以持续对话。需要本地操作时，只输出 [bridgefs] ... [/bridgefs] 操作块，不要声称已经执行；必须等待 BridgeFS Receipt。支持 [list]、[read: 文件]、[write: 文件] 内容 [/write]、[edit: 文件] 旧内容====新内容 [/edit]。收到 [BridgeFS Receipt] 后，根据真实结果继续当前任务；不要重复已经成功的操作。"
+                val system="你是 A-BridgeFS 的本地助手。你可以正常使用自然语言与用户对话。需要本地操作时，必须把操作放进 [bridgefs] ... [/bridgefs] 区块；区块外的文字不会被执行。支持 [list]、[read: 文件]、[write: 文件] 内容 [/write]、[edit: 文件] 旧内容====新内容 [/edit]。每次 AI 回复最多输出 3 条本地指令；不要为了绕过限制拆成多个区块。不要声称已经执行，必须等待 BridgeFS Receipt。收到 Receipt 后，根据真实结果继续当前任务；不要重复已经成功的操作。当前版本只允许少量、有限的自动连续执行，不要自行设计长时间或无限任务。"
                 val messages=project.messages.map{
                     if(it.role=="tool") ChatMessage("user",it.content) else it
                 }
@@ -145,7 +146,7 @@ class MainActivity:AppCompatActivity(){
                 runOnUiThread{
                     project.messages += ChatMessage("assistant",answer)
                     saveProjects();renderProject()
-                    BridgeRequest.extract(answer)?.let{executeCommands(it,project)}
+                    executeBridgeBlocks(answer,project)
                 }
             }catch(e:Exception){
                 runOnUiThread{
@@ -165,6 +166,20 @@ class MainActivity:AppCompatActivity(){
             return
         }
         requestAi(project)
+    }
+
+    private fun executeBridgeBlocks(answer:String,project:Project){
+        val blocks=BridgeRequest.extractAll(answer)
+        if(blocks.isEmpty())return
+        val commands=blocks.flatMap{CommandParser.parse(it)}
+        if(commands.isEmpty())return
+        if(commands.size>maxCommandsPerResponse){
+            project.executions += ExecutionRecord("DENIED",blocks.joinToString("\n\n"),"本轮 AI 指令数量 ${commands.size}，超过限制 $maxCommandsPerResponse；本轮未执行任何指令。")
+            project.messages += ChatMessage("tool","[BridgeFS Receipt]\nstatus=DENIED\ncommand=AI command batch\n本轮 AI 指令数量 ${commands.size}，超过限制 $maxCommandsPerResponse；本轮未执行任何指令。")
+            saveProjects();renderProject()
+            return
+        }
+        executeCommands(blocks.joinToString("\n\n"),project)
     }
 
     private fun executeCommands(text:String,project:Project){
