@@ -1,23 +1,77 @@
-name: Android Build
+name: Android Build and Release
+
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - name: Checkout exact triggering commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Verify source commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          echo "Building commit: $GITHUB_SHA"
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.10'
-      - run: gradle :app:assembleDebug
-      - uses: actions/upload-artifact@v4
+
+      - name: Build APK
+        run: gradle :app:assembleDebug
+
+      - name: Prepare fixed APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t APK_FILES < <(find app/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' -print)
+          test "${#APK_FILES[@]}" -eq 1
+          mkdir -p release
+          cp "${APK_FILES[0]}" release/A-BridgeFS.apk
+          test -s release/A-BridgeFS.apk
+
+      - name: Upload SHA-specific artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: A-BridgeFS-debug
-          path: app/build/outputs/apk/debug/*.apk
+          name: A-BridgeFS-${{ github.sha }}
+          path: release/A-BridgeFS.apk
+          if-no-files-found: error
+
+      - name: Publish latest Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          gh release delete latest --cleanup-tag --yes || true
+
+          gh release create latest \
+            release/A-BridgeFS.apk \
+            --target "$GITHUB_SHA" \
+            --title "A-BridgeFS latest" \
+            --notes "Automatically published from commit $GITHUB_SHA."
