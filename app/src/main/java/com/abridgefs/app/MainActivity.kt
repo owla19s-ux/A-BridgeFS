@@ -123,6 +123,10 @@ class MainActivity:AppCompatActivity(){
         val message=chatInput.text.toString().trim()
         if(message.isBlank())return
         val project=current ?: return
+        if(apiInput.text.toString().trim().isBlank() || modelInput.text.toString().trim().isBlank()){
+            Toast.makeText(this,"请先在 API 设置中填写 API 地址和模型名称",Toast.LENGTH_SHORT).show()
+            return
+        }
         autoStepByProject[project.id]=0
         project.messages += ChatMessage("user",message)
         chatInput.text.clear();saveProjects();renderProject()
