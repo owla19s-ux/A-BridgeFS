@@ -21,17 +21,23 @@ class MainActivity:AppCompatActivity(){
     private val store by lazy{ProjectStore(this)}
     private var projects=mutableListOf<Project>()
     private var current:Project?=null
+    private val autoStepByProject=mutableMapOf<String,Int>()
+    private val maxAutoSteps=8
 
     private val receiver=object:BroadcastReceiver(){
         override fun onReceive(context:Context,intent:Intent){
             val status=intent.getStringExtra("status") ?: "UNKNOWN"
             val command=intent.getStringExtra("command") ?: ""
             val message=intent.getStringExtra("message") ?: ""
-            val project=current ?: return
+            val projectId=intent.getStringExtra("projectId") ?: current?.id ?: return
+            val project=projects.firstOrNull{it.id==projectId} ?: return
             project.executions += ExecutionRecord(status,command,message)
-            project.messages += ChatMessage("tool","[BridgeFS Receipt]\nstatus="+status+"\n"+message)
+            project.messages += ChatMessage("tool","[BridgeFS Receipt]\nstatus="+status+"\ncommand="+command+"\n"+message)
             saveProjects()
             runOnUiThread{renderProject()}
+            if(status=="SUCCEEDED"){
+                continueAfterReceipt(project)
+            }
         }
     }
 
@@ -113,6 +119,97 @@ class MainActivity:AppCompatActivity(){
         }
     }
 
+    private fun sendChat(){
+        val message=chatInput.text.toString().trim()
+        if(message.isBlank())return
+        val project=current ?: return
+        autoStepByProject[project.id]=0
+        project.messages += ChatMessage("user",message)
+        chatInput.text.clear();saveProjects();renderProject()
+        requestAi(project)
+    }
+
+    private fun requestAi(project:Project){
+        val config=ApiConfig(apiInput.text.toString().trim(),keyInput.text.toString(),modelInput.text.toString().trim())
+        executor.execute{
+            try{
+                val system="你是 A-BridgeFS 的本地助手。你可以持续对话。需要本地操作时，只输出 [bridgefs] ... [/bridgefs] 操作块，不要声称已经执行；必须等待 BridgeFS Receipt。支持 [list]、[read: 文件]、[write: 文件] 内容 [/write]、[edit: 文件] 旧内容====新内容 [/edit]。收到 [BridgeFS Receipt] 后，根据真实结果继续当前任务；不要重复已经成功的操作。"
+                val messages=project.messages.map{
+                    if(it.role=="tool") ChatMessage("user",it.content) else it
+                }
+                val answer=ApiClient(config).chat(messages,system)
+                runOnUiThread{
+                    project.messages += ChatMessage("assistant",answer)
+                    saveProjects();renderProject()
+                    BridgeRequest.extract(answer)?.let{executeCommands(it,project)}
+                }
+            }catch(e:Exception){
+                runOnUiThread{
+                    project.messages += ChatMessage("tool","[API Error]\n"+(e.message?: "未知错误"))
+                    saveProjects();renderProject()
+                }
+            }
+        }
+    }
+
+    private fun continueAfterReceipt(project:Project){
+        val steps=(autoStepByProject[project.id] ?: 0)+1
+        autoStepByProject[project.id]=steps
+        if(steps>maxAutoSteps){
+            project.messages += ChatMessage("tool","[AI+ 自动执行暂停]\n已达到本轮自动连续执行上限 $maxAutoSteps 步。")
+            saveProjects();renderProject()
+            return
+        }
+        requestAi(project)
+    }
+
+    private fun executeCommands(text:String,project:Project){
+        val auth=authorization()
+        val commands=CommandParser.parse(text)
+        if(commands.isEmpty())return
+        val decision=commands.map{PermissionPolicy.check(it,auth)}
+            .maxByOrNull{when(it){Decision.DENY->3;Decision.CONFIRM->2;Decision.ALLOW->1}} ?: Decision.DENY
+        when(decision){
+            Decision.DENY->{
+                project.executions += ExecutionRecord("DENIED",text,"超出授权范围")
+                project.messages += ChatMessage("tool","[BridgeFS Receipt]\nstatus=DENIED\ncommand="+text+"\n超出授权范围")
+                saveProjects();renderProject()
+            }
+            Decision.CONFIRM->AlertDialog.Builder(this).setTitle("需要确认")
+                .setMessage(text).setPositiveButton("执行"){_,_->startBridge(text,auth,project)}
+                .setNegativeButton("拒绝"){_,_->recordDenied(text,project)}.show()
+            Decision.ALLOW->startBridge(text,auth,project)
+        }
+    }
+
+    private fun startBridge(text:String,auth:Authorization,project:Project){
+        val i=Intent(this,BridgeService::class.java)
+            .putExtra("root",auth.root)
+            .putExtra("command",text)
+            .putExtra("projectId",project.id)
+        i.putStringArrayListExtra("allowed",ArrayList(auth.allowed.map{it.name}))
+        i.putStringArrayListExtra("confirm",ArrayList(auth.confirm.map{it.name}))
+        startForegroundService(i)
+    }
+
+    private fun recordDenied(text:String,project:Project){
+        project.executions += ExecutionRecord("DENIED",text,"用户拒绝执行")
+        project.messages += ChatMessage("tool","[BridgeFS Receipt]\nstatus=DENIED\ncommand="+text+"\n用户拒绝执行")
+        saveProjects();renderProject()
+    }
+
+    private fun authorization():Authorization{
+        val prefs=getPreferences(MODE_PRIVATE)
+        val allowed=mutableSetOf<FileAction>();val confirm=mutableSetOf<FileAction>()
+        FileAction.values().forEach{
+            when(prefs.getString("perm_"+it.name,"allow")){
+                "allow"->allowed+=it
+                "confirm"->{allowed+=it;confirm+=it}
+            }
+        }
+        return Authorization(rootInput.text.toString().trim(),allowed,confirm)
+    }
+
     private fun showPermissions(){
         val actions=FileAction.values()
         val labels=arrayOf("查看目录","读取文件","创建文件","修改文件")
@@ -140,68 +237,6 @@ class MainActivity:AppCompatActivity(){
                 actions.forEachIndexed{i,a->prefs.edit().putString("perm_"+a.name,selected[i]).apply()}
                 Toast.makeText(this,"权限规则已保存",Toast.LENGTH_SHORT).show()
             }.setNegativeButton("关闭",null).show()
-    }
-
-    private fun authorization():Authorization{
-        val prefs=getPreferences(MODE_PRIVATE)
-        val allowed=mutableSetOf<FileAction>();val confirm=mutableSetOf<FileAction>()
-        FileAction.values().forEach{
-            when(prefs.getString("perm_"+it.name,"allow")){
-                "allow"->allowed+=it
-                "confirm"->{allowed+=it;confirm+=it}
-            }
-        }
-        return Authorization(rootInput.text.toString().trim(),allowed,confirm)
-    }
-
-    private fun sendChat(){
-        val message=chatInput.text.toString().trim()
-        if(message.isBlank())return
-        val project=current ?: return
-        project.messages += ChatMessage("user",message)
-        chatInput.text.clear();saveProjects();renderProject()
-        val config=ApiConfig(apiInput.text.toString().trim(),keyInput.text.toString(),modelInput.text.toString().trim())
-        executor.execute{
-            try{
-                val system="你是 A-BridgeFS 的本地助手。你可以持续对话。需要本地操作时，只输出 [bridgefs] ... [/bridgefs] 操作块，不要声称已经执行；必须等待 BridgeFS Receipt。支持 [list]、[read: 文件]、[write: 文件] 内容 [/write]、[edit: 文件] 旧内容====新内容 [/edit]。"
-                val answer=ApiClient(config).chat(project.messages.filter{it.role!="tool"},system)
-                runOnUiThread{
-                    project.messages += ChatMessage("assistant",answer)
-                    saveProjects();renderProject()
-                    BridgeRequest.extract(answer)?.let{executeCommands(it)}
-                }
-            }catch(e:Exception){
-                runOnUiThread{chatView.append("\n\nAPI错误：\n"+(e.message?:"未知错误"))}
-            }
-        }
-    }
-
-    private fun executeCommands(text:String){
-        val auth=authorization()
-        val commands=CommandParser.parse(text)
-        if(commands.isEmpty())return
-        val decision=commands.map{PermissionPolicy.check(it,auth)}
-            .maxByOrNull{when(it){Decision.DENY->3;Decision.CONFIRM->2;Decision.ALLOW->1}} ?: Decision.DENY
-        when(decision){
-            Decision.DENY->{chatView.append("\n\nBridgeFS：已拒绝，超出授权范围。")}
-            Decision.CONFIRM->AlertDialog.Builder(this).setTitle("需要确认")
-                .setMessage(text).setPositiveButton("执行"){_,_->startBridge(text,auth)}
-                .setNegativeButton("拒绝"){_,_->recordDenied(text)}.show()
-            Decision.ALLOW->startBridge(text,auth)
-        }
-    }
-
-    private fun startBridge(text:String,auth:Authorization){
-        val i=Intent(this,BridgeService::class.java).putExtra("root",auth.root).putExtra("command",text)
-        i.putStringArrayListExtra("allowed",ArrayList(auth.allowed.map{it.name}))
-        i.putStringArrayListExtra("confirm",ArrayList(auth.confirm.map{it.name}))
-        startForegroundService(i)
-    }
-
-    private fun recordDenied(text:String){
-        current?.executions?.add(ExecutionRecord("DENIED",text,"用户拒绝执行"))
-        current?.messages?.add(ChatMessage("tool","[BridgeFS Receipt]\nstatus=DENIED\n用户拒绝执行"))
-        saveProjects();renderProject()
     }
 
     private fun saveProjects(){store.save(projects)}
