@@ -14,6 +14,7 @@ class MainActivity:AppCompatActivity(){
     private lateinit var keyInput:EditText
     private lateinit var modelInput:EditText
     private lateinit var rootInput:EditText
+    private lateinit var commandLimitInput:EditText
     private lateinit var chatInput:EditText
     private lateinit var chatView:TextView
     private lateinit var projectTitle:TextView
@@ -23,7 +24,7 @@ class MainActivity:AppCompatActivity(){
     private var current:Project?=null
     private val autoStepByProject=mutableMapOf<String,Int>()
     private val maxAutoSteps=3
-    private val maxCommandsPerResponse=3
+    private val defaultMaxCommandsPerResponse=3
 
     private val receiver=object:BroadcastReceiver(){
         override fun onReceive(context:Context,intent:Intent){
@@ -75,11 +76,13 @@ class MainActivity:AppCompatActivity(){
         keyInput.setText(p.getString("apiKey",""))
         modelInput.setText(p.getString("model",""))
         rootInput.setText(p.getString("root","/storage/emulated/0/A3/A0项目"))
+        commandLimitInput.setText(p.getInt("maxCommandsPerResponse",defaultMaxCommandsPerResponse).toString())
     }
 
     private fun showSettings(){
         val box=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(32,8,32,0)}
-        box.addView(apiInput);box.addView(keyInput);box.addView(modelInput);box.addView(rootInput)
+        commandLimitInput=EditText(this).apply{hint="单次 AI 指令上限（默认 3）";inputType=InputType.TYPE_CLASS_NUMBER;setText(getPreferences(MODE_PRIVATE).getInt("maxCommandsPerResponse",defaultMaxCommandsPerResponse).toString())}
+        box.addView(apiInput);box.addView(keyInput);box.addView(modelInput);box.addView(rootInput);box.addView(commandLimitInput)
         AlertDialog.Builder(this).setTitle("API 设置").setView(box)
             .setPositiveButton("保存"){_,_->saveSettings()}.setNegativeButton("关闭",null).show()
     }
@@ -89,7 +92,8 @@ class MainActivity:AppCompatActivity(){
             .putString("baseUrl",apiInput.text.toString().trim())
             .putString("apiKey",keyInput.text.toString())
             .putString("model",modelInput.text.toString().trim())
-            .putString("root",rootInput.text.toString().trim()).apply()
+            .putString("root",rootInput.text.toString().trim())
+            .putInt("maxCommandsPerResponse",commandLimitInput.text.toString().toIntOrNull()?.coerceIn(1,20) ?: defaultMaxCommandsPerResponse).apply()
         Toast.makeText(this,"已保存",Toast.LENGTH_SHORT).show()
     }
 
@@ -168,14 +172,17 @@ class MainActivity:AppCompatActivity(){
         requestAi(project)
     }
 
+    private fun maxCommandsPerResponse():Int = getPreferences(MODE_PRIVATE).getInt("maxCommandsPerResponse",defaultMaxCommandsPerResponse).coerceIn(1,20)
+
     private fun executeBridgeBlocks(answer:String,project:Project){
         val blocks=BridgeRequest.extractAll(answer)
         if(blocks.isEmpty())return
         val commands=blocks.flatMap{CommandParser.parse(it)}
         if(commands.isEmpty())return
-        if(commands.size>maxCommandsPerResponse){
-            project.executions += ExecutionRecord("DENIED",blocks.joinToString("\n\n"),"本轮 AI 指令数量 ${commands.size}，超过限制 $maxCommandsPerResponse；本轮未执行任何指令。")
-            project.messages += ChatMessage("tool","[BridgeFS Receipt]\nstatus=DENIED\ncommand=AI command batch\n本轮 AI 指令数量 ${commands.size}，超过限制 $maxCommandsPerResponse；本轮未执行任何指令。")
+        val limit=maxCommandsPerResponse()
+        if(commands.size>limit){
+            project.executions += ExecutionRecord("DENIED",blocks.joinToString("\n\n"),"本轮 AI 指令数量 ${commands.size}，超过限制 $limit；本轮未执行任何指令。")
+            project.messages += ChatMessage("tool","[BridgeFS Receipt]\nstatus=DENIED\ncommand=AI command batch\n本轮 AI 指令数量 ${commands.size}，超过限制 $limit；本轮未执行任何指令。")
             saveProjects();renderProject()
             return
         }
