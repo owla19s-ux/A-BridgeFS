@@ -1,1 +1,11 @@
-<resources><style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar"><item name="android:fontFamily">sans</item></style></resources>
+<resources>
+    <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">@color/bridgefs_accent</item>
+        <item name="android:colorControlHighlight">@color/bridgefs_ripple_orange</item>
+        <item name="colorControlHighlight">@color/bridgefs_ripple_orange</item>
+        <item name="android:navigationBarColor">@color/bridgefs_surface</item>
+        <item name="android:statusBarColor">@color/bridgefs_surface</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>
