@@ -5,27 +5,22 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
-data class ApiConfig(val baseUrl: String, val apiKey: String, val model: String)
+data class ApiConfig(val baseUrl:String,val apiKey:String,val model:String)
 
-class ApiClient(private val config: ApiConfig) {
-    fun chat(message: String, system: String? = null): String {
-        val url = URL(config.baseUrl.trimEnd('/') + "/chat/completions")
-        val c = url.openConnection() as HttpURLConnection
-        c.requestMethod = "POST"
-        c.connectTimeout = 15000
-        c.readTimeout = 60000
-        c.doOutput = true
-        c.setRequestProperty("Content-Type", "application/json")
-        if (config.apiKey.isNotBlank()) c.setRequestProperty("Authorization", "Bearer " + config.apiKey)
-        val messages = JSONArray()
-        if (!system.isNullOrBlank()) messages.put(JSONObject().put("role", "system").put("content", system))
-        messages.put(JSONObject().put("role", "user").put("content", message))
-        val body = JSONObject().put("model", config.model).put("messages", messages)
-        c.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
-        val stream = if (c.responseCode in 200..299) c.inputStream else c.errorStream
-        val response = stream.bufferedReader().use { it.readText() }
-        if (c.responseCode !in 200..299) error("API " + c.responseCode + ": " + response)
-        return JSONObject(response).getJSONArray("choices").getJSONObject(0)
-            .getJSONObject("message").optString("content")
+class ApiClient(private val config:ApiConfig) {
+    fun chat(messages:List<ChatMessage>,system:String):String {
+        val url=URL(config.baseUrl.trimEnd('/')+"/chat/completions")
+        val c=url.openConnection() as HttpURLConnection
+        c.requestMethod="POST"; c.connectTimeout=15000; c.readTimeout=60000; c.doOutput=true
+        c.setRequestProperty("Content-Type","application/json")
+        if(config.apiKey.isNotBlank()) c.setRequestProperty("Authorization","Bearer "+config.apiKey)
+        val a=JSONArray().put(JSONObject().put("role","system").put("content",system))
+        messages.forEach{a.put(JSONObject().put("role",it.role).put("content",it.content))}
+        val body=JSONObject().put("model",config.model).put("messages",a)
+        c.outputStream.use{it.write(body.toString().toByteArray(Charsets.UTF_8))}
+        val stream=if(c.responseCode in 200..299)c.inputStream else c.errorStream
+        val response=stream.bufferedReader().use{it.readText()}
+        if(c.responseCode !in 200..299) error("API "+c.responseCode+": "+response)
+        return JSONObject(response).getJSONArray("choices").getJSONObject(0).getJSONObject("message").optString("content")
     }
 }
