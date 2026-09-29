@@ -102,35 +102,19 @@ class SettingsCategoryActivity : Activity() {
     }
 
     private fun buildInstruction(box: LinearLayout) {
-        label(box, "当前 BridgeFS 指令协议")
+        label(box, "A-BridgeFS 指令规范 " + BridgeCommandSpec.version)
         val text = TextView(this).apply {
-            text = """[bridgefs]
-[list]
-[read: 路径]
-[write: 路径]
-文件内容
-[/write]
-[edit: 路径]
-旧内容
-====
-新内容
-[/edit]
-[search: 通配符]
-[grep: 关键词]
-[path: 路径]
-[copy-path: 路径]
-[mkdir: 路径]
-[/bridgefs]""".trimIndent()
-            textSize = 14f
+            text = BridgeCommandSpec.documentation
+            textSize = 13f
             setTextColor(resources.getColor(R.color.bridgefs_text_primary))
             setPadding(dp(12), dp(12), dp(12), dp(12))
             background = rounded(R.color.bridgefs_input_surface, 12)
         }
         box.addView(text, LinearLayout.LayoutParams(-1, -2))
-        box.addView(actionButton("复制全部指令") {
+        box.addView(actionButton("复制全部指令规范") {
             val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
-            cm.setPrimaryClip(android.content.ClipData.newPlainText("BridgeFS指令", text.text))
-            Toast.makeText(this, "已复制", Toast.LENGTH_SHORT).show()
+            cm.setPrimaryClip(android.content.ClipData.newPlainText("A-BridgeFS指令规范", text.text))
+            Toast.makeText(this, "指令规范已复制", Toast.LENGTH_SHORT).show()
         })
     }
 
