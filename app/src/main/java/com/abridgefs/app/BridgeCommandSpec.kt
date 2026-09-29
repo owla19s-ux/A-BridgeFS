@@ -28,19 +28,38 @@ object BridgeCommandSpec {
 
     const val documentation = """A-BridgeFS / BridgeFS 指令规范 V0.1
 
-用途：
-BridgeFS 指令用于让 AI 请求 A-BridgeFS 在当前工作区执行本地文件操作。
-AI 的普通说明文字不会直接执行。
+一、它实际怎么工作
 
-协议边界：
+A-BridgeFS 的「对话」和 BridgeFS 本地执行是两条连接起来的链路：
+
+用户消息 → AI 回复 → 识别 [bridgefs] 区块 → 解析指令 → 权限/数量检查 → BridgeFS 执行 → Receipt（回执）
+
+只有 AI 回复中的 [bridgefs] ... [/bridgefs] 区块会进入自动执行链路。
+普通说明文字、Markdown 代码块或没有这个包裹区块的指令文字，都不会执行。
+
+二、AI 指令协议
+
 [bridgefs]
-...
+[list]
+[read: 相对路径]
+[write: 相对路径]
+文件内容
+[/write]
+[edit: 相对路径]
+旧内容
+====
+新内容
+[/edit]
+[search: 通配符]
+[grep: 关键词]
+[path: 相对路径]
+[copy-path: 相对路径]
+[mkdir: 相对路径]
 [/bridgefs]
 
-在 A-BridgeFS 对话主页中，只有位于 [bridgefs] ... [/bridgefs] 区块内的内容会进入自动执行链路。
-因此 AI 需要执行本地操作时，必须使用这个区块。
+一个区块可以包含多条指令，按出现顺序处理。
 
-可用指令：
+三、可用指令
 
 [list]
 列出当前工作区内容。
@@ -54,7 +73,7 @@ AI 的普通说明文字不会直接执行。
 文件内容
 [/write]
 创建新文件并写入完整内容。
-注意：当前版本如果目标文件已经存在，write 会失败；修改已有文件应使用 edit。
+目标文件已经存在时，write 会失败；修改已有文件应使用 edit。
 
 [edit: 相对路径]
 旧内容
@@ -62,7 +81,6 @@ AI 的普通说明文字不会直接执行。
 新内容
 [/edit]
 在已有文件中查找并替换第一处匹配的旧内容。
-==== 用于分隔旧内容和新内容。
 
 [search: 通配符]
 按文件名搜索。
@@ -83,21 +101,49 @@ AI 的普通说明文字不会直接执行。
 [mkdir: 相对路径]
 创建目录；目录已经存在时返回已存在。
 
-规则：
+四、执行规则
 
-1. 路径默认相对于当前工作区根目录。
-2. 不要使用工作区之外的路径。
-3. AI 执行本地操作时，必须使用 [bridgefs] ... [/bridgefs] 包裹。
-4. 一个区块可以包含多条指令。
-5. 多条指令按照出现顺序执行。
-6. write 用于创建新文件；目标已存在时不会覆盖。
-7. edit 用于修改已有文件。
-8. write 必须使用 [/write] 结束。
-9. edit 必须使用 ==== 分隔旧内容和新内容，并使用 [/edit] 结束。
-10. search 搜索文件名；grep 搜索文件内容。
-11. 当前版本不提供删除、移动、Shell、任意命令执行等操作。
-12. 如果执行失败，A-BridgeFS 会生成 FAILED 回执；AI 不应假设操作已经成功。
-13. A-BridgeFS 的工作区、权限和执行上限由软件本身控制。AI 只负责生成符合规范的请求。"""
+1. 路径默认相对于 A-BridgeFS 当前设置的工作区根目录。
+2. AI 不应使用工作区之外的路径。
+3. AI 请求本地操作时，必须使用 [bridgefs] ... [/bridgefs]。
+4. write 只用于创建新文件，不覆盖已有文件。
+5. edit 用于修改已有文件，并必须提供旧内容、新内容。
+6. write 必须使用 [/write] 结束。
+7. edit 必须使用 ==== 分隔旧内容和新内容，并使用 [/edit] 结束。
+8. search 搜索文件名；grep 搜索文件内容。
+9. 当前版本不提供删除、移动、重命名、Shell 或任意命令执行。
+10. 每轮 AI 指令数量受 A-BridgeFS 的「指令上限」设置限制。
+11. 权限设置可能允许、要求确认或拒绝某项操作。
+12. A-BridgeFS 执行结果以 Receipt 为准，AI 不应在收到 Receipt 前声称本地操作已经成功。
+
+五、Receipt（执行回执）
+
+每次 AI 指令进入执行链后，A-BridgeFS 都会记录结果。
+
+常见状态：
+- SUCCEEDED：BridgeFS 已完成执行。
+- FAILED：执行或解析过程中发生失败。
+- DENIED：被指令数量限制或权限规则拒绝。
+- NOT_TRIGGERED：AI 回复没有 [bridgefs] 区块，因此本轮没有执行本地操作。
+
+回执页面可以直接复制完整 Receipt。
+对话页面也可以使用「粘贴回执」，把最近一次 Receipt 放回输入框，再发送给 AI。
+
+六、AI 应该遵守
+
+- 普通问题直接正常回答。
+- 需要本地文件操作时，输出完整的 [bridgefs] ... [/bridgefs] 区块。
+- 不要只输出裸指令并期待 A-BridgeFS 执行。
+- 不要把普通说明文字当成已经执行。
+- 不要假设 write 覆盖已有文件。
+- 不要假设本地操作成功；根据 Receipt 继续工作。
+
+七、未开放能力
+
+当前版本没有：
+delete、move、rename、shell、任意系统命令执行等能力。
+
+A-BridgeFS 的工作区、权限和执行上限由软件本身控制。AI 只负责生成符合规范的请求。"""
 
     fun aiSystemPrompt(limit: Int): String {
         return "你是 A-BridgeFS 的 AI 协作助手。\n\n" +
