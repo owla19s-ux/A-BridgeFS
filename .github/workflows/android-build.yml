@@ -85,10 +85,13 @@ jobs:
           APK="app/build/outputs/apk/release/app-release.apk"
           test -s "$APK"
 
+          # keytool prints SHA-256 fingerprints with ':' separators,
+          # while apksigner prints the same digest as continuous hex.
+          # Normalize both representations before comparing.
           EXPECTED_SHA256="$(
             sed -n 's/^[[:space:]]*SHA256:[[:space:]]*//p' release/A-BridgeFS-signing-fingerprint.txt |
             head -n 1 |
-            tr -d '[:space:]' |
+            tr -d '[:space:]:' |
             tr '[:lower:]' '[:upper:]'
           )"
 
@@ -99,12 +102,14 @@ jobs:
               print $2
               exit
             }' /tmp/a-bridgefs-apksigner.txt |
-            tr -d '[:space:]' |
+            tr -d '[:space:]:' |
             tr '[:lower:]' '[:upper:]'
           )"
 
           test -n "$EXPECTED_SHA256"
           test -n "$ACTUAL_SHA256"
+          test "${#EXPECTED_SHA256}" -eq 64
+          test "${#ACTUAL_SHA256}" -eq 64
 
           echo "Expected signing certificate SHA-256: $EXPECTED_SHA256"
           echo "Actual APK certificate SHA-256:       $ACTUAL_SHA256"
