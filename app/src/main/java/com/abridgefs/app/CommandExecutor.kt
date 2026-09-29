@@ -5,7 +5,19 @@ import android.content.Context
 import java.io.File
 import java.nio.charset.StandardCharsets
 class CommandExecutor(private val root:File, private val context:Context){
- fun execute(c:Command):String=when(c){Command.ListTree->list();is Command.Read->read(c.path);is Command.Write->write(c.path,c.content);is Command.Edit->edit(c.path,c.old,c.new);is Command.Search->search(c.glob);is Command.Grep->grep(c.keyword);is Command.Path->path(c.path);is Command.CopyPath->copyPath(c.path);is Command.Mkdir->mkdir(c.path)}
+ fun execute(c:Command):String{
+  val started=System.currentTimeMillis()
+  AppLogger.log(context,"COMMAND_RECEIVED",c.toString())
+  return try{
+   val result=when(c){Command.ListTree->list();is Command.Read->read(c.path);is Command.Write->write(c.path,c.content);is Command.Edit->edit(c.path,c.old,c.new);is Command.Search->search(c.glob);is Command.Grep->grep(c.keyword);is Command.Path->path(c.path);is Command.CopyPath->copyPath(c.path);is Command.Mkdir->mkdir(c.path)}
+   val status=when { result.contains("✗") -> "FAIL"; result.contains("⚠") -> "WARN"; else -> "SUCCESS" }
+   AppLogger.log(context,"COMMAND_RESULT","status=$status durationMs=${System.currentTimeMillis()-started} command=${c::class.simpleName}")
+   result
+  }catch(e:Exception){
+   AppLogger.log(context,"COMMAND_EXCEPTION","${e::class.simpleName}: ${e.message}")
+   throw e
+  }
+ }
  private fun file(p:String)=PathSecurity.safe(root,p)
  private fun list():String{
   val s=StringBuilder("[Tool: List]\n");var count=0
