@@ -126,6 +126,11 @@ class MainActivity : Activity() {
         }
 
         contentHost = FrameLayout(this)
+        ViewCompat.setOnApplyWindowInsetsListener(contentHost) { view, insets ->
+            val ime = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
+            view.setPadding(view.paddingLeft, view.paddingTop, view.paddingRight, ime)
+            insets
+        }
         main.addView(contentHost, LinearLayout.LayoutParams(-1, 0, 1f))
 
         val nav = LinearLayout(this).apply {
@@ -657,20 +662,23 @@ class MainActivity : Activity() {
             val row = LinearLayout(this@MainActivity).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
-                setPadding(dp(8), 0, dp(4), 0)
+                setPadding(dp(8), 0, 0, 0)
                 background = rounded(resources.getColor(R.color.bridgefs_surface), dp(8))
             }
             val name = TextView(this@MainActivity).apply {
                 textSize = 14f
                 setSingleLine(true)
                 ellipsize = TextUtils.TruncateAt.END
+                gravity = Gravity.CENTER_VERTICAL
                 setTextColor(resources.getColor(R.color.bridgefs_text_primary))
             }
             val check = CheckBox(this@MainActivity).apply {
                 isFocusable = false
+                gravity = Gravity.CENTER
+                includeFontPadding = false
             }
             row.addView(name, LinearLayout.LayoutParams(0, dp(50), 1f))
-            row.addView(check, LinearLayout.LayoutParams(dp(48), dp(50)))
+            row.addView(check, LinearLayout.LayoutParams(dp(44), dp(50)))
             return Holder(row, name, check)
         }
 
