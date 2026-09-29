@@ -1,4 +1,5 @@
 package com.abridgefs.app
+
 sealed class Command {
  data object ListTree:Command()
  data class Read(val path:String):Command()
@@ -10,41 +11,89 @@ sealed class Command {
  data class CopyPath(val path:String):Command()
  data class Mkdir(val path:String):Command()
 }
+
 object CommandParser {
  var lastError: String? = null
- private val simple=Regex("(?m)^\\s*\\[(list)\\]\\s*$|^\\s*\\[(read|search|grep|path|copy-path|mkdir):\\s*(.*?)\\]\\s*$")
- private val write=Regex("(?s)(?:\\x60\\x60\\x60\\s*)?\\[write:\\s*(.+?)\\]\\s*(.*?)\\[/write\\]\\s*(?:\\x60\\x60\\x60)?")
- private val edit=Regex("(?s)(?:\\x60\\x60\\x60\\s*)?\\[edit:\\s*(.+?)\\]\\s*(.*?)\\[/edit\\]\\s*(?:\\x60\\x60\\x60)?")
+
+ /*
+  * V0.1 parser:
+  * - accepts optional [bridgefs] ... [/bridgefs] wrapper
+  * - accepts commands embedded in normal AI prose / code fences
+  * - keeps command order
+  * - does not treat ordinary prose as executable
+  * - write/edit bodies may contain arbitrary newlines and punctuation
+  */
+ private val wrapperOpen = Regex("(?is)\\[bridgefs\\]")
+ private val wrapperClose = Regex("(?is)\\[/bridgefs\\]")
+ private val simple = Regex(
+     "(?is)\\[(list)\\]|\\[(read|search|grep|path|copy-path|mkdir)\\s*:\\s*([^\\]]+?)\\]"
+ )
+ private val write = Regex(
+     "(?is)\\[write\\s*:\\s*([^\\]]+?)\\]\\s*(.*?)\\[/write\\]"
+ )
+ private val edit = Regex(
+     "(?is)\\[edit\\s*:\\s*([^\\]]+?)\\]\\s*(.*?)\\[/edit\\]"
+ )
+
  fun parse(input:String):List<Command>{
   lastError = null
-  val h=mutableListOf<Pair<Int,Command>>()
-  val trimmed=input.trim()
-  if(trimmed.isBlank()) return emptyList()
-  val hasUnclosedWrite=Regex("(?is)\\[write\\s*:[^\\]]+\\]").containsMatchIn(trimmed) && !write.containsMatchIn(trimmed)
-  if(hasUnclosedWrite){
-   lastError = "write 指令缺少 [/write] 结束标记，未写入文件"
-   return emptyList()
+  if (input.isBlank()) return emptyList()
+
+  // Wrappers are protocol markers, not commands themselves.
+  val normalized = input
+      .replace(wrapperOpen, "")
+      .replace(wrapperClose, "")
+
+  val hits = mutableListOf<Pair<Int, Command>>()
+
+  simple.findAll(normalized).forEach { m ->
+   val whole = m.value.trim()
+   val command = if (whole.equals("[list]", ignoreCase = true)) {
+    Command.ListTree
+   } else {
+    val type = m.groupValues[2].trim().lowercase()
+    val value = m.groupValues[3].trim()
+    when (type) {
+     "read" -> Command.Read(value)
+     "search" -> Command.Search(value)
+     "grep" -> Command.Grep(value)
+     "path" -> Command.Path(value)
+     "copy-path" -> Command.CopyPath(value)
+     "mkdir" -> Command.Mkdir(value)
+     else -> return@forEach
+    }
+   }
+   hits += m.range.first to command
   }
-  simple.findAll(input).forEach{
-   val s=it.value.trim()
-   h+=it.range.first to when{
-    s=="[list]"->Command.ListTree
-    s.startsWith("[read:")->Command.Read(it.groupValues[3].trim())
-    s.startsWith("[search:")->Command.Search(it.groupValues[3].trim())
-    s.startsWith("[grep:")->Command.Grep(it.groupValues[3].trim())
-    s.startsWith("[path:")->Command.Path(it.groupValues[3].trim())
-    s.startsWith("[mkdir:")->Command.Mkdir(it.groupValues[3].trim())
-    else->Command.CopyPath(it.groupValues[3].trim())
+
+  write.findAll(normalized).forEach { m ->
+   val path = m.groupValues[1].trim()
+   if (path.isNotBlank()) hits += m.range.first to Command.Write(path, m.groupValues[2])
+  }
+
+  edit.findAll(normalized).forEach { m ->
+   val body = m.groupValues[2]
+   val separator = body.indexOf("====")
+   if (separator >= 0) {
+    val old = body.substring(0, separator)
+    val new = body.substring(separator + 4)
+    hits += m.range.first to Command.Edit(m.groupValues[1].trim(), old, new)
+   } else {
+    lastError = "edit 指令缺少 ==== 分隔符，未执行该修改"
    }
   }
-  write.findAll(input).forEach{h+=it.range.first to Command.Write(it.groupValues[1].trim(),it.groupValues[2])}
-  edit.findAll(input).forEach{
-   val b=it.groupValues[2]
-   val p=b.indexOf("====")
-   if(p>=0)h+=it.range.first to Command.Edit(it.groupValues[1].trim(),b.substring(0,p),b.substring(p+4))
+
+  val result = hits.sortedBy { it.first }.map { it.second }
+  if (result.isEmpty()) {
+   val hasWriteStart = Regex("(?is)\\[write\\s*:[^\\]]+?\\]").containsMatchIn(normalized)
+   val hasEditStart = Regex("(?is)\\[edit\\s*:[^\\]]+?\\]").containsMatchIn(normalized)
+   lastError = when {
+    hasWriteStart -> "write 指令缺少 [/write] 结束标记，未写入文件"
+    hasEditStart && lastError == null -> "edit 指令格式不完整，未执行修改"
+    lastError != null -> lastError
+    else -> "未识别到可执行的 BridgeFS 指令，请使用 [bridgefs]、[list]、[read: 路径]、[write: 路径]... 格式"
+   }
   }
-  val result=h.sortedBy{it.first}.map{it.second}
-  if(result.isEmpty()) lastError = "未识别到可执行的 BridgeFS 指令，请使用 [list]、[read: 路径] 等格式"
   return result
  }
 }
