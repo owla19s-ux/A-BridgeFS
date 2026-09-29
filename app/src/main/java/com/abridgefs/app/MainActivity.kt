@@ -283,21 +283,6 @@ class MainActivity : Activity() {
             })
         }
 
-        if (pendingReceipt != null) {
-            val banner = TextView(this).apply {
-                text = "🔔 新执行回执\n已自动准备，点击「粘贴回执」即可放入输入框。"
-                textSize = 13f
-                setTextColor(resources.getColor(R.color.bridgefs_text_primary))
-                setPadding(dp(12), dp(10), dp(12), dp(10))
-                background = rounded(resources.getColor(R.color.bridgefs_input_surface), dp(12))
-                setOnClickListener { screen = Screen.RECEIPTS; render() }
-            }
-            chatColumn.addView(banner, LinearLayout.LayoutParams(-1, -2).apply {
-                topMargin = dp(8)
-                bottomMargin = dp(8)
-            })
-        }
-
         chatScroll.addView(chatColumn)
         root.addView(chatScroll, LinearLayout.LayoutParams(-1, 0, 1f))
 
@@ -348,6 +333,7 @@ class MainActivity : Activity() {
         val actions = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             addView(paste, LinearLayout.LayoutParams(dp(82), dp(38)))
+            addView(smallAction("指令说明") { showInstructionDialog() }, LinearLayout.LayoutParams(dp(82), dp(38)).apply { topMargin = dp(4) })
             addView(expand, LinearLayout.LayoutParams(dp(82), dp(38)).apply { topMargin = dp(4) })
         }
 
@@ -356,6 +342,30 @@ class MainActivity : Activity() {
         inputRow.addView(send, LinearLayout.LayoutParams(dp(58), dp(82)).apply { marginStart = dp(6) })
 
         root.addView(inputRow, LinearLayout.LayoutParams(-1, dp(92)).apply { topMargin = dp(6) })
+
+        if (pendingReceipt != null) {
+            val latest = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(10), dp(6), dp(8), dp(6))
+                background = rounded(resources.getColor(R.color.bridgefs_input_surface), dp(10))
+            }
+            latest.addView(TextView(this).apply {
+                text = "最新回执：已完成，点击「粘贴回执」放入输入框"
+                textSize = 12f
+                setTextColor(resources.getColor(R.color.bridgefs_text_primary))
+            }, LinearLayout.LayoutParams(0, dp(40), 1f))
+            latest.setOnClickListener {
+                chatInputField?.setText(pendingReceipt.orEmpty())
+                chatInputField?.setSelection(chatInputField?.text?.length ?: 0)
+                pendingReceipt = null
+                prefs.edit().remove("pending_receipt").apply()
+                saveProjects()
+                updateNav()
+            }
+            root.addView(latest, LinearLayout.LayoutParams(-1, dp(52)).apply { topMargin = dp(4) })
+        }
+
         root.viewTreeObserver.addOnGlobalLayoutListener {
             val visible = android.graphics.Rect()
             root.getWindowVisibleDisplayFrame(visible)
@@ -415,6 +425,36 @@ class MainActivity : Activity() {
             (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager)
                 .showSoftInput(edit, InputMethodManager.SHOW_IMPLICIT)
         }
+    }
+
+    private fun showInstructionDialog() {
+        val protocol = """[bridgefs]
+[list]
+[read: 路径]
+[write: 路径]
+文件内容
+[/write]
+[edit: 路径]
+旧内容
+====
+新内容
+[/edit]
+[search: 通配符]
+[grep: 关键词]
+[path: 路径]
+[copy-path: 路径]
+[mkdir: 路径]
+[/bridgefs]""".trimIndent()
+        AlertDialog.Builder(this)
+            .setTitle("BridgeFS 指令说明")
+            .setMessage(protocol)
+            .setPositiveButton("复制全部") { _, _ ->
+                val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                cm.setPrimaryClip(android.content.ClipData.newPlainText("BridgeFS指令说明", protocol))
+                Toast.makeText(this, "指令说明已复制", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("关闭", null)
+            .show()
     }
 
     private fun sendChat() {
