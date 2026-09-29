@@ -58,8 +58,7 @@ class MainActivity : Activity() {
             val project = projects.firstOrNull { it.id == projectId } ?: currentProject
             val receipt = BridgeReceiptRecord(status, command, message)
             project?.executions?.add(receipt)
-            pendingReceipt = formatReceipt(receipt)
-            prefs.edit().remove("pending_receipt").apply()
+            setPendingReceipt(receipt, project?.id)
             saveProjects()
             render()
             Toast.makeText(this@MainActivity, "🔔 收到新的执行回执", Toast.LENGTH_SHORT).show()
@@ -266,19 +265,32 @@ class MainActivity : Activity() {
         }
 
         project?.messages?.forEach { message ->
-            val bubble = TextView(this).apply {
-                text = message.content
-                textSize = 14f
-                setTextColor(resources.getColor(R.color.bridgefs_text_primary))
-                setPadding(dp(12), dp(10), dp(12), dp(10))
+            val bubbleBox = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(10), dp(8), dp(8), dp(6))
                 background = rounded(
                     if (message.role == "user") resources.getColor(R.color.bridgefs_button_bg)
                     else resources.getColor(R.color.bridgefs_input_surface),
                     dp(14)
                 )
             }
+            val bubble = TextView(this).apply {
+                text = message.content
+                textSize = 14f
+                setTextColor(resources.getColor(R.color.bridgefs_text_primary))
+                setPadding(dp(2), dp(2), dp(2), dp(4))
+                setTextIsSelectable(true)
+            }
+            val copy = smallAction("复制") {
+                copyToClipboard(if (message.role == "user") "用户消息" else "AI 回复", message.content)
+                Toast.makeText(this@MainActivity, "消息已复制", Toast.LENGTH_SHORT).show()
+            }
+            bubbleBox.addView(bubble, LinearLayout.LayoutParams(-1, -2))
+            bubbleBox.addView(copy, LinearLayout.LayoutParams(dp(58), dp(30)).apply {
+                gravity = if (message.role == "user") Gravity.END else Gravity.START
+            })
             val wrap = FrameLayout(this)
-            wrap.addView(bubble, FrameLayout.LayoutParams(-2, -2).apply {
+            wrap.addView(bubbleBox, FrameLayout.LayoutParams(-2, -2).apply {
                 width = (resources.displayMetrics.widthPixels * 0.82f).toInt()
                 gravity = if (message.role == "user") Gravity.END else Gravity.START
             })
@@ -356,7 +368,8 @@ class MainActivity : Activity() {
                 background = rounded(resources.getColor(R.color.bridgefs_input_surface), dp(10))
             }
             latest.addView(TextView(this).apply {
-                text = "最新回执：已完成，点击「粘贴回执」放入输入框"
+                val status = project?.executions?.lastOrNull()?.status ?: "UNKNOWN"
+                text = "最新回执：$status，点击「粘贴回执」放入输入框"
                 textSize = 12f
                 setTextColor(resources.getColor(R.color.bridgefs_text_primary))
             }, LinearLayout.LayoutParams(0, dp(40), 1f))
@@ -503,30 +516,41 @@ class MainActivity : Activity() {
 
     private fun executeAiCommands(answer: String, project: BridgeProject, limit: Int) {
         val blocks = BridgeRequest.extractAll(answer)
-        if (blocks.isEmpty()) return
+        if (blocks.isEmpty()) {
+            val receipt = BridgeReceiptRecord("NOT_TRIGGERED", "AI command", "AI 回复未包含 [bridgefs]...[/bridgefs] 指令区块，本轮未执行本地操作。")
+            project.executions += receipt
+            setPendingReceipt(receipt, project.id)
+            saveProjects()
+            render()
+            return
+        }
 
         val commands = blocks.flatMap { CommandParser.parse(it) }
         if (commands.isEmpty()) {
             val error = CommandParser.lastError ?: "未识别到 BridgeFS 指令"
-            project.executions += BridgeReceiptRecord("FAILED", "AI command", error)
+            val receipt = BridgeReceiptRecord("FAILED", "AI command", error)
+            project.executions += receipt
+            setPendingReceipt(receipt, project.id)
             saveProjects()
+            render()
             return
         }
 
         if (commands.size > limit) {
-            project.executions += BridgeReceiptRecord(
-                "DENIED",
-                "AI command batch",
-                "本轮指令数量 " + commands.size + " 超过限制 " + limit + "，未执行。"
-            )
+            val receipt = BridgeReceiptRecord("DENIED", "AI command batch", "本轮指令数量 " + commands.size + " 超过限制 " + limit + "，未执行。")
+            project.executions += receipt
+            setPendingReceipt(receipt, project.id)
             saveProjects()
+            render()
             return
         }
 
         val auth = authorization()
         val denied = commands.firstOrNull { PermissionPolicy.check(it, auth) == Decision.DENY }
         if (denied != null) {
-            project.executions += BridgeReceiptRecord("DENIED", denied.toString(), "当前权限设置禁止该操作")
+            val receipt = BridgeReceiptRecord("DENIED", denied.toString(), "当前权限设置禁止该操作")
+            project.executions += receipt
+            setPendingReceipt(receipt, project.id)
             saveProjects()
             render()
             return
@@ -545,6 +569,11 @@ class MainActivity : Activity() {
     private fun dispatchToBridge(command: String, project: BridgeProject) {
         val root = prefs.getString("root_path", "").orEmpty().trim()
         if (root.isBlank()) {
+            val receipt = BridgeReceiptRecord("FAILED", "AI command", "未设置 BridgeFS 工作目录，指令未执行。")
+            project.executions += receipt
+            setPendingReceipt(receipt, project.id)
+            saveProjects()
+            render()
             Toast.makeText(this, "请先设置 BridgeFS 工作目录", Toast.LENGTH_SHORT).show()
             drawer.openDrawer(GravityCompat.END)
             return
@@ -556,6 +585,11 @@ class MainActivity : Activity() {
         runCatching {
             startForegroundService(intent)
         }.onFailure {
+            val receipt = BridgeReceiptRecord("FAILED", "AI command", "启动 BridgeFS 执行服务失败：" + (it.message ?: "未知错误"))
+            project.executions += receipt
+            setPendingReceipt(receipt, project.id)
+            saveProjects()
+            render()
             Toast.makeText(this, "启动 BridgeFS 执行服务失败：" + it.message, Toast.LENGTH_LONG).show()
         }
     }
@@ -703,16 +737,27 @@ class MainActivity : Activity() {
                 orientation = LinearLayout.VERTICAL
             }
             project?.executions?.asReversed()?.forEach { receipt ->
-                val card = TextView(this).apply {
+                val card = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setPadding(dp(12), dp(10), dp(8), dp(8))
+                    background = rounded(resources.getColor(R.color.bridgefs_input_surface), dp(12))
+                    setOnClickListener { showReceiptDetail(receipt) }
+                }
+                card.addView(TextView(this).apply {
                     text = receiptSummary(receipt)
                     textSize = 13f
                     setTextColor(resources.getColor(R.color.bridgefs_text_primary))
-                    setPadding(dp(12), dp(12), dp(12), dp(12))
-                    background = rounded(resources.getColor(R.color.bridgefs_input_surface), dp(12))
-                    setOnClickListener {
-                        showReceiptDetail(receipt)
-                    }
+                    setPadding(0, 0, 0, dp(6))
+                }, LinearLayout.LayoutParams(-1, -2))
+                val actions = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.END
                 }
+                actions.addView(smallAction("复制回执") {
+                    copyToClipboard("BridgeFS回执", formatReceipt(receipt))
+                    Toast.makeText(this@MainActivity, "回执已复制", Toast.LENGTH_SHORT).show()
+                }, LinearLayout.LayoutParams(dp(82), dp(32)))
+                card.addView(actions, LinearLayout.LayoutParams(-1, dp(34)))
                 list.addView(card, LinearLayout.LayoutParams(-1, -2).apply {
                     topMargin = dp(5)
                     bottomMargin = dp(5)
@@ -722,6 +767,23 @@ class MainActivity : Activity() {
             root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         }
         contentHost.addView(root)
+    }
+
+    private fun copyToClipboard(label: String, text: String) {
+        val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        cm.setPrimaryClip(android.content.ClipData.newPlainText(label, text))
+    }
+
+    private fun setPendingReceipt(receipt: BridgeReceiptRecord, projectId: String? = currentProject?.id) {
+        pendingReceipt = formatReceipt(receipt)
+        val obj = org.json.JSONObject().apply {
+            put("status", receipt.status)
+            put("command", receipt.command)
+            put("message", receipt.message)
+            put("time", receipt.time)
+            put("projectId", projectId.orEmpty())
+        }
+        prefs.edit().putString("pending_receipt", obj.toString()).apply()
     }
 
     private fun showReceiptDetail(receipt: BridgeReceiptRecord) {
