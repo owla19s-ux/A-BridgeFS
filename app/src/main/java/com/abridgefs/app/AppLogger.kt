@@ -2,6 +2,8 @@ package com.abridgefs.app
 
 import android.content.Context
 import java.io.File
+import java.io.PrintWriter
+import java.io.StringWriter
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -16,7 +18,8 @@ object AppLogger {
             val dir = File(context.filesDir, DIR).apply { mkdirs() }
             val day = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
             val time = SimpleDateFormat("HH:mm:ss.SSS", Locale.US).format(Date())
-            File(dir, "$day.log").appendText("[$time] $event${if (detail.isBlank()) "" else " | $detail"}\n")
+            val suffix = if (detail.isBlank()) "" else " | $detail"
+            File(dir, "$day.log").appendText("[$time] $event$suffix\n")
         }
     }
 
@@ -25,13 +28,13 @@ object AppLogger {
             val dir = File(context.filesDir, CRASH_DIR).apply { mkdirs() }
             val stamp = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(Date())
             val file = File(dir, "crash_$stamp.log")
+            val stack = StringWriter().also { throwable.printStackTrace(PrintWriter(it)) }.toString()
             file.writeText(buildString {
                 appendLine("time=$stamp")
                 appendLine("package=${context.packageName}")
-                appendLine("version=${BuildConfig.VERSION_NAME}")
                 appendLine("thread=${Thread.currentThread().name}")
                 appendLine()
-                throwable.printStackTrace(java.io.PrintWriter(this))
+                append(stack)
             })
         }
     }
