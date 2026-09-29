@@ -209,7 +209,7 @@ class MainActivity : Activity() {
             setPadding(dp(12), 0, dp(12), 0)
             background = rounded(resources.getColor(R.color.bridgefs_input_surface), dp(12))
             setOnClickListener {
-                drawer.openDrawer(GravityCompat.END)
+                startActivity(Intent(this@MainActivity, ApiSettingsActivity::class.java))
             }
         }
         root.addView(apiRow, LinearLayout.LayoutParams(-1, dp(46)))
@@ -700,57 +700,20 @@ class MainActivity : Activity() {
             text = "设置"
             textSize = 22f
             setTypeface(null, 1)
-        }, LinearLayout.LayoutParams(-1, dp(44)))
+            setTextColor(resources.getColor(R.color.bridgefs_text_primary))
+        }, LinearLayout.LayoutParams(-1, dp(48)))
 
-        box.addView(TextView(this).apply {
-            text = "AI / API"
-            textSize = 15f
-            setTypeface(null, 1)
-            setPadding(0, dp(12), 0, dp(6))
+        box.addView(settingCategory("AI 与 API", "API、Model、连接测试") {
+            startActivity(Intent(this, ApiSettingsActivity::class.java))
         })
 
-        val api = EditText(this).apply {
-            hint = "API 地址，例如 https://.../v1"
-            setText(prefs.getString("api_base_url", ""))
-        }
-        val key = EditText(this).apply {
-            hint = "API Key"
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-            setText(prefs.getString("api_key", ""))
-        }
-        val model = EditText(this).apply {
-            hint = "模型名称"
-            setText(prefs.getString("api_model", ""))
-        }
-        box.addView(api, LinearLayout.LayoutParams(-1, dp(50)))
-        box.addView(key, LinearLayout.LayoutParams(-1, dp(50)))
-        box.addView(model, LinearLayout.LayoutParams(-1, dp(50)))
-
-        box.addView(TextView(this).apply {
-            text = "BridgeFS"
-            textSize = 15f
-            setTypeface(null, 1)
-            setPadding(0, dp(14), 0, dp(6))
-        })
-        val rootInput = EditText(this).apply {
-            hint = "工作目录"
-            setText(prefs.getString("root_path", ""))
-        }
-        box.addView(rootInput, LinearLayout.LayoutParams(-1, dp(50)))
-
+        box.addView(sectionTitle("执行与权限"))
         val limitInput = EditText(this).apply {
             hint = "每次 AI 回复最多执行几条指令"
             inputType = InputType.TYPE_CLASS_NUMBER
             setText(prefs.getInt("command_limit", 3).toString())
         }
         box.addView(limitInput, LinearLayout.LayoutParams(-1, dp(50)))
-
-        box.addView(TextView(this).apply {
-            text = "执行权限"
-            textSize = 15f
-            setTypeface(null, 1)
-            setPadding(0, dp(14), 0, dp(6))
-        })
 
         val labels = arrayOf("查看目录", "读取文件", "创建文件", "修改文件")
         val actions = FileAction.values()
@@ -763,32 +726,28 @@ class MainActivity : Activity() {
             row.addView(TextView(this@MainActivity).apply {
                 text = labels[index]
                 textSize = 13f
+                setTextColor(resources.getColor(R.color.bridgefs_text_primary))
             }, LinearLayout.LayoutParams(0, dp(46), 1f))
             val spinner = Spinner(this@MainActivity)
-            spinner.adapter = ArrayAdapter(
-                this@MainActivity,
-                android.R.layout.simple_spinner_dropdown_item,
-                arrayOf("允许", "需确认", "禁止")
-            )
-            spinner.setSelection(
-                when (prefs.getString("perm_" + action.name, if (action == FileAction.LIST || action == FileAction.READ) "allow" else "confirm")) {
-                    "confirm" -> 1
-                    "deny" -> 2
-                    else -> 0
-                }
-            )
+            spinner.adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, arrayOf("允许", "需确认", "禁止"))
+            spinner.setSelection(when (prefs.getString("perm_" + action.name, if (action == FileAction.LIST || action == FileAction.READ) "allow" else "confirm")) {
+                "confirm" -> 1
+                "deny" -> 2
+                else -> 0
+            })
             spinners += spinner
             row.addView(spinner, LinearLayout.LayoutParams(dp(100), dp(46)))
             box.addView(row)
         }
 
-        box.addView(TextView(this).apply {
-            text = "系统"
-            textSize = 15f
-            setTypeface(null, 1)
-            setPadding(0, dp(14), 0, dp(6))
-        })
+        box.addView(sectionTitle("文件与目录"))
+        val rootInput = EditText(this).apply {
+            hint = "当前工作目录"
+            setText(prefs.getString("root_path", ""))
+        }
+        box.addView(rootInput, LinearLayout.LayoutParams(-1, dp(50)))
 
+        box.addView(sectionTitle("系统"))
         box.addView(smallAction("悬浮窗权限") {
             if (!Settings.canDrawOverlays(this)) {
                 startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + packageName)))
@@ -801,7 +760,6 @@ class MainActivity : Activity() {
             isChecked = prefs.getBoolean("auto_show_overlay", true)
         }
         box.addView(autoShow, LinearLayout.LayoutParams(-1, dp(44)))
-
         box.addView(TextView(this).apply {
             text = "ColorOS 可能还需要允许后台运行、自启动。"
             textSize = 12f
@@ -811,23 +769,14 @@ class MainActivity : Activity() {
 
         box.addView(smallAction("保存设置") {
             prefs.edit()
-                .putString("api_base_url", api.text.toString().trim())
-                .putString("api_key", key.text.toString())
-                .putString("api_model", model.text.toString().trim())
-                .putString("root_path", rootInput.text.toString().trim())
                 .putInt("command_limit", limitInput.text.toString().toIntOrNull()?.coerceIn(1, 20) ?: 3)
                 .putBoolean("auto_show_overlay", autoShow.isChecked)
+                .putString("root_path", rootInput.text.toString().trim())
                 .apply()
-
             actions.forEachIndexed { index, action ->
-                val value = when (spinners[index].selectedItemPosition) {
-                    1 -> "confirm"
-                    2 -> "deny"
-                    else -> "allow"
-                }
+                val value = when (spinners[index].selectedItemPosition) { 1 -> "confirm"; 2 -> "deny"; else -> "allow" }
                 prefs.edit().putString("perm_" + action.name, value).apply()
             }
-
             currentPath = File(rootInput.text.toString().trim().ifBlank { "/storage/emulated/0" })
             Toast.makeText(this, "设置已保存", Toast.LENGTH_SHORT).show()
             drawer.closeDrawer(GravityCompat.END)
@@ -835,12 +784,36 @@ class MainActivity : Activity() {
             autoStartIfNeeded(false)
         }, LinearLayout.LayoutParams(-1, dp(46)).apply { topMargin = dp(12) })
 
-        box.addView(smallAction("关闭设置") {
-            drawer.closeDrawer(GravityCompat.END)
-        }, LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(6) })
-
+        box.addView(smallAction("关闭设置") { drawer.closeDrawer(GravityCompat.END) }, LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(6) })
         scroll.addView(box)
         return scroll
+    }
+
+    private fun settingCategory(title: String, summary: String, action: () -> Unit) = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        gravity = Gravity.CENTER_VERTICAL
+        setPadding(dp(12), 0, dp(10), 0)
+        background = rounded(resources.getColor(R.color.bridgefs_input_surface), dp(12))
+        setOnClickListener { action() }
+        addView(TextView(this@MainActivity).apply {
+            text = title + "  ›"
+            textSize = 15f
+            setTypeface(null, 1)
+            setTextColor(resources.getColor(R.color.bridgefs_text_primary))
+        }, LinearLayout.LayoutParams(-1, dp(28)))
+        addView(TextView(this@MainActivity).apply {
+            text = summary
+            textSize = 12f
+            setTextColor(resources.getColor(R.color.bridgefs_text_secondary))
+        }, LinearLayout.LayoutParams(-1, dp(24)))
+    }.also { it.layoutParams = LinearLayout.LayoutParams(-1, dp(68)).apply { bottomMargin = dp(12) } }
+
+    private fun sectionTitle(text: String) = TextView(this).apply {
+        this.text = text
+        textSize = 15f
+        setTypeface(null, 1)
+        setTextColor(resources.getColor(R.color.bridgefs_text_primary))
+        setPadding(0, dp(12), 0, dp(6))
     }
 
     private fun apiLabel(): String {
