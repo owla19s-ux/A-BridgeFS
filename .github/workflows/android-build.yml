@@ -41,6 +41,33 @@ jobs:
         with:
           gradle-version: '8.10'
 
+
+      - name: Export signing key fingerprint
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          test -n "${KEYSTORE_BASE64}"
+          test -n "${KEYSTORE_PASSWORD}"
+          test -n "${KEY_ALIAS}"
+
+          printf '%s' "${KEYSTORE_BASE64}" | base64 --decode > my-release-key.jks
+          mkdir -p release
+
+          keytool -list -v \
+            -keystore my-release-key.jks \
+            -alias "${KEY_ALIAS}" \
+            -storepass "${KEYSTORE_PASSWORD}" \
+            | awk -F': ' '/^Certificate fingerprints:/,/^$/ { if ($1 == "SHA256") print $0 }' \
+            > release/A-BridgeFS-signing-fingerprint.txt
+
+          test -s release/A-BridgeFS-signing-fingerprint.txt
+          cat release/A-BridgeFS-signing-fingerprint.txt
+          rm -f my-release-key.jks
+
       - name: Build APK
         run: gradle :app:assembleDebug
 
@@ -58,7 +85,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: A-BridgeFS-${{ github.sha }}
-          path: release/A-BridgeFS.apk
+          path: |
+            release/A-BridgeFS.apk
+            release/A-BridgeFS-signing-fingerprint.txt
           if-no-files-found: error
 
       - name: Publish latest Release
@@ -72,6 +101,7 @@ jobs:
 
           gh release create latest \
             release/A-BridgeFS.apk \
+            release/A-BridgeFS-signing-fingerprint.txt \
             --target "$GITHUB_SHA" \
             --title "A-BridgeFS latest" \
             --notes "Automatically published from commit $GITHUB_SHA."
