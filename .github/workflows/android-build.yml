@@ -85,12 +85,22 @@ jobs:
           APK="app/build/outputs/apk/release/app-release.apk"
           test -s "$APK"
 
-          EXPECTED_SHA256="$(sed -n 's/^[[:space:]]*SHA256:[[:space:]]*//p' release/A-BridgeFS-signing-fingerprint.txt | head -n 1 | tr -d '[:space:]')"
-          ACTUAL_SHA256="$(
-            "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK" |
-            sed -n 's/^Signer #1 certificate SHA-256 digest:[[:space:]]*//p' |
+          EXPECTED_SHA256="$(
+            sed -n 's/^[[:space:]]*SHA256:[[:space:]]*//p' release/A-BridgeFS-signing-fingerprint.txt |
             head -n 1 |
-            tr -d '[:space:]'
+            tr -d '[:space:]' |
+            tr '[:lower:]' '[:upper:]'
+          )"
+
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK" > /tmp/a-bridgefs-apksigner.txt
+
+          ACTUAL_SHA256="$(
+            awk -F': ' '/^Signer #1 certificate SHA-256 digest:/ {
+              print $2
+              exit
+            }' /tmp/a-bridgefs-apksigner.txt |
+            tr -d '[:space:]' |
+            tr '[:lower:]' '[:upper:]'
           )"
 
           test -n "$EXPECTED_SHA256"
