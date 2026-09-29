@@ -60,7 +60,10 @@ jobs:
           keytool -list -v \
             -keystore my-release-key.jks \
             -storepass "${KEYSTORE_PASSWORD}" \
-            | grep -m1 '^ *SHA256:' \
+            > /tmp/bridgefs-keytool.txt
+
+          awk '/^Certificate fingerprints:/ {inside=1; next} inside && /^[[:space:]]*SHA256:/ {print; found=1; exit} END {if (!found) exit 1}' \
+            /tmp/bridgefs-keytool.txt \
             > release/A-BridgeFS-signing-fingerprint.txt
 
           test -s release/A-BridgeFS-signing-fingerprint.txt
