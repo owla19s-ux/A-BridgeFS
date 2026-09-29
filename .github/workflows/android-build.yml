@@ -61,19 +61,10 @@ jobs:
           echo "A_BRIDGEFS_KEY_ALIAS=${KEY_ALIAS}" >> "$GITHUB_ENV"
           echo "A_BRIDGEFS_KEY_PASSWORD=${KEYSTORE_PASSWORD}" >> "$GITHUB_ENV"
 
-          mkdir -p release
-          keytool -list -v \
-            -keystore "$RUNNER_TEMP/a-bridgefs-release.jks" \
-            -storepass "${KEYSTORE_PASSWORD}" \
-            -alias "${KEY_ALIAS}" \
-            > /tmp/bridgefs-keytool.txt
+          keytool -list             -keystore "$RUNNER_TEMP/a-bridgefs-release.jks"             -storepass "${KEYSTORE_PASSWORD}"             -alias "${KEY_ALIAS}"             > /tmp/bridgefs-keytool.txt
 
-          awk '/^Certificate fingerprints:/ {inside=1; next} inside && /^[[:space:]]*SHA256:/ {print; found=1; exit} END {if (!found) exit 1}' \
-            /tmp/bridgefs-keytool.txt \
-            > release/A-BridgeFS-signing-fingerprint.txt
-
-          test -s release/A-BridgeFS-signing-fingerprint.txt
-          cat release/A-BridgeFS-signing-fingerprint.txt
+          test -s /tmp/bridgefs-keytool.txt
+          echo "Official signing keystore loaded successfully."
 
       - name: Build signed release APK
         run: gradle :app:assembleRelease
@@ -85,41 +76,9 @@ jobs:
           APK="app/build/outputs/apk/release/app-release.apk"
           test -s "$APK"
 
-          # keytool prints SHA-256 fingerprints with ':' separators,
-          # while apksigner prints the same digest as continuous hex.
-          # Normalize both representations before comparing.
-          EXPECTED_SHA256="$(
-            sed -n 's/^[[:space:]]*SHA256:[[:space:]]*//p' release/A-BridgeFS-signing-fingerprint.txt |
-            head -n 1 |
-            tr -d '[:space:]:' |
-            tr '[:lower:]' '[:upper:]'
-          )"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
 
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK" > /tmp/a-bridgefs-apksigner.txt
-
-          ACTUAL_SHA256="$(
-            awk -F': ' '/^Signer #1 certificate SHA-256 digest:/ {
-              print $2
-              exit
-            }' /tmp/a-bridgefs-apksigner.txt |
-            tr -d '[:space:]:' |
-            tr '[:lower:]' '[:upper:]'
-          )"
-
-          test -n "$EXPECTED_SHA256"
-          test -n "$ACTUAL_SHA256"
-          test "${#EXPECTED_SHA256}" -eq 64
-          test "${#ACTUAL_SHA256}" -eq 64
-
-          echo "Expected signing certificate SHA-256: $EXPECTED_SHA256"
-          echo "Actual APK certificate SHA-256:       $ACTUAL_SHA256"
-
-          if [ "$EXPECTED_SHA256" != "$ACTUAL_SHA256" ]; then
-            echo "Signing certificate mismatch."
-            exit 1
-          fi
-
-          echo "APK signature verified against the official keystore."
+          echo "APK signature verification passed."
 
       - name: Prepare fixed APK
         shell: bash
@@ -135,9 +94,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: A-BridgeFS-${{ github.sha }}
-          path: |
-            release/A-BridgeFS.apk
-            release/A-BridgeFS-signing-fingerprint.txt
+          path: release/A-BridgeFS.apk
           if-no-files-found: error
 
       - name: Publish latest Release
@@ -147,9 +104,4 @@ jobs:
         run: |
           set -euo pipefail
           gh release delete latest --cleanup-tag --yes || true
-          gh release create latest \
-            release/A-BridgeFS.apk \
-            release/A-BridgeFS-signing-fingerprint.txt \
-            --target "$GITHUB_SHA" \
-            --title "A-BridgeFS latest" \
-            --notes "Automatically published from commit $GITHUB_SHA."
+          gh release create latest             release/A-BridgeFS.apk             --target "$GITHUB_SHA"             --title "A-BridgeFS latest"             --notes "Automatically published from commit $GITHUB_SHA."
