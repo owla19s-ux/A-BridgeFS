@@ -84,8 +84,27 @@ jobs:
           set -euo pipefail
           APK="app/build/outputs/apk/release/app-release.apk"
           test -s "$APK"
-          $ANDROID_HOME/build-tools/35.0.0/apksigner verify --verbose --print-certs "$APK" | tee /tmp/apk-certs.txt
-          grep -F "Signer #1 certificate SHA-256 digest: 23:E8:5B:DB:18:CD:3B:47:24:B1:69:25:4E:E6:79:F1:0F:80:2D:CA:54:C4:1F:FA:77:04:34:96:1B:7A:F9:15" /tmp/apk-certs.txt
+
+          EXPECTED_SHA256="$(sed -n 's/^[[:space:]]*SHA256:[[:space:]]*//p' release/A-BridgeFS-signing-fingerprint.txt | head -n 1 | tr -d '[:space:]')"
+          ACTUAL_SHA256="$(
+            "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK" |
+            sed -n 's/^Signer #1 certificate SHA-256 digest:[[:space:]]*//p' |
+            head -n 1 |
+            tr -d '[:space:]'
+          )"
+
+          test -n "$EXPECTED_SHA256"
+          test -n "$ACTUAL_SHA256"
+
+          echo "Expected signing certificate SHA-256: $EXPECTED_SHA256"
+          echo "Actual APK certificate SHA-256:       $ACTUAL_SHA256"
+
+          if [ "$EXPECTED_SHA256" != "$ACTUAL_SHA256" ]; then
+            echo "Signing certificate mismatch."
+            exit 1
+          fi
+
+          echo "APK signature verified against the official keystore."
 
       - name: Prepare fixed APK
         shell: bash
@@ -112,9 +131,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           gh release delete latest --cleanup-tag --yes || true
-
           gh release create latest \
             release/A-BridgeFS.apk \
             release/A-BridgeFS-signing-fingerprint.txt \
