@@ -41,8 +41,7 @@ jobs:
         with:
           gradle-version: '8.10'
 
-
-      - name: Export signing key fingerprint
+      - name: Prepare official signing keystore
         shell: bash
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -54,12 +53,19 @@ jobs:
           test -n "${KEYSTORE_PASSWORD}"
           test -n "${KEY_ALIAS}"
 
-          printf '%s' "${KEYSTORE_BASE64}" | base64 --decode > my-release-key.jks
-          mkdir -p release
+          printf '%s' "${KEYSTORE_BASE64}" | base64 --decode > "$RUNNER_TEMP/a-bridgefs-release.jks"
+          test -s "$RUNNER_TEMP/a-bridgefs-release.jks"
 
+          echo "A_BRIDGEFS_KEYSTORE_FILE=$RUNNER_TEMP/a-bridgefs-release.jks" >> "$GITHUB_ENV"
+          echo "A_BRIDGEFS_KEYSTORE_PASSWORD=${KEYSTORE_PASSWORD}" >> "$GITHUB_ENV"
+          echo "A_BRIDGEFS_KEY_ALIAS=${KEY_ALIAS}" >> "$GITHUB_ENV"
+          echo "A_BRIDGEFS_KEY_PASSWORD=${KEYSTORE_PASSWORD}" >> "$GITHUB_ENV"
+
+          mkdir -p release
           keytool -list -v \
-            -keystore my-release-key.jks \
+            -keystore "$RUNNER_TEMP/a-bridgefs-release.jks" \
             -storepass "${KEYSTORE_PASSWORD}" \
+            -alias "${KEY_ALIAS}" \
             > /tmp/bridgefs-keytool.txt
 
           awk '/^Certificate fingerprints:/ {inside=1; next} inside && /^[[:space:]]*SHA256:/ {print; found=1; exit} END {if (!found) exit 1}' \
@@ -68,19 +74,27 @@ jobs:
 
           test -s release/A-BridgeFS-signing-fingerprint.txt
           cat release/A-BridgeFS-signing-fingerprint.txt
-          rm -f my-release-key.jks
 
-      - name: Build APK
-        run: gradle :app:assembleDebug
+      - name: Build signed release APK
+        run: gradle :app:assembleRelease
+
+      - name: Verify APK signature
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="app/build/outputs/apk/release/app-release.apk"
+          test -s "$APK"
+          $ANDROID_HOME/build-tools/35.0.0/apksigner verify --verbose --print-certs "$APK" | tee /tmp/apk-certs.txt
+          grep -F "Signer #1 certificate SHA-256 digest: 23:E8:5B:DB:18:CD:3B:47:24:B1:69:25:4E:E6:79:F1:0F:80:2D:CA:54:C4:1F:FA:77:04:34:96:1B:7A:F9:15" /tmp/apk-certs.txt
 
       - name: Prepare fixed APK
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -t APK_FILES < <(find app/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' -print)
-          test "${#APK_FILES[@]}" -eq 1
+          APK="app/build/outputs/apk/release/app-release.apk"
+          test -s "$APK"
           mkdir -p release
-          cp "${APK_FILES[0]}" release/A-BridgeFS.apk
+          cp "$APK" release/A-BridgeFS.apk
           test -s release/A-BridgeFS.apk
 
       - name: Upload SHA-specific artifact
