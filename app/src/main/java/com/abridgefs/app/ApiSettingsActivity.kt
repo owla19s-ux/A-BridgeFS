@@ -94,7 +94,19 @@ class ApiSettingsActivity : Activity() {
                 status.text = "连接状态：请先填写 API 地址和模型"
                 return@actionButton
             }
-            status.text = "连接状态：测试接口预留，待 ApiClient 测试方法接入"
+            status.text = "连接状态：测试中…"
+            Thread {
+                runCatching {
+                    AppLogger.log(this, "API_TEST_START", "baseUrl=$url model=$modelName")
+                    val result = BridgeApiClient(BridgeApiConfig(url, key.text.toString(), modelName)).testConnection()
+                    runOnUiThread { status.text = "连接状态：成功（$result）" }
+                    AppLogger.log(this, "API_TEST_RESULT", "success=$result")
+                }.onFailure { e ->
+                    val reason = e.message ?: e::class.simpleName ?: "未知错误"
+                    runOnUiThread { status.text = "连接状态：失败\n$reason" }
+                    AppLogger.log(this, "API_TEST_RESULT", "failure=$reason")
+                }
+            }.start()
         }
         root.addView(test, LinearLayout.LayoutParams(-1, dp(46)))
 
