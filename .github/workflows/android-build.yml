@@ -59,9 +59,8 @@ jobs:
 
           keytool -list -v \
             -keystore my-release-key.jks \
-            -alias "${KEY_ALIAS}" \
             -storepass "${KEYSTORE_PASSWORD}" \
-            | awk -F': ' '/^Certificate fingerprints:/,/^$/ { if ($1 == "SHA256") print $0 }' \
+            | grep -m1 '^ *SHA256:' \
             > release/A-BridgeFS-signing-fingerprint.txt
 
           test -s release/A-BridgeFS-signing-fingerprint.txt
