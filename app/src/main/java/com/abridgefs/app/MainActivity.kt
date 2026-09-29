@@ -792,90 +792,33 @@ class MainActivity : Activity() {
             textSize = 22f
             setTypeface(null, 1)
             setTextColor(resources.getColor(R.color.bridgefs_text_primary))
-        }, LinearLayout.LayoutParams(-1, dp(48)))
+        }, LinearLayout.LayoutParams(-1, dp(52)))
 
-        box.addView(settingCategory("AI 与 API", "API、Model、连接测试") {
-            startActivity(Intent(this, ApiSettingsActivity::class.java))
-        })
+        val categories = listOf(
+            "AI 与 API" to "API 地址、Key、Model、连接测试",
+            "执行与权限" to "AI 指令执行范围与确认策略",
+            "指令" to "BridgeFS 指令协议与说明",
+            "文件与目录" to "工作目录与文件相关设置",
+            "通知" to "回执与执行通知",
+            "外观" to "界面与主题",
+            "系统" to "悬浮窗、后台运行等",
+            "日志与诊断" to "运行日志与崩溃日志"
+        )
 
-        box.addView(sectionTitle("执行与权限"))
-        val limitInput = EditText(this).apply {
-            hint = "每次 AI 回复最多执行几条指令"
-            inputType = InputType.TYPE_CLASS_NUMBER
-            setText(prefs.getInt("command_limit", 3).toString())
-        }
-        box.addView(limitInput, LinearLayout.LayoutParams(-1, dp(50)))
-
-        val labels = arrayOf("查看目录", "读取文件", "创建文件", "修改文件")
-        val actions = FileAction.values()
-        val spinners = mutableListOf<Spinner>()
-        actions.forEachIndexed { index, action ->
-            val row = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-            }
-            row.addView(TextView(this@MainActivity).apply {
-                text = labels[index]
-                textSize = 13f
-                setTextColor(resources.getColor(R.color.bridgefs_text_primary))
-            }, LinearLayout.LayoutParams(0, dp(46), 1f))
-            val spinner = Spinner(this@MainActivity)
-            spinner.adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, arrayOf("允许", "需确认", "禁止"))
-            spinner.setSelection(when (prefs.getString("perm_" + action.name, if (action == FileAction.LIST || action == FileAction.READ) "allow" else "confirm")) {
-                "confirm" -> 1
-                "deny" -> 2
-                else -> 0
+        categories.forEach { (title, summary) ->
+            box.addView(settingCategory(title, summary) {
+                if (title == "AI 与 API") {
+                    startActivity(Intent(this, ApiSettingsActivity::class.java))
+                } else {
+                    startActivity(Intent(this, SettingsCategoryActivity::class.java).putExtra("category", title))
+                }
             })
-            spinners += spinner
-            row.addView(spinner, LinearLayout.LayoutParams(dp(100), dp(46)))
-            box.addView(row)
         }
 
-        box.addView(sectionTitle("文件与目录"))
-        val rootInput = EditText(this).apply {
-            hint = "当前工作目录"
-            setText(prefs.getString("root_path", ""))
-        }
-        box.addView(rootInput, LinearLayout.LayoutParams(-1, dp(50)))
-
-        box.addView(sectionTitle("系统"))
-        box.addView(smallAction("悬浮窗权限") {
-            if (!Settings.canDrawOverlays(this)) {
-                startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + packageName)))
-            }
-        }, LinearLayout.LayoutParams(-1, dp(42)))
-
-        val autoShow = CheckBox(this).apply {
-            text = "自动显示悬浮球"
-            textSize = 13f
-            isChecked = prefs.getBoolean("auto_show_overlay", true)
-        }
-        box.addView(autoShow, LinearLayout.LayoutParams(-1, dp(44)))
-        box.addView(TextView(this).apply {
-            text = "ColorOS 可能还需要允许后台运行、自启动。"
-            textSize = 12f
-            setTextColor(resources.getColor(R.color.bridgefs_text_secondary))
-            setPadding(0, dp(4), 0, dp(6))
-        })
-
-        box.addView(smallAction("保存设置") {
-            prefs.edit()
-                .putInt("command_limit", limitInput.text.toString().toIntOrNull()?.coerceIn(1, 20) ?: 3)
-                .putBoolean("auto_show_overlay", autoShow.isChecked)
-                .putString("root_path", rootInput.text.toString().trim())
-                .apply()
-            actions.forEachIndexed { index, action ->
-                val value = when (spinners[index].selectedItemPosition) { 1 -> "confirm"; 2 -> "deny"; else -> "allow" }
-                prefs.edit().putString("perm_" + action.name, value).apply()
-            }
-            currentPath = File(rootInput.text.toString().trim().ifBlank { "/storage/emulated/0" })
-            Toast.makeText(this, "设置已保存", Toast.LENGTH_SHORT).show()
+        box.addView(smallAction("关闭设置") {
             drawer.closeDrawer(GravityCompat.END)
-            render()
-            autoStartIfNeeded(false)
-        }, LinearLayout.LayoutParams(-1, dp(46)).apply { topMargin = dp(12) })
+        }, LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(6) })
 
-        box.addView(smallAction("关闭设置") { drawer.closeDrawer(GravityCompat.END) }, LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(6) })
         scroll.addView(box)
         return scroll
     }
