@@ -59,6 +59,7 @@ class MainActivity : Activity() {
             val receipt = BridgeReceiptRecord(status, command, message)
             project?.executions?.add(receipt)
             pendingReceipt = formatReceipt(receipt)
+            prefs.edit().remove("pending_receipt").apply()
             saveProjects()
             render()
             Toast.makeText(this@MainActivity, "🔔 收到新的执行回执", Toast.LENGTH_SHORT).show()
@@ -76,6 +77,7 @@ class MainActivity : Activity() {
         if (projects.isEmpty()) projects += store.newProject("默认项目")
         currentProject = projects.first()
         currentPath = File(prefs.getString("root_path", "/storage/emulated/0") ?: "/storage/emulated/0")
+        restorePendingReceipt()
 
         registerReceiver(receiver, IntentFilter("com.bridgefs.RESULT"), Context.RECEIVER_NOT_EXPORTED)
 
@@ -185,6 +187,30 @@ class MainActivity : Activity() {
         updateNav()
     }
 
+    private fun restorePendingReceipt() {
+        val raw = prefs.getString("pending_receipt", null) ?: return
+        runCatching {
+            val obj = org.json.JSONObject(raw)
+            val receipt = BridgeReceiptRecord(
+                obj.optString("status", "UNKNOWN"),
+                obj.optString("command", ""),
+                obj.optString("message", ""),
+                obj.optLong("time", System.currentTimeMillis())
+            )
+            val projectId = obj.optString("projectId", "")
+            val project = projects.firstOrNull { it.id == projectId } ?: currentProject
+            if (project != null) {
+                val duplicate = project.executions.any {
+                    it.time == receipt.time && it.status == receipt.status &&
+                        it.command == receipt.command && it.message == receipt.message
+                }
+                if (!duplicate) project.executions += receipt
+            }
+            pendingReceipt = formatReceipt(receipt)
+            saveProjects()
+        }
+    }
+
     private fun updateNav() {
         navChat.setTextColor(if (screen == Screen.CHAT) resources.getColor(R.color.bridgefs_accent) else resources.getColor(R.color.bridgefs_text_secondary))
         navFiles.setTextColor(if (screen == Screen.FILES) resources.getColor(R.color.bridgefs_accent) else resources.getColor(R.color.bridgefs_text_secondary))
@@ -287,6 +313,7 @@ class MainActivity : Activity() {
                 chatInputField?.setText(receipt)
                 chatInputField?.setSelection(chatInputField?.text?.length ?: 0)
                 pendingReceipt = null
+                prefs.edit().remove("pending_receipt").apply()
                 saveProjects()
                 updateNav()
             }
