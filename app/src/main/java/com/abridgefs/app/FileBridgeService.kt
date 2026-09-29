@@ -89,11 +89,22 @@ Triple("FAILED",text,"执行异常："+(e.message ?: "未知错误"))
 }
 
 private fun broadcastReceipt(status:String,command:String,message:String,projectId:String?){
+val now=System.currentTimeMillis()
+val pending=org.json.JSONObject()
+    .put("status",status)
+    .put("command",command)
+    .put("message",message)
+    .put("time",now)
+    .put("projectId",projectId ?: "")
+getSharedPreferences("bridgefs",0).edit()
+    .putString("pending_receipt",pending.toString())
+    .apply()
 val intent=Intent("com.bridgefs.RESULT").setPackage(packageName)
 .putExtra("status",status)
 .putExtra("command",command)
 .putExtra("message",message)
-if(projectId!=null)intent.putExtra("projectId",projectId)
+.putExtra("projectId",projectId)
+.putExtra("time",now)
 sendBroadcast(intent)
 }
 private fun channel(){if(Build.VERSION.SDK_INT>=26)getSystemService(NotificationManager::class.java).createNotificationChannel(NotificationChannel("filebridge","FileBridge",NotificationManager.IMPORTANCE_LOW))}
