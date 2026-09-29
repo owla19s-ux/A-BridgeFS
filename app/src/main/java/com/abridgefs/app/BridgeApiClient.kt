@@ -12,6 +12,20 @@ data class BridgeApiConfig(
 )
 
 class BridgeApiClient(private val config: BridgeApiConfig) {
+    fun testConnection(): String {
+        val url = URL(config.baseUrl.trimEnd('/') + "/models")
+        val c = url.openConnection() as HttpURLConnection
+        c.requestMethod = "GET"
+        c.connectTimeout = 10000
+        c.readTimeout = 15000
+        if (config.apiKey.isNotBlank()) c.setRequestProperty("Authorization", "Bearer " + config.apiKey)
+        val code = c.responseCode
+        val stream = if (code in 200..299) c.inputStream else c.errorStream
+        val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+        if (code !in 200..299) error("API $code: " + body.take(300))
+        return "HTTP $code"
+    }
+
     fun chat(messages: List<BridgeChatMessage>, system: String): String {
         val url = URL(config.baseUrl.trimEnd('/') + "/chat/completions")
         val c = url.openConnection() as HttpURLConnection
