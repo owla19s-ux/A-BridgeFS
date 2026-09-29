@@ -433,30 +433,14 @@ class MainActivity : Activity() {
     }
 
     private fun showInstructionDialog() {
-        val protocol = """[bridgefs]
-[list]
-[read: 路径]
-[write: 路径]
-文件内容
-[/write]
-[edit: 路径]
-旧内容
-====
-新内容
-[/edit]
-[search: 通配符]
-[grep: 关键词]
-[path: 路径]
-[copy-path: 路径]
-[mkdir: 路径]
-[/bridgefs]""".trimIndent()
+        val protocol = BridgeCommandSpec.documentation
         AlertDialog.Builder(this)
-            .setTitle("BridgeFS 指令说明")
+            .setTitle("A-BridgeFS 指令规范 " + BridgeCommandSpec.version)
             .setMessage(protocol)
             .setPositiveButton("复制全部") { _, _ ->
                 val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                cm.setPrimaryClip(android.content.ClipData.newPlainText("BridgeFS指令说明", protocol))
-                Toast.makeText(this, "指令说明已复制", Toast.LENGTH_SHORT).show()
+                cm.setPrimaryClip(android.content.ClipData.newPlainText("A-BridgeFS指令规范", protocol))
+                Toast.makeText(this, "指令规范已复制", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("关闭", null)
             .show()
@@ -514,16 +498,7 @@ class MainActivity : Activity() {
     }
 
     private fun buildSystemPrompt(limit: Int): String {
-        return "你是 BridgeFS 的 AI 协作助手。正常情况下使用自然语言对话。" +
-            "需要让手机执行本地文件操作时，必须把可执行内容放进 [bridgefs] ... [/bridgefs] 区块。" +
-            "区块外的内容绝不会直接执行。" +
-            "支持 [list]、[read: 文件]、[write: 文件] 内容 [/write]、[edit: 文件] 旧内容====新内容 [/edit]。" +
-            "每次回复最多输出 " + limit + " 条本地指令。" +
-            "不要输出 delete、shell、move 等未开放操作。" +
-            "不要声称自己已经执行；执行结果必须等待 BridgeFS Receipt。" +
-            "当前版本不会自动把 Receipt 发回给你。" +
-            "用户会在收到回执通知后决定是否把回执粘贴到聊天框。" +
-            "如果没有用户提供新的 Receipt，不要假设文件操作已经成功。"
+        return BridgeCommandSpec.aiSystemPrompt(limit)
     }
 
     private fun executeAiCommands(answer: String, project: BridgeProject, limit: Int) {
