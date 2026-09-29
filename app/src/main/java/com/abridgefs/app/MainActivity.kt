@@ -392,6 +392,8 @@ class MainActivity : Activity() {
         render()
 
         executor.execute {
+            val startedAt = System.currentTimeMillis()
+            AppLogger.log(this, "API_CHAT_START", "projectId=${project.id} model=$model")
             try {
                 val limit = prefs.getInt("command_limit", 3).coerceIn(1, 20)
                 val config = BridgeApiConfig(
@@ -401,6 +403,8 @@ class MainActivity : Activity() {
                 )
                 val system = buildSystemPrompt(limit)
                 val answer = BridgeApiClient(config).chat(project.messages, system)
+                val elapsed = System.currentTimeMillis() - startedAt
+                AppLogger.log(this, "API_CHAT_RESULT", "success=true projectId=${project.id} model=$model elapsedMs=$elapsed")
                 runOnUiThread {
                     project.messages += BridgeChatMessage("assistant", answer)
                     saveProjects()
@@ -408,8 +412,11 @@ class MainActivity : Activity() {
                     executeAiCommands(answer, project, limit)
                 }
             } catch (e: Exception) {
+                val elapsed = System.currentTimeMillis() - startedAt
+                val reason = e.message ?: e::class.simpleName ?: "未知错误"
+                AppLogger.log(this, "API_CHAT_RESULT", "success=false projectId=${project.id} model=$model elapsedMs=$elapsed reason=${reason.take(300)}")
                 runOnUiThread {
-                    project.messages += BridgeChatMessage("tool", "[API 错误]\n" + (e.message ?: "未知错误"))
+                    project.messages += BridgeChatMessage("tool", "[API 错误]\n" + reason)
                     saveProjects()
                     render()
                 }
