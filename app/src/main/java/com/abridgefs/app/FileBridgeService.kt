@@ -592,58 +592,7 @@ private fun mainButton(label:String,onClick:()->Unit)=Button(this).apply{text=la
 private fun showHelpDialog(){
 try{
 log("UI","showHelpDialog")
-val message="""【BridgeFS 使用手册】
-
-【怎么用】
-1. 先设置工作区（根目录）。
-2. 把需求告诉 AI，让 AI 生成 BridgeFS 指令。
-3. 把指令粘贴到输入框，点击【执行】。
-4. 执行结果会显示在面板下方。
-
-【悬浮窗】
-- 点击机器人：展开/收起面板。
-- 拖动底部整块空白区域：移动面板。
-- 点击【!】：打开本手册。
-- 机器人靠近屏幕边缘时会自动隐藏一半。
-
-【AI 指令】
-[list]
-列出当前工作区内容。
-
-[read: 相对路径]
-读取文件，例如：[read: 文档/test.txt]
-
-[write: 相对路径]
-写入或覆盖文件，内容放在下一行，最后用 [/write] 结束。
-[write: 资料区/test.txt]
-内容
-[/write]
-
-[edit: 相对路径]
-查找替换文件内容，用 ==== 分隔旧内容和新内容。
-[edit: 资料区/test.txt]
-旧内容
-====
-新内容
-[/edit]
-
-[search: *.json]
-按文件名搜索。
-
-[grep: 关键词]
-按文件内容搜索。
-
-[path: 相对路径]
-查看文件完整路径。
-
-[copy-path: 相对路径]
-复制文件完整路径。
-
-【规则】
-- 路径必须是相对于工作区根目录的相对路径。
-- 一次可以发送多条指令，按顺序执行。
-- BridgeFS 不提供删除文件功能。
-"""
+val message=BridgeCommandSpec.documentation
 val box=LinearLayout(this).apply{
 orientation=LinearLayout.VERTICAL
 setPadding(dp(12),dp(8),dp(12),dp(12))
@@ -653,17 +602,17 @@ elevation=dp(8).toFloat()
 val top=LinearLayout(this).apply{gravity=Gravity.CENTER_VERTICAL}
 val back=smallButton("←"){showPanel()}
 val title=TextView(this).apply{
-text="BridgeFS 使用手册"
+text="A-BridgeFS 指令规范 " + BridgeCommandSpec.version
 textSize=15f
 setTypeface(null,1)
 setTextColor(resources.getColor(R.color.bridgefs_text_primary))
 gravity=Gravity.CENTER_VERTICAL
 }
-val copy=smallButton("复制"){copyText("BridgeFS 使用手册",message);toast("已复制使用手册")}.apply{
+val copy=smallButton("复制"){copyText("A-BridgeFS 指令规范",message);toast("已复制指令规范")}.apply{
 textSize=11f
 setSingleLine(true)
 maxLines=1
-contentDescription="复制全部使用手册"
+contentDescription="复制全部指令规范"
 }
 top.addView(back,LinearLayout.LayoutParams(dp(48),dp(40)))
 top.addView(title,LinearLayout.LayoutParams(0,dp(40),1f).also{it.marginStart=dp(4)})
@@ -700,28 +649,11 @@ attachPanelToOverlay(box,targetX,dp(24))
 }catch(e:Exception){
 log("Error","showHelpDialog："+e.message)
 runCatching{clearPanel();showBall()}
-toast("打开使用手册失败："+e.message)
+toast("打开指令规范失败："+e.message)
 }
 }
 private fun copyText(label:String,text:String){val cm=getSystemService(CLIPBOARD_SERVICE)as ClipboardManager;cm.setPrimaryClip(ClipData.newPlainText(label,text))}
-private fun copyInstructions(){val text="""我这边有个工具叫 BridgeFS，它可以读写我手机里的文件。
-你想操作文件时，请用下面的指令格式，我会执行后把结果贴回来给你。
-
-可用指令：
-[list]                            列出项目目录
-[read: 相对路径]                   读取文件
-[write: 相对路径]...[/write]       新建文件并写入内容
-[edit: 相对路径]...====...[/edit]   编辑文件（====分隔旧内容和新内容）
-[search: *.xx]                    按文件名搜索
-[grep: 关键词]                     按内容搜索
-[path: 路径]                      获取完整绝对路径
-[copy-path: 路径]                 复制路径到剪贴板
-
-规则：
-- 路径一律相对于项目根目录，例如 笔记/今天.txt
-- 一次可以发多条指令，我会按顺序执行
-- 执行结果会贴回来给你
-""";copyText("BridgeFS说明书",text);toast("已复制到剪贴板")}
+private fun copyInstructions(){copyText("A-BridgeFS指令规范",BridgeCommandSpec.documentation);toast("已复制指令规范")}
 private fun showBrowser(){try{browserCurrent=root;log("UI","showBrowser");renderBrowser()}catch(e:Exception){log("Error","showBrowser："+e.message);toast("打开浏览器失败："+e.message)}}
 private var browserCurrent:File?=null
 private fun renderBrowser(){
