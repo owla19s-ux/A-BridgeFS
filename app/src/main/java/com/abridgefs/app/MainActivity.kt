@@ -68,6 +68,7 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         window.statusBarColor = resources.getColor(R.color.bridgefs_surface)
         window.navigationBarColor = resources.getColor(R.color.bridgefs_surface)
         window.decorView.systemUiVisibility =
@@ -333,6 +334,14 @@ class MainActivity : Activity() {
             background = rounded(resources.getColor(R.color.bridgefs_input_surface), dp(12))
         }
         chatInputField = input
+        input.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) {
+                input.postDelayed({
+                    (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager)
+                        .showSoftInput(input, InputMethodManager.SHOW_IMPLICIT)
+                }, 120)
+            }
+        }
 
         val send = smallAction("发送") { sendChat() }
 
@@ -347,6 +356,14 @@ class MainActivity : Activity() {
         inputRow.addView(send, LinearLayout.LayoutParams(dp(58), dp(82)).apply { marginStart = dp(6) })
 
         root.addView(inputRow, LinearLayout.LayoutParams(-1, dp(92)).apply { topMargin = dp(6) })
+        root.viewTreeObserver.addOnGlobalLayoutListener {
+            val visible = android.graphics.Rect()
+            root.getWindowVisibleDisplayFrame(visible)
+            val keyboardHeight = root.rootView.height - visible.bottom
+            if (keyboardHeight > dp(160)) {
+                chatScroll.post { chatScroll.fullScroll(View.FOCUS_DOWN) }
+            }
+        }
         contentHost.addView(root)
 
         chatScroll.post { chatScroll.fullScroll(View.FOCUS_DOWN) }
