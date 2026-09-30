@@ -121,6 +121,124 @@ class ApiSettingsActivity : Activity() {
             finish()
         }, LinearLayout.LayoutParams(-1, dp(46)).apply { topMargin = dp(10) })
 
+
+        root.addView(sectionLabel("AI 协作（Decision AI / Worker）"))
+        val decisionUrl = EditText(this).apply {
+            hint = "Decision AI API 地址"
+            setText(prefs.getString("collab_decision_base_url", ""))
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
+        }
+        root.addView(decisionUrl, fieldParams())
+
+        val decisionKey = EditText(this).apply {
+            hint = "Decision AI API Key"
+            setText(prefs.getString("collab_decision_api_key", ""))
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+        }
+        root.addView(decisionKey, fieldParams())
+
+        val decisionModel = EditText(this).apply {
+            hint = "Decision AI 模型"
+            setText(prefs.getString("collab_decision_model", ""))
+        }
+        root.addView(decisionModel, fieldParams())
+
+        val workerUrl = EditText(this).apply {
+            hint = "Worker API 地址"
+            setText(prefs.getString("collab_worker_base_url", ""))
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
+        }
+        root.addView(workerUrl, fieldParams())
+
+        val workerKey = EditText(this).apply {
+            hint = "Worker API Key"
+            setText(prefs.getString("collab_worker_api_key", ""))
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+        }
+        root.addView(workerKey, fieldParams())
+
+        val workerModel = EditText(this).apply {
+            hint = "Worker 模型"
+            setText(prefs.getString("collab_worker_model", ""))
+        }
+        root.addView(workerModel, fieldParams())
+
+        val objective = EditText(this).apply {
+            hint = "单轮协作目标，例如：检查项目当前状态并给出下一步施工建议"
+            minLines = 2
+            gravity = Gravity.TOP
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+        }
+        root.addView(objective, LinearLayout.LayoutParams(-1, dp(80)))
+
+        root.addView(actionButton("保存协作 API 设置") {
+            prefs.edit()
+                .putString("collab_decision_base_url", decisionUrl.text.toString().trim())
+                .putString("collab_decision_api_key", decisionKey.text.toString())
+                .putString("collab_decision_model", decisionModel.text.toString().trim())
+                .putString("collab_worker_base_url", workerUrl.text.toString().trim())
+                .putString("collab_worker_api_key", workerKey.text.toString())
+                .putString("collab_worker_model", workerModel.text.toString().trim())
+                .apply()
+            Toast.makeText(this, "协作 API 设置已保存", Toast.LENGTH_SHORT).show()
+        })
+
+        val collaborationStatus = TextView(this).apply {
+            text = "单轮协作状态：未运行"
+            textSize = 13f
+            setTextColor(resources.getColor(R.color.bridgefs_text_secondary))
+            setPadding(dp(4), dp(10), dp(4), dp(10))
+        }
+        root.addView(collaborationStatus, LinearLayout.LayoutParams(-1, dp(72)))
+
+        root.addView(actionButton("运行单轮协作") {
+            val taskText = objective.text.toString().trim()
+            val dUrl = decisionUrl.text.toString().trim()
+            val dModel = decisionModel.text.toString().trim()
+            val wUrl = workerUrl.text.toString().trim()
+            val wModel = workerModel.text.toString().trim()
+            if (taskText.isBlank() || dUrl.isBlank() || dModel.isBlank() || wUrl.isBlank() || wModel.isBlank()) {
+                collaborationStatus.text = "单轮协作状态：请先填写目标、Decision AI 和 Worker 的地址与模型"
+                return@actionButton
+            }
+
+            prefs.edit()
+                .putString("collab_decision_base_url", dUrl)
+                .putString("collab_decision_api_key", decisionKey.text.toString())
+                .putString("collab_decision_model", dModel)
+                .putString("collab_worker_base_url", wUrl)
+                .putString("collab_worker_api_key", workerKey.text.toString())
+                .putString("collab_worker_model", wModel)
+                .apply()
+
+            collaborationStatus.text = "单轮协作状态：运行中…"
+            Thread {
+                runCatching {
+                    val coordinator = CollaborationCoordinator(this)
+                    val taskId = CollaborationProtocol.newTaskId()
+                    val task = CollaborationProtocol.task(
+                        taskId = taskId,
+                        objective = taskText,
+                        allowPaths = emptyList(),
+                        allowOperations = listOf("read", "analyze"),
+                        acceptance = listOf("Worker 返回一条合法协议消息，并由 Decision AI 接收"),
+                        selfResolve = listOf("普通分析与格式问题"),
+                        mustAsk = listOf("超出当前任务范围的修改")
+                    )
+                    coordinator.submitTask(task)
+                    val messages = coordinator.dispatchOneWorkerRound(
+                        workerSystemPrompt = "你是 A-BridgeFS Worker。严格返回一个合法的 Decision AI ↔ Worker v0.1 协议 JSON。当前只做单轮协作测试，不执行 GitHub 或本地文件修改。",
+                        decisionSystemPrompt = "你是 A-BridgeFS Decision AI。严格返回一个合法的 Decision AI ↔ Worker v0.1 协议 JSON。根据 Worker 消息给出当前任务所需的正式决策或状态处理。"
+                    )
+                    val summary = messages.joinToString("\n\n") { it.type.name + " / " + it.from.name + " → " + it.to.name + "\n" + it.toJson().toString() }
+                    runOnUiThread { collaborationStatus.text = "单轮协作状态：成功\n" + summary.take(5000) }
+                }.onFailure { e ->
+                    val reason = e.message ?: e::class.simpleName ?: "未知错误"
+                    runOnUiThread { collaborationStatus.text = "单轮协作状态：失败\n$reason" }
+                }
+            }.start()
+        })
+
         val scroll = ScrollView(this).apply { addView(root) }
         setContentView(scroll)
     }
