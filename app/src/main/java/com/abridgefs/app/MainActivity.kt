@@ -472,7 +472,11 @@ class MainActivity : Activity() {
         requestAi(activeAi, project)
     }
 
-    private fun requestAi(speaker: AiSpeaker, project: BridgeProject) {
+    private fun requestAi(
+        speaker: AiSpeaker,
+        project: BridgeProject,
+        collaboration: CollaborationMessage? = null
+    ) {
         val prefix = if (speaker == AiSpeaker.DECISION) "decision" else "worker"
         val baseUrl = prefs.getString(prefix + "_api_base_url", "").orEmpty().trim()
         val model = prefs.getString(prefix + "_api_model", "").orEmpty().trim()
@@ -492,27 +496,51 @@ class MainActivity : Activity() {
                     }
                     val role = if (it.speaker == speaker) "assistant" else "user"
                     BridgeChatMessage(role, "[" + speakerName + "] " + it.content, it.time, it.speaker)
+                }.toMutableList()
+
+                if (collaboration != null) {
+                    history += BridgeChatMessage(
+                        "user",
+                        "[A-BridgeFS COLLABORATION PROTOCOL v" + BridgeCollaborationProtocol.VERSION + "]\n" +
+                            collaboration.toJson(),
+                        speaker = AiSpeaker.SYSTEM
+                    )
                 }
+
                 val answer = BridgeApiClient(BridgeApiConfig(baseUrl, key, model))
                     .chat(history, buildAiSystemPrompt(speaker, limit))
-                AppLogger.log(this, "AI_CHAT_RESULT", "speaker=" + speaker + " projectId=" + project.id + " success=true elapsedMs=" + (System.currentTimeMillis() - startedAt))
+                AppLogger.log(this, "AI_CHAT_RESULT", "speaker=" + speaker + " projectId=" + project.id +
+                    " success=true elapsedMs=" + (System.currentTimeMillis() - startedAt))
+
                 runOnUiThread {
                     project.messages += BridgeChatMessage("assistant", answer, speaker = speaker)
                     saveProjects()
                     render()
                     executeAiCommands(answer, project, limit)
-                    val partner = if (speaker == AiSpeaker.DECISION) AiSpeaker.WORKER else AiSpeaker.DECISION
-                    val partnerPrefix = if (partner == AiSpeaker.DECISION) "decision" else "worker"
-                    if (prefs.getString(partnerPrefix + "_api_base_url", "").orEmpty().isNotBlank() &&
-                        prefs.getString(partnerPrefix + "_api_model", "").orEmpty().isNotBlank()) {
-                        requestAi(partner, project)
+
+                    when (speaker) {
+                        AiSpeaker.DECISION -> {
+                            val workRequest = BridgeCollaborationProtocol.extract(
+                                answer, CollaborationMessageType.WORK_REQUEST
+                            )
+                            if (workRequest != null) requestAi(AiSpeaker.WORKER, project, workRequest)
+                        }
+                        AiSpeaker.WORKER -> {
+                            val decisionRequest = BridgeCollaborationProtocol.extract(
+                                answer, CollaborationMessageType.DECISION_REQUEST
+                            )
+                            if (decisionRequest != null) requestAi(AiSpeaker.DECISION, project, decisionRequest)
+                        }
+                        else -> Unit
                     }
                 }
             } catch (e: Exception) {
                 val reason = e.message ?: e::class.simpleName ?: "未知错误"
-                AppLogger.log(this, "AI_CHAT_RESULT", "speaker=" + speaker + " projectId=" + project.id + " success=false reason=" + reason.take(300))
+                AppLogger.log(this, "AI_CHAT_RESULT", "speaker=" + speaker + " projectId=" + project.id +
+                    " success=false reason=" + reason.take(300))
                 runOnUiThread {
-                    project.messages += BridgeChatMessage("tool", "[" + speaker.name + " API 错误]\n" + reason, speaker = AiSpeaker.SYSTEM)
+                    project.messages += BridgeChatMessage("tool", "[" + speaker.name + " API 错误]\n" + reason,
+                        speaker = AiSpeaker.SYSTEM)
                     saveProjects()
                     render()
                 }
@@ -520,10 +548,14 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun buildAiSystemPrompt(speaker: AiSpeaker, limit: Int): String {
+        return BridgeCollaborationProtocol.systemPrompt(speaker, limit) +
+            "\n\n" + BridgeCommandSpec.aiSystemPrompt(limit)
+    }
+
     private fun buildSystemPrompt(limit: Int): String {
         return BridgeCommandSpec.aiSystemPrompt(limit)
     }
-
     private fun executeAiCommands(answer: String, project: BridgeProject, limit: Int) {
         val blocks = BridgeRequest.extractAll(answer)
         if (blocks.isEmpty()) {
