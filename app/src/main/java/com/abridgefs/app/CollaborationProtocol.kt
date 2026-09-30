@@ -76,8 +76,8 @@ object CollaborationProtocol {
                 return Message(
                     id = json.getString("id"),
                     ts = json.getString("ts"),
-                    from = Role.fromWireName(json.getString("from")),
-                    to = Role.fromWireName(json.getString("to")),
+                    from = roleFromWireName(json.getString("from")),
+                    to = roleFromWireName(json.getString("to")),
                     taskId = json.getString("task_id"),
                     type = Type.valueOf(json.getString("type")),
                     replyTo = if (json.isNull("reply_to")) null else json.optString("reply_to"),
@@ -278,16 +278,16 @@ object CollaborationProtocol {
         )
     }
 
-    private fun Role.wireName(): String = name.lowercase()
+    private fun Role.wireName(): String = when (this) {
+        Role.DECISION_AI -> "decision_ai"
+        Role.WORKER -> "worker"
+        Role.HUMAN -> "human"
+    }
 
-    private fun Role.Companion.fromWireName(value: String): Role =
-        when (value.lowercase()) {
-            "decision_ai" -> Role.DECISION_AI
-            "worker" -> Role.WORKER
-            "human" -> Role.HUMAN
-            else -> error("unknown role: $value")
-        }
-
-    private val Role.Companion: Unit
-        get() = Unit
+    private fun roleFromWireName(value: String): Role = when (value.lowercase()) {
+        "decision_ai" -> Role.DECISION_AI
+        "worker" -> Role.WORKER
+        "human" -> Role.HUMAN
+        else -> error("unknown role: $value")
+    }
 }
