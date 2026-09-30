@@ -508,7 +508,7 @@ class MainActivity : Activity() {
                 }
 
                 val answer = BridgeApiClient(BridgeApiConfig(baseUrl, key, model))
-                    .chat(history, buildAiSystemPrompt(speaker, limit))
+                    .chatWithTools(history, buildAiSystemPrompt(speaker, limit))
                 AppLogger.log(this, "AI_CHAT_RESULT", "speaker=" + speaker + " projectId=" + project.id +
                     " success=true elapsedMs=" + (System.currentTimeMillis() - startedAt))
 
@@ -550,7 +550,18 @@ class MainActivity : Activity() {
 
     private fun buildAiSystemPrompt(speaker: AiSpeaker, limit: Int): String {
         return BridgeCollaborationProtocol.systemPrompt(speaker, limit) +
-            "\n\n" + BridgeCommandSpec.aiSystemPrompt(limit)
+            "\n\n" + BridgeCommandSpec.aiSystemPrompt(limit) +\n            "\n\n" + toolCallingSystemPrompt()
+    }
+
+    private fun toolCallingSystemPrompt(): String {
+        return """
+Tool Calling V0.1：
+- A-BridgeFS 当前提供一个测试工具 echo_test。
+- 当用户明确要求进行 Tool Calling 验证时，优先调用 echo_test，而不是伪造工具执行结果。
+- echo_test 参数：{"text":"要回显的文本"}。
+- 收到工具结果后，再给出最终自然语言回答。
+- 不要把工具调用过程描述成已经完成，除非已经收到工具结果。
+""".trimIndent()
     }
 
     private fun buildSystemPrompt(limit: Int): String {
