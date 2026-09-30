@@ -906,10 +906,10 @@ class MainActivity : Activity() {
     }
 
     private fun apiLabel(): String {
-        val base = prefs.getString("api_base_url", "").orEmpty()
-        val model = prefs.getString("api_model", "").orEmpty()
-        return if (base.isBlank() && model.isBlank()) "未设置 API  ·  点击这里设置"
-        else (model.ifBlank { "未命名模型" } + "  ·  " + base.ifBlank { "未设置地址" } + "  ›")
+        val decision = prefs.getString("decision_api_model", "").orEmpty()
+        val worker = prefs.getString("worker_api_model", "").orEmpty()
+        return if (decision.isBlank() && worker.isBlank()) "未设置双 AI API  ·  点击这里设置"
+        else "Decision: " + decision.ifBlank { "未设置" } + "  ·  Worker: " + worker.ifBlank { "未设置" } + "  ›"
     }
 
     private fun buildSystemPromptUnused() = Unit
