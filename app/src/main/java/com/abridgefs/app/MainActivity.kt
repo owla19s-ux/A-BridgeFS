@@ -507,8 +507,12 @@ class MainActivity : Activity() {
                     )
                 }
 
-                val answer = BridgeApiClient(BridgeApiConfig(baseUrl, key, model))
-                    .chatWithTools(history, buildAiSystemPrompt(speaker, limit))
+                val apiClient = BridgeApiClient(BridgeApiConfig(baseUrl, key, model))
+                val answer = apiClient.chatWithTools(history, buildAiSystemPrompt(speaker, limit))
+                if (apiClient.lastToolTrace.isNotEmpty()) {
+                    val traceText = "[Tool Calling]\n" + apiClient.lastToolTrace.joinToString("\n")
+                    project.messages += BridgeChatMessage("assistant", traceText, speaker = AiSpeaker.SYSTEM)
+                }
                 AppLogger.log(this, "AI_CHAT_RESULT", "speaker=" + speaker + " projectId=" + project.id +
                     " success=true elapsedMs=" + (System.currentTimeMillis() - startedAt))
 
