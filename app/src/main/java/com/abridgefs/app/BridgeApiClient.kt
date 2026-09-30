@@ -8,6 +8,8 @@ import java.net.URL
 data class BridgeApiConfig(val baseUrl: String, val apiKey: String, val model: String)
 
 class BridgeApiClient(private val config: BridgeApiConfig) {
+    var lastToolTrace: List<String> = emptyList()
+        private set
     fun testConnection(): String {
         val url = URL(config.baseUrl.trimEnd('/') + "/models")
         val c = url.openConnection() as HttpURLConnection
@@ -39,6 +41,8 @@ class BridgeApiClient(private val config: BridgeApiConfig) {
         maxToolRounds: Int = BridgeToolRuntime.MAX_TOOL_ROUNDS
     ): String {
         val apiMessages = buildMessages(messages, system)
+        val trace = mutableListOf<String>()
+        lastToolTrace = emptyList()
 
         repeat(maxToolRounds.coerceIn(1, 8)) {
             val body = JSONObject()
@@ -52,6 +56,7 @@ class BridgeApiClient(private val config: BridgeApiConfig) {
             val toolCalls = message.optJSONArray("tool_calls")
 
             if (toolCalls == null || toolCalls.length() == 0) {
+                lastToolTrace = trace.toList()
                 return message.optString("content")
             }
 
@@ -66,7 +71,9 @@ class BridgeApiClient(private val config: BridgeApiConfig) {
                 val function = call.getJSONObject("function")
                 val name = function.getString("name")
                 val arguments = function.optString("arguments", "{}")
+                trace += "Tool Call: $name $arguments"
                 val result = BridgeToolRuntime.execute(name, arguments)
+                trace += "Tool Result: $result"
 
                 apiMessages.put(
                     JSONObject()
