@@ -46,11 +46,15 @@ class CollaborationTransport(context: Context) {
     }
 
     fun clear() {
-        prefs.edit().remove(KEY_MESSAGES).apply()
+        prefs.edit()
+            .remove(KEY_MESSAGES)
+            .remove(KEY_HANDLED)
+            .apply()
     }
 
     companion object {
         private const val KEY_MESSAGES = "messages"
+        private const val KEY_HANDLED = "handled"
     }
 }
 
