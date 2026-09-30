@@ -133,6 +133,8 @@ class ApiSettingsActivity : Activity() {
                 }
             }.start()
         }, LinearLayout.LayoutParams(-1, dp(42)))
+
+        return ConfigFields(provider, baseUrl, key, model, status)
     }
 
     private fun saveConfig(prefix: String, fields: ConfigFields) {
