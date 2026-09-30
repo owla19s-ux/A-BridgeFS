@@ -224,26 +224,34 @@ class MainActivity : Activity() {
         receiptBadge.visibility = if (hasUnread) View.VISIBLE else View.GONE
     }
 
+    private var activeAi = AiSpeaker.DECISION
+
     private fun renderChat() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(12), dp(8), dp(12), dp(6))
         }
-
         val apiRow = TextView(this).apply {
-            val base = apiLabel()
-            text = base
-            textSize = 14f
+            text = apiLabel()
+            textSize = 13f
             setTypeface(null, 1)
             setTextColor(resources.getColor(R.color.bridgefs_text_primary))
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(12), 0, dp(12), 0)
             background = rounded(resources.getColor(R.color.bridgefs_input_surface), dp(12))
-            setOnClickListener {
-                startActivity(Intent(this@MainActivity, ApiSettingsActivity::class.java))
-            }
+            setOnClickListener { startActivity(Intent(this@MainActivity, ApiSettingsActivity::class.java)) }
         }
-        root.addView(apiRow, LinearLayout.LayoutParams(-1, dp(46)))
+        root.addView(apiRow, LinearLayout.LayoutParams(-1, dp(40)))
+
+        val tabs = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        tabs.addView(smallAction("Decision AI") { activeAi = AiSpeaker.DECISION; render() },
+            LinearLayout.LayoutParams(0, dp(40), 1f))
+        tabs.addView(smallAction("Worker AI") { activeAi = AiSpeaker.WORKER; render() },
+            LinearLayout.LayoutParams(0, dp(40), 1f).apply { marginStart = dp(6) })
+        root.addView(tabs, LinearLayout.LayoutParams(-1, dp(46)).apply { topMargin = dp(6) })
 
         val chatScroll = ScrollView(this).apply {
             isFillViewport = true
@@ -251,55 +259,60 @@ class MainActivity : Activity() {
         }
         val chatColumn = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(2), dp(10), dp(2), dp(10))
+            setPadding(dp(2), dp(8), dp(2), dp(8))
         }
-
         val project = currentProject
         if (project != null && project.messages.isEmpty()) {
             chatColumn.addView(TextView(this).apply {
-                text = "和 AI 直接对话。需要本地操作时，让 AI 使用新版 BridgeFS 指令格式。"
+                text = "选择一个 AI 开始对话。两个 AI 会在后台自动交流，过程会保存在当前项目记录中。"
                 textSize = 13f
                 setTextColor(resources.getColor(R.color.bridgefs_text_secondary))
                 setPadding(dp(8), dp(20), dp(8), dp(20))
             })
         }
-
         project?.messages?.forEach { message ->
+            val label = when (message.speaker) {
+                AiSpeaker.USER -> "你"
+                AiSpeaker.DECISION -> "Decision AI"
+                AiSpeaker.WORKER -> "Worker AI"
+                AiSpeaker.SYSTEM -> "系统"
+            }
             val bubbleBox = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(dp(10), dp(8), dp(8), dp(6))
                 background = rounded(
-                    if (message.role == "user") resources.getColor(R.color.bridgefs_button_bg)
-                    else resources.getColor(R.color.bridgefs_input_surface),
-                    dp(14)
+                    if (message.speaker == AiSpeaker.USER) resources.getColor(R.color.bridgefs_button_bg)
+                    else resources.getColor(R.color.bridgefs_input_surface), dp(14)
                 )
             }
-            val bubble = TextView(this).apply {
+            bubbleBox.addView(TextView(this).apply {
+                text = label
+                textSize = 11f
+                setTypeface(null, 1)
+                setTextColor(resources.getColor(R.color.bridgefs_text_secondary))
+            }, LinearLayout.LayoutParams(-1, dp(22)))
+            bubbleBox.addView(TextView(this).apply {
                 text = message.content
                 textSize = 14f
                 setTextColor(resources.getColor(R.color.bridgefs_text_primary))
                 setPadding(dp(2), dp(2), dp(2), dp(4))
                 setTextIsSelectable(true)
-            }
-            val copy = smallAction("复制") {
-                copyToClipboard(if (message.role == "user") "用户消息" else "AI 回复", message.content)
+            }, LinearLayout.LayoutParams(-1, -2))
+            bubbleBox.addView(smallAction("复制") {
+                copyToClipboard(label, message.content)
                 Toast.makeText(this@MainActivity, "消息已复制", Toast.LENGTH_SHORT).show()
-            }
-            bubbleBox.addView(bubble, LinearLayout.LayoutParams(-1, -2))
-            bubbleBox.addView(copy, LinearLayout.LayoutParams(dp(58), dp(30)).apply {
-                gravity = if (message.role == "user") Gravity.END else Gravity.START
+            }, LinearLayout.LayoutParams(dp(58), dp(30)).apply {
+                gravity = if (message.speaker == AiSpeaker.USER) Gravity.END else Gravity.START
             })
             val wrap = FrameLayout(this)
             wrap.addView(bubbleBox, FrameLayout.LayoutParams(-2, -2).apply {
                 width = (resources.displayMetrics.widthPixels * 0.82f).toInt()
-                gravity = if (message.role == "user") Gravity.END else Gravity.START
+                gravity = if (message.speaker == AiSpeaker.USER) Gravity.END else Gravity.START
             })
             chatColumn.addView(wrap, LinearLayout.LayoutParams(-1, -2).apply {
-                topMargin = dp(5)
-                bottomMargin = dp(5)
+                topMargin = dp(4); bottomMargin = dp(4)
             })
         }
-
         chatScroll.addView(chatColumn)
         root.addView(chatScroll, LinearLayout.LayoutParams(-1, 0, 1f))
 
@@ -307,12 +320,10 @@ class MainActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.BOTTOM
         }
-
         val paste = smallAction("粘贴回执") {
             val receipt = pendingReceipt
-            if (receipt.isNullOrBlank()) {
-                Toast.makeText(this, "当前没有待粘贴回执", Toast.LENGTH_SHORT).show()
-            } else {
+            if (receipt.isNullOrBlank()) Toast.makeText(this, "当前没有待粘贴回执", Toast.LENGTH_SHORT).show()
+            else {
                 chatInputField?.setText(receipt)
                 chatInputField?.setSelection(chatInputField?.text?.length ?: 0)
                 pendingReceipt = null
@@ -321,15 +332,11 @@ class MainActivity : Activity() {
                 updateNav()
             }
         }
-
         val expand = smallAction("⛶") { showExpandedEditor() }
-
         val input = EditText(this).apply {
             hint = "输入消息……"
             textSize = 14f
-            minLines = 1
-            maxLines = 3
-            setSingleLine(false)
+            minLines = 1; maxLines = 3; setSingleLine(false)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
             gravity = Gravity.TOP
             setPadding(dp(10), dp(8), dp(10), dp(8))
@@ -337,63 +344,50 @@ class MainActivity : Activity() {
         }
         chatInputField = input
         input.setOnFocusChangeListener { _, hasFocus ->
-            if (hasFocus) {
-                input.postDelayed({
-                    (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager)
-                        .showSoftInput(input, InputMethodManager.SHOW_IMPLICIT)
-                }, 120)
-            }
+            if (hasFocus) input.postDelayed({
+                (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager)
+                    .showSoftInput(input, InputMethodManager.SHOW_IMPLICIT)
+            }, 120)
         }
-
         val send = smallAction("发送") { sendChat() }
-
         val actions = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             addView(paste, LinearLayout.LayoutParams(dp(82), dp(38)))
             addView(smallAction("指令说明") { showInstructionDialog() }, LinearLayout.LayoutParams(dp(82), dp(38)).apply { topMargin = dp(4) })
             addView(expand, LinearLayout.LayoutParams(dp(82), dp(38)).apply { topMargin = dp(4) })
         }
-
         inputRow.addView(input, LinearLayout.LayoutParams(0, dp(86), 1f))
         inputRow.addView(actions, LinearLayout.LayoutParams(dp(82), dp(82)).apply { marginStart = dp(6) })
         inputRow.addView(send, LinearLayout.LayoutParams(dp(58), dp(82)).apply { marginStart = dp(6) })
-
         root.addView(inputRow, LinearLayout.LayoutParams(-1, dp(92)).apply { topMargin = dp(6) })
 
         if (pendingReceipt != null) {
-            val latest = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                setPadding(dp(10), dp(6), dp(8), dp(6))
-                background = rounded(resources.getColor(R.color.bridgefs_input_surface), dp(10))
-            }
-            latest.addView(TextView(this).apply {
+            root.addView(TextView(this).apply {
                 val status = project?.executions?.lastOrNull()?.status ?: "UNKNOWN"
-                text = "最新回执：$status，点击「粘贴回执」放入输入框"
+                text = "最新回执：" + status + "，点击「粘贴回执」放入输入框"
                 textSize = 12f
                 setTextColor(resources.getColor(R.color.bridgefs_text_primary))
-            }, LinearLayout.LayoutParams(0, dp(40), 1f))
-            latest.setOnClickListener {
-                chatInputField?.setText(pendingReceipt.orEmpty())
-                chatInputField?.setSelection(chatInputField?.text?.length ?: 0)
-                pendingReceipt = null
-                prefs.edit().remove("pending_receipt").apply()
-                saveProjects()
-                updateNav()
-            }
-            root.addView(latest, LinearLayout.LayoutParams(-1, dp(52)).apply { topMargin = dp(4) })
+                setPadding(dp(10), dp(6), dp(8), dp(6))
+                background = rounded(resources.getColor(R.color.bridgefs_input_surface), dp(10))
+                setOnClickListener {
+                    chatInputField?.setText(pendingReceipt.orEmpty())
+                    chatInputField?.setSelection(chatInputField?.text?.length ?: 0)
+                    pendingReceipt = null
+                    prefs.edit().remove("pending_receipt").apply()
+                    saveProjects()
+                    updateNav()
+                }
+            }, LinearLayout.LayoutParams(-1, dp(46)).apply { topMargin = dp(4) })
         }
 
         root.viewTreeObserver.addOnGlobalLayoutListener {
             val visible = android.graphics.Rect()
             root.getWindowVisibleDisplayFrame(visible)
-            val keyboardHeight = root.rootView.height - visible.bottom
-            if (keyboardHeight > dp(160)) {
+            if (root.rootView.height - visible.bottom > dp(160)) {
                 chatScroll.post { chatScroll.fullScroll(View.FOCUS_DOWN) }
             }
         }
         contentHost.addView(root)
-
         chatScroll.post { chatScroll.fullScroll(View.FOCUS_DOWN) }
     }
 
@@ -464,45 +458,61 @@ class MainActivity : Activity() {
         val message = input.text.toString().trim()
         if (message.isBlank()) return
         val project = currentProject ?: return
-        val baseUrl = prefs.getString("api_base_url", "").orEmpty().trim()
-        val model = prefs.getString("api_model", "").orEmpty().trim()
-        if (baseUrl.isBlank() || model.isBlank()) {
-            Toast.makeText(this, "请先设置 API 地址和模型", Toast.LENGTH_SHORT).show()
+        val prefix = if (activeAi == AiSpeaker.DECISION) "decision" else "worker"
+        if (prefs.getString(prefix + "_api_base_url", "").orEmpty().isBlank() ||
+            prefs.getString(prefix + "_api_model", "").orEmpty().isBlank()) {
+            Toast.makeText(this, "请先设置当前 AI 的 API", Toast.LENGTH_SHORT).show()
             drawer.openDrawer(GravityCompat.END)
             return
         }
-
-        project.messages += BridgeChatMessage("user", message)
+        project.messages += BridgeChatMessage("user", message, speaker = AiSpeaker.USER)
         input.text.clear()
         saveProjects()
         render()
+        requestAi(activeAi, project)
+    }
+
+    private fun requestAi(speaker: AiSpeaker, project: BridgeProject) {
+        val prefix = if (speaker == AiSpeaker.DECISION) "decision" else "worker"
+        val baseUrl = prefs.getString(prefix + "_api_base_url", "").orEmpty().trim()
+        val model = prefs.getString(prefix + "_api_model", "").orEmpty().trim()
+        val key = prefs.getString(prefix + "_api_key", "").orEmpty()
+        if (baseUrl.isBlank() || model.isBlank()) return
 
         executor.execute {
             val startedAt = System.currentTimeMillis()
-            AppLogger.log(this, "API_CHAT_START", "projectId=${project.id} model=$model")
+            val limit = prefs.getInt("command_limit", 3).coerceIn(1, 20)
             try {
-                val limit = prefs.getInt("command_limit", 3).coerceIn(1, 20)
-                val config = BridgeApiConfig(
-                    baseUrl,
-                    prefs.getString("api_key", "").orEmpty(),
-                    model
-                )
-                val system = buildSystemPrompt(limit)
-                val answer = BridgeApiClient(config).chat(project.messages, system)
-                val elapsed = System.currentTimeMillis() - startedAt
-                AppLogger.log(this, "API_CHAT_RESULT", "success=true projectId=${project.id} model=$model elapsedMs=$elapsed")
+                val history = project.messages.map {
+                    val speakerName = when (it.speaker) {
+                        AiSpeaker.USER -> "用户"
+                        AiSpeaker.DECISION -> "Decision AI"
+                        AiSpeaker.WORKER -> "Worker AI"
+                        AiSpeaker.SYSTEM -> "系统"
+                    }
+                    val role = if (it.speaker == speaker) "assistant" else "user"
+                    BridgeChatMessage(role, "[" + speakerName + "] " + it.content, it.time, it.speaker)
+                }
+                val answer = BridgeApiClient(BridgeApiConfig(baseUrl, key, model))
+                    .chat(history, buildAiSystemPrompt(speaker, limit))
+                AppLogger.log(this, "AI_CHAT_RESULT", "speaker=" + speaker + " projectId=" + project.id + " success=true elapsedMs=" + (System.currentTimeMillis() - startedAt))
                 runOnUiThread {
-                    project.messages += BridgeChatMessage("assistant", answer)
+                    project.messages += BridgeChatMessage("assistant", answer, speaker = speaker)
                     saveProjects()
                     render()
                     executeAiCommands(answer, project, limit)
+                    val partner = if (speaker == AiSpeaker.DECISION) AiSpeaker.WORKER else AiSpeaker.DECISION
+                    val partnerPrefix = if (partner == AiSpeaker.DECISION) "decision" else "worker"
+                    if (prefs.getString(partnerPrefix + "_api_base_url", "").orEmpty().isNotBlank() &&
+                        prefs.getString(partnerPrefix + "_api_model", "").orEmpty().isNotBlank()) {
+                        requestAi(partner, project)
+                    }
                 }
             } catch (e: Exception) {
-                val elapsed = System.currentTimeMillis() - startedAt
                 val reason = e.message ?: e::class.simpleName ?: "未知错误"
-                AppLogger.log(this, "API_CHAT_RESULT", "success=false projectId=${project.id} model=$model elapsedMs=$elapsed reason=${reason.take(300)}")
+                AppLogger.log(this, "AI_CHAT_RESULT", "speaker=" + speaker + " projectId=" + project.id + " success=false reason=" + reason.take(300))
                 runOnUiThread {
-                    project.messages += BridgeChatMessage("tool", "[API 错误]\n" + reason)
+                    project.messages += BridgeChatMessage("tool", "[" + speaker.name + " API 错误]\n" + reason, speaker = AiSpeaker.SYSTEM)
                     saveProjects()
                     render()
                 }
