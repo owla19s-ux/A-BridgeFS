@@ -30,7 +30,20 @@ class CollaborationTransport(context: Context) {
     }
 
     fun pendingFor(role: CollaborationProtocol.Role): List<CollaborationProtocol.Message> =
-        all().filter { it.to == role }
+        all().filter { it.to == role && !isHandled(it.id) }
+
+    fun markHandled(messageId: String) {
+        val handled = JSONArray(prefs.getString(KEY_HANDLED, "[]") ?: "[]")
+        if ((0 until handled.length()).none { handled.optString(it) == messageId }) {
+            handled.put(messageId)
+            prefs.edit().putString(KEY_HANDLED, handled.toString()).apply()
+        }
+    }
+
+    private fun isHandled(messageId: String): Boolean {
+        val handled = JSONArray(prefs.getString(KEY_HANDLED, "[]") ?: "[]")
+        return (0 until handled.length()).any { handled.optString(it) == messageId }
+    }
 
     fun clear() {
         prefs.edit().remove(KEY_MESSAGES).apply()
@@ -113,41 +126,54 @@ class CollaborationCoordinator(private val context: Context) {
     private val transport = CollaborationTransport(context)
 
     fun submitTask(task: CollaborationProtocol.Message) {
-        require(task.type == CollaborationProtocol.Type.TASK) {
-            "submitTask requires TASK"
-        }
+        require(task.type == CollaborationProtocol.Type.TASK) { "submitTask requires TASK" }
         require(task.from == CollaborationProtocol.Role.DECISION_AI)
         require(task.to == CollaborationProtocol.Role.WORKER)
         require(CollaborationProtocol.validate(task).valid)
         transport.append(task)
     }
 
-    fun callDecisionAi(
-        message: CollaborationProtocol.Message,
-        systemPrompt: String
-    ): String {
+    fun callDecisionAi(message: CollaborationProtocol.Message, systemPrompt: String): String {
         require(message.to == CollaborationProtocol.Role.DECISION_AI)
-        return CollaborationApiClient(
-            CollaborationApiConfig.fromPreferences(
-                context,
-                CollaborationProtocol.Role.DECISION_AI
-            )
-        ).invoke(message, systemPrompt)
+        return CollaborationApiClient(CollaborationApiConfig.fromPreferences(context, CollaborationProtocol.Role.DECISION_AI)).invoke(message, systemPrompt)
     }
 
-    fun callWorker(
-        message: CollaborationProtocol.Message,
-        systemPrompt: String
-    ): String {
+    fun callWorker(message: CollaborationProtocol.Message, systemPrompt: String): String {
         require(message.to == CollaborationProtocol.Role.WORKER)
-        return CollaborationApiClient(
-            CollaborationApiConfig.fromPreferences(
-                context,
-                CollaborationProtocol.Role.WORKER
-            )
-        ).invoke(message, systemPrompt)
+        return CollaborationApiClient(CollaborationApiConfig.fromPreferences(context, CollaborationProtocol.Role.WORKER)).invoke(message, systemPrompt)
     }
 
-    fun pendingFor(role: CollaborationProtocol.Role): List<CollaborationProtocol.Message> =
-        transport.pendingFor(role)
+    /** Execute exactly one Worker -> Decision AI round. */
+    fun dispatchOneWorkerRound(workerSystemPrompt: String, decisionSystemPrompt: String): List<CollaborationProtocol.Message> {
+        val task = transport.pendingFor(CollaborationProtocol.Role.WORKER).firstOrNull { it.type == CollaborationProtocol.Type.TASK } ?: return emptyList()
+        val workerMessage = parseProtocolResponse(callWorker(task, workerSystemPrompt))
+        validateResponse(workerMessage, CollaborationProtocol.Role.WORKER)
+        transport.append(workerMessage)
+        transport.markHandled(task.id)
+        if (workerMessage.to != CollaborationProtocol.Role.DECISION_AI) return listOf(workerMessage)
+        val decisionMessage = parseProtocolResponse(callDecisionAi(workerMessage, decisionSystemPrompt))
+        validateResponse(decisionMessage, CollaborationProtocol.Role.DECISION_AI)
+        transport.append(decisionMessage)
+        return listOf(workerMessage, decisionMessage)
+    }
+
+    fun pendingFor(role: CollaborationProtocol.Role): List<CollaborationProtocol.Message> = transport.pendingFor(role)
+
+    private fun parseProtocolResponse(raw: String): CollaborationProtocol.Message {
+        val text = raw.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
+        val json = try { JSONObject(text) } catch (_: Exception) {
+            val start = text.indexOf('{'); val end = text.lastIndexOf('}')
+            require(start >= 0 && end > start) { "AI response is not a protocol JSON object" }
+            JSONObject(text.substring(start, end + 1))
+        }
+        return try { CollaborationProtocol.Message.fromJson(json) } catch (cause: Exception) {
+            throw IllegalArgumentException("AI response is not a valid collaboration message: " + cause.message, cause)
+        }
+    }
+
+    private fun validateResponse(message: CollaborationProtocol.Message, expectedFrom: CollaborationProtocol.Role) {
+        require(message.from == expectedFrom) { "AI response has wrong sender: ${message.from}" }
+        val result = CollaborationProtocol.validate(message)
+        require(result.valid) { result.error ?: "invalid protocol response" }
+    }
 }
