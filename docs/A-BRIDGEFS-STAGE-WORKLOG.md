@@ -121,3 +121,28 @@ A-BridgeFS：
 ### 第一任务
 
 先读取现有 API、对话、数据存储与 A-177 可复用能力，确定最小实现路径；确认后再进入代码施工。
+
+
+## 2026-09-30 — 第一批施工完成
+
+### 已施工
+- API 页面改为 Decision AI / Worker AI 两套独立配置。
+- 每套配置：Provider、Base URL、API Key、Model、连接测试。
+- API 层继续使用 OpenAI-compatible `/models` 与 `/chat/completions`。
+- 旧版单 API 设置自动迁移到 Decision AI，避免已有配置直接失效。
+- 对话记录增加 AI 身份字段，保留旧记录兼容。
+- 现有对话页增加 Decision AI / Worker AI 切换。
+- 用户发送消息后，当前 AI 回复完成后会自动把当前记录交给另一 AI 继续交流。
+- 两个 AI 的消息均直接记录在现有项目消息记录中。
+- 保留现有输入框、输入法适配、BridgeFS 指令与回执链。
+
+### 当前未验证
+- Android 编译 / APK：未验证。
+- 真机双 API 对话：未验证。
+- AI → AI 自动交流：未验证。
+- 输入法回归：未验证。
+- BridgeFS 指令链回归：未验证。
+
+### 当前问题 / 注意
+- 当前 GitHub Actions 只监听 `main` push，本施工分支不会自动触发正式构建发布流。
+- 因此本批代码目前不能标记为“已验证”。
