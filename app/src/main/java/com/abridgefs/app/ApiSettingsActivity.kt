@@ -19,6 +19,8 @@ class ApiSettingsActivity : Activity() {
         window.decorView.systemUiVisibility =
             window.decorView.systemUiVisibility or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
 
+        migrateLegacyApiIfNeeded()
+
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(resources.getColor(R.color.bridgefs_surface))
@@ -52,6 +54,19 @@ class ApiSettingsActivity : Activity() {
         }, LinearLayout.LayoutParams(-1, dp(46)).apply { topMargin = dp(10) })
 
         setContentView(ScrollView(this).apply { addView(root) })
+    }
+
+    private fun migrateLegacyApiIfNeeded() {
+        if (prefs.getString("decision_api_base_url", "").orEmpty().isNotBlank()) return
+        val legacyBase = prefs.getString("api_base_url", "").orEmpty()
+        val legacyModel = prefs.getString("api_model", "").orEmpty()
+        if (legacyBase.isBlank() && legacyModel.isBlank()) return
+        prefs.edit()
+            .putString("decision_api_provider", prefs.getString("api_provider", "").orEmpty())
+            .putString("decision_api_base_url", legacyBase)
+            .putString("decision_api_key", prefs.getString("api_key", "").orEmpty())
+            .putString("decision_api_model", legacyModel)
+            .apply()
     }
 
     private data class ConfigFields(
