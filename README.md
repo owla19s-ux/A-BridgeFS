@@ -65,3 +65,35 @@ releases/latest/download/A-BridgeFS.apk
 ```
 
 Android `applicationId`、源码目录和 Release APK 文件名彼此独立。
+
+
+## 项目资料
+
+当前协作资料入口：
+
+- `AGENTS.md`：施工、验证与 AI 协作规则
+- `docs/STATUS.md`：当前项目状态与阶段边界
+- `docs/REQUIREMENTS.md`：当前需求板
+- `docs/A-BRIDGEFS-STAGE-WORKLOG.md`：阶段施工与验证记录
+- `docs/architecture/`：架构设计资料
+- `docs/V0.1.1-PLAN.md`：早期 v0.1.1 范围计划，作为历史设计资料保留
+
+当前第一阶段实验：
+
+```
+人
+ ↓
+A-BridgeFS
+ ↓
+Decision AI / Worker
+ ↓
+GitHub 项目
+ ↓
+Commit / Verify
+ ↓
+回执
+ ↓
+人
+```
+
+当前重点是验证 **Decision AI + Worker** 的连续协作，而不是提前建设完整 Agent 平台。
