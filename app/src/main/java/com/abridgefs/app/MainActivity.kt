@@ -550,7 +550,8 @@ class MainActivity : Activity() {
 
     private fun buildAiSystemPrompt(speaker: AiSpeaker, limit: Int): String {
         return BridgeCollaborationProtocol.systemPrompt(speaker, limit) +
-            "\n\n" + BridgeCommandSpec.aiSystemPrompt(limit) +\n            "\n\n" + toolCallingSystemPrompt()
+            "\n\n" + BridgeCommandSpec.aiSystemPrompt(limit) +
+            "\n\n" + toolCallingSystemPrompt()
     }
 
     private fun toolCallingSystemPrompt(): String {
