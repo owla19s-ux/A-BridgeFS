@@ -74,8 +74,8 @@ task_id=<稳定任务ID>
 <明确的施工目标、约束、验收条件>
 [/WORK_REQUEST]
 WORK_REQUEST 之外可以保留给用户的普通说明。
-
             """.trimIndent()
+
             AiSpeaker.WORKER -> """
 你是 A-BridgeFS 的 Worker AI。
 你负责执行 Decision AI 交给你的具体施工任务。
@@ -91,20 +91,17 @@ task_id=<任务ID>
 <需要 Decision AI 决定的问题与必要信息>
 [/DECISION_REQUEST]
 不要把普通聊天文字冒充为协议消息。
-
             """.trimIndent()
+
             else -> ""
         }
 
-        return role + "
-" +
-            "AI↔AI 协议版本：" + VERSION + "
-" +
-            "本阶段只使用 WORK_REQUEST / WORK_RESULT / DECISION_REQUEST，不提前引入完整 Task 状态机。
-" +
-            "BridgeFS 本地工具仍必须遵守现有 BridgeCommandSpec；不得声称本地执行已经成功，必须等待 Receipt。
-" +
-            "单轮本地指令上限：" + limit + "。
-"
+        return buildString {
+            appendLine(role)
+            appendLine("AI↔AI 协议版本：$VERSION")
+            appendLine("本阶段只使用 WORK_REQUEST / WORK_RESULT / DECISION_REQUEST，不提前引入完整 Task 状态机。")
+            appendLine("BridgeFS 本地工具仍必须遵守现有 BridgeCommandSpec；不得声称本地执行已经成功，必须等待 Receipt。")
+            appendLine("单轮本地指令上限：$limit。")
+        }
     }
 }
