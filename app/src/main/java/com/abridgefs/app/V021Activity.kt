@@ -154,11 +154,11 @@ class V021Activity : Activity() {
             setPadding(0, dp(10), 0, dp(2))
         })
         box.addView(TextView(this).apply {
-            text = project?.githubRepository ?: "未连接 Repository"
+            text = project?.github?.displayRepository() ?: "未连接 Repository"
             textSize = 14f
         })
         box.addView(TextView(this).apply {
-            text = "Branch  ·  " + (project?.githubBranch ?: "未设置")
+            text = "账号  ·  " + (project?.github?.displayAccount() ?: "未授权 GitHub 账号") + "\nBranch  ·  " + (project?.github?.displayBranch() ?: "未设置")
             textSize = 12f
             setTextColor(color(R.color.bridgefs_text_secondary))
             setPadding(0, dp(3), 0, dp(10))
@@ -373,11 +373,28 @@ class V021Activity : Activity() {
     private fun githubDialog() {
         if(!AccessPolicy.isGithubEnabled(this)){Toast.makeText(this,"请先在配置中开启 GitHub 全局访问",Toast.LENGTH_SHORT).show();return}
         val box=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL}
-        val r=field("Repository（owner/name）",project?.githubRepository)
-        val b=field("Branch",project?.githubBranch?:"main")
-        box.addView(r);box.addView(b)
-        AlertDialog.Builder(this).setTitle("配置 GitHub").setView(box)
-            .setPositiveButton("保存"){_,_->project?.githubRepository=r.text.toString().trim().ifBlank{null};project?.githubBranch=b.text.toString().trim().ifBlank{null};store.save(projects);render()}
+        val r=field("Repository（owner/name）",project?.github?.repository)
+        val b=field("Branch",project?.github?.branch ?: "main")
+        val read = Switch(this).apply {
+            text = "允许读取"
+            isChecked = project?.github?.readEnabled ?: true
+        }
+        val write = Switch(this).apply {
+            text = "允许修改"
+            isChecked = project?.github?.writeEnabled ?: false
+        }
+        box.addView(r);box.addView(b);box.addView(read);box.addView(write)
+        AlertDialog.Builder(this).setTitle("配置 GitHub 工作区").setView(box)
+            .setPositiveButton("保存"){_,_->
+                project?.github = GitHubWorkspace(
+                    accountLogin = project?.github?.accountLogin,
+                    repository = r.text.toString().trim().ifBlank { null },
+                    branch = b.text.toString().trim().ifBlank { null },
+                    readEnabled = read.isChecked,
+                    writeEnabled = write.isChecked
+                )
+                store.save(projects);render()
+            }
             .setNegativeButton("取消",null).show()
     }
 
