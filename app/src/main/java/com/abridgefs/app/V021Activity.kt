@@ -217,36 +217,63 @@ class V021Activity : Activity() {
         }
         root.addView(header("对话", "与当前工作区中的 API 协作"))
 
-        val top = LinearLayout(this).apply {
+        val apis = apis()
+        val selected = apis.firstOrNull { it.id == (project?.apiId ?: apiId) }
+        val selector = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-        }
-        val apis = apis()
-        val names = if (apis.isEmpty()) arrayOf("暂无 API") else apis.map { it.name.ifBlank { "未命名 API" } }.toTypedArray()
-        val spinner = Spinner(this).apply {
-            adapter = ArrayAdapter(this@V021Activity, android.R.layout.simple_spinner_dropdown_item, names)
-            val idx = apis.indexOfFirst { it.id == (project?.apiId ?: apiId) }
-            if (idx >= 0) setSelection(idx)
-            onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-                override fun onNothingSelected(p:AdapterView<*>?) {}
-                override fun onItemSelected(p:AdapterView<*>?, v:View?, pos:Int, id:Long) {
-                    if (pos < apis.size) {
-                        apiId = apis[pos].id
+            setPadding(dp(14), dp(10), dp(8), dp(10))
+            background = colorDrawable(R.color.bridgefs_input_surface, 14)
+            setOnClickListener {
+                if (apis.isEmpty()) {
+                    Toast.makeText(this@V021Activity, "请先在工作区添加 API", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                val labels = apis.map { it.name.ifBlank { "未命名 API" } }.toTypedArray()
+                val current = apis.indexOfFirst { it.id == (project?.apiId ?: apiId) }.coerceAtLeast(0)
+                AlertDialog.Builder(this@V021Activity)
+                    .setTitle("选择对话 API")
+                    .setSingleChoiceItems(labels, current) { dialog, which ->
+                        apiId = apis[which].id
                         project?.apiId = apiId
                         store.save(projects)
+                        dialog.dismiss()
+                        render()
                     }
-                }
+                    .setNegativeButton("取消", null)
+                    .show()
             }
         }
-        top.addView(spinner, LinearLayout.LayoutParams(0, dp(46), 1f))
-        top.addView(textButton("新建") {
+        selector.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(TextView(this@V021Activity).apply {
+                text = "当前 API"
+                textSize = 12f
+                setTextColor(color(R.color.bridgefs_text_secondary))
+            })
+            addView(TextView(this@V021Activity).apply {
+                text = selected?.name?.ifBlank { "未命名 API" } ?: "未选择 API"
+                textSize = 16f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(color(R.color.bridgefs_text_primary))
+                setPadding(0, dp(3), 0, 0)
+            })
+        }, LinearLayout.LayoutParams(0, -2, 1f))
+        selector.addView(TextView(this).apply {
+            text = "选择 ›"
+            textSize = 13f
+            gravity = Gravity.CENTER
+            setTextColor(color(R.color.bridgefs_accent))
+        }, LinearLayout.LayoutParams(dp(72), dp(44)))
+        root.addView(selector, LinearLayout.LayoutParams(-1, dp(68)).apply { bottomMargin = dp(8) })
+
+        root.addView(textButton("＋ 新建对话") {
             project = store.newProject("新聊天 " + (projects.size + 1)).also { it.apiId = apis.firstOrNull()?.id }
             apiId = project?.apiId.orEmpty()
             projects += project!!
             store.save(projects)
             render()
-        }, LinearLayout.LayoutParams(dp(70), dp(42)).apply { marginStart = dp(8) })
-        root.addView(top)
+        }, LinearLayout.LayoutParams(-1, dp(42)).apply { bottomMargin = dp(4) })
 
         val messages = ScrollView(this)
         val messageBox = LinearLayout(this).apply {
