@@ -108,7 +108,7 @@ class GitHubActivity : android.app.Activity() {
         root.addView(section("GitHub 工作区"))
         listOf("文件", "Commit", "Issue", "PR", "Actions", "Release").forEach { name ->
             root.addView(info(name, "真实模块入口；具体能力按版本逐步开放。"))
-        })
+        }
 
         root.addView(section("账号"))
         root.addView(button("断开 GitHub") {
