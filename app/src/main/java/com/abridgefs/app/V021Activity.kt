@@ -142,6 +142,8 @@ class V021Activity : Activity() {
 
     private fun workspaceCard(): View {
         val box = card()
+        val auth = GitHubTokenStore(this).state()
+        val connected = AccessPolicy.isGithubEnabled(this) && !auth.accessToken.isNullOrBlank()
         box.addView(TextView(this).apply {
             text = project?.name ?: "默认工作区"
             textSize = 18f
@@ -154,16 +156,24 @@ class V021Activity : Activity() {
             setPadding(0, dp(10), 0, dp(2))
         })
         box.addView(TextView(this).apply {
-            text = project?.githubRepository ?: "未连接 Repository"
+            text = if (connected) "● 已连接 · " + (auth.login ?: "GitHub") else "○ 未连接"
             textSize = 14f
+            setTextColor(if (connected) color(R.color.bridgefs_accent) else color(R.color.bridgefs_text_secondary))
         })
         box.addView(TextView(this).apply {
-            text = "Branch  ·  " + (project?.githubBranch ?: "未设置")
+            text = project?.githubRepository ?: "未选择 Repository"
+            textSize = 14f
+            setPadding(0, dp(4), 0, dp(2))
+        })
+        box.addView(TextView(this).apply {
+            text = "Branch  ·  " + (project?.githubBranch ?: "未选择")
             textSize = 12f
             setTextColor(color(R.color.bridgefs_text_secondary))
-            setPadding(0, dp(3), 0, dp(10))
+            setPadding(0, dp(2), 0, dp(8))
         })
-        box.addView(actionButton("配置 GitHub") { githubDialog() })
+        box.addView(actionButton("进入 GitHub") {
+            startActivity(Intent(this, GitHubActivity::class.java))
+        })
         return box
     }
 
@@ -370,16 +380,6 @@ class V021Activity : Activity() {
             .setNegativeButton("取消",null).show()
     }
 
-    private fun githubDialog() {
-        if(!AccessPolicy.isGithubEnabled(this)){Toast.makeText(this,"请先在配置中开启 GitHub 全局访问",Toast.LENGTH_SHORT).show();return}
-        val box=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL}
-        val r=field("Repository（owner/name）",project?.githubRepository)
-        val b=field("Branch",project?.githubBranch?:"main")
-        box.addView(r);box.addView(b)
-        AlertDialog.Builder(this).setTitle("配置 GitHub").setView(box)
-            .setPositiveButton("保存"){_,_->project?.githubRepository=r.text.toString().trim().ifBlank{null};project?.githubBranch=b.text.toString().trim().ifBlank{null};store.save(projects);render()}
-            .setNegativeButton("取消",null).show()
-    }
 
     private fun removeApi(a:ApiProfile) {
         AlertDialog.Builder(this).setTitle("移除 API").setMessage("确定移除「"+a.name+"」？")
