@@ -11,6 +11,7 @@ data class BridgeReceiptRecord(val status: String, val command: String, val mess
 data class BridgeProject(
     val id: String,
     var name: String,
+    var apiId: String? = null,
     var githubAccountLogin: String? = null,
     var githubRepository: String? = null,
     var githubBranch: String? = null,
@@ -32,6 +33,7 @@ class BridgeProjectStore(private val context: Context) {
             val project = BridgeProject(
                 id = obj.getString("id"),
                 name = obj.getString("name"),
+                apiId = obj.optString("apiId", "").ifBlank { null },
                 githubAccountLogin = obj.optString("githubAccountLogin", "").ifBlank { null },
                 githubRepository = obj.optString("githubRepository", "").ifBlank { null },
                 githubBranch = obj.optString("githubBranch", "").ifBlank { null },
@@ -59,6 +61,7 @@ class BridgeProjectStore(private val context: Context) {
             val obj = JSONObject()
                 .put("id", project.id)
                 .put("name", project.name)
+                .put("apiId", project.apiId.orEmpty())
                 .put("githubAccountLogin", project.githubAccountLogin.orEmpty())
                 .put("githubRepository", project.githubRepository.orEmpty())
                 .put("githubBranch", project.githubBranch.orEmpty())
