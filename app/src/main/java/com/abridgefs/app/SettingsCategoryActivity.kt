@@ -9,6 +9,7 @@ import android.provider.Settings
 import android.text.InputType
 import android.view.Gravity
 import android.view.View
+import android.view.WindowInsets
 import android.widget.*
 import android.graphics.drawable.GradientDrawable
 import java.io.File
@@ -32,6 +33,7 @@ class SettingsCategoryActivity : Activity() {
             setPadding(dp(16), dp(12), dp(16), dp(24))
             setBackgroundColor(resources.getColor(R.color.bridgefs_surface))
         }
+        val baseTop = dp(12)
         val header = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
         header.addView(TextView(this).apply {
             text = "‹"
@@ -59,6 +61,21 @@ class SettingsCategoryActivity : Activity() {
             else -> buildSystem(box)
         }
         scroll.addView(box)
+
+        // Android 15/16 with target SDK 35 uses edge-to-edge by default.
+        // Keep this fix local to the settings page; the global theme remains unchanged.
+        box.setOnApplyWindowInsetsListener { _, insets ->
+            val bars = insets.getInsets(WindowInsets.Type.systemBars())
+            box.setPadding(dp(16), baseTop + bars.top, dp(16), dp(24))
+            insets
+        }
+        scroll.setOnApplyWindowInsetsListener { _, insets ->
+            val bars = insets.getInsets(WindowInsets.Type.systemBars())
+            val ime = insets.getInsets(WindowInsets.Type.ime())
+            scroll.setPadding(0, 0, 0, maxOf(bars.bottom, ime.bottom))
+            insets
+        }
+        scroll.requestApplyInsets()
         return scroll
     }
 
