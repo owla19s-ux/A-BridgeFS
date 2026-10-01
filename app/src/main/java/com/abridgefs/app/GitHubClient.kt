@@ -111,7 +111,7 @@ class GitHubClient(private val accessToken: String? = null) {
         val code = c.responseCode
         val stream = if (code in 200..299) c.inputStream else c.errorStream
         val text = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
-        if (code !in 200..299 && !(allowOAuthError && text.contains(""error""))) error("GitHub OAuth $code: " + text.take(300))
+        if (code !in 200..299 && !(allowOAuthError && text.contains("\"error\""))) error("GitHub OAuth $code: " + text.take(300))
         return JSONObject(text)
     }
 }
