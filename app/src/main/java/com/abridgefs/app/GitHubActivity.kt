@@ -6,6 +6,8 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.Gravity
 import android.widget.*
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import java.util.concurrent.Executors
 
 class GitHubActivity : android.app.Activity() {
@@ -35,7 +37,15 @@ class GitHubActivity : android.app.Activity() {
             setPadding(dp(18), dp(18), dp(18), dp(18))
             setBackgroundColor(color(R.color.bridgefs_surface))
         }
-        setContentView(root)
+        val scroll = ScrollView(this).apply {
+            addView(root)
+        }
+        ViewCompat.setOnApplyWindowInsetsListener(scroll) { view, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            view.setPadding(0, bars.top, 0, bars.bottom)
+            insets
+        }
+        setContentView(scroll)
         render()
     }
 
