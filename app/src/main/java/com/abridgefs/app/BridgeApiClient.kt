@@ -34,8 +34,9 @@ class BridgeApiClient(private val config: BridgeApiConfig) {
         c.readTimeout = 60000
         c.doOutput = true
         c.setRequestProperty("Content-Type", "application/json")
-        if (config.apiKey.isNotBlank()) {
-            c.setRequestProperty("Authorization", "Bearer " + config.apiKey)
+        val apiKey = config.apiKey.trim()
+        if (apiKey.isNotBlank()) {
+            c.setRequestProperty("Authorization", "Bearer " + apiKey)
         }
 
         val a = JSONArray().put(
