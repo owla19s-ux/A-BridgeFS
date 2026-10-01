@@ -141,12 +141,30 @@ class CollaborationCoordinator(private val context: Context) {
 
     fun callDecisionAi(message: CollaborationProtocol.Message, systemPrompt: String): String {
         require(message.to == CollaborationProtocol.Role.DECISION_AI)
-        return CollaborationApiClient(CollaborationApiConfig.fromPreferences(context, CollaborationProtocol.Role.DECISION_AI)).invoke(message, systemPrompt)
+        val started = System.currentTimeMillis()
+        AppLogger.collaboration(context, "DECISION_REQUEST_SENT", "START", message.taskId, message.id, detail = "to=DECISION_AI type=${message.type.name}")
+        return try {
+            val raw = CollaborationApiClient(CollaborationApiConfig.fromPreferences(context, CollaborationProtocol.Role.DECISION_AI)).invoke(message, systemPrompt)
+            AppLogger.collaboration(context, "DECISION_RESPONSE_RECEIVED", "OK", message.taskId, message.id, durationMs = System.currentTimeMillis() - started, detail = "raw_length=${raw.length}")
+            raw
+        } catch (e: Exception) {
+            AppLogger.collaboration(context, "DECISION_RESPONSE_RECEIVED", "FAIL", message.taskId, message.id, durationMs = System.currentTimeMillis() - started, error = e)
+            throw e
+        }
     }
 
     fun callWorker(message: CollaborationProtocol.Message, systemPrompt: String): String {
         require(message.to == CollaborationProtocol.Role.WORKER)
-        return CollaborationApiClient(CollaborationApiConfig.fromPreferences(context, CollaborationProtocol.Role.WORKER)).invoke(message, systemPrompt)
+        val started = System.currentTimeMillis()
+        AppLogger.collaboration(context, "TASK_SENT_TO_WORKER", "START", message.taskId, message.id, detail = "to=WORKER type=${message.type.name}")
+        return try {
+            val raw = CollaborationApiClient(CollaborationApiConfig.fromPreferences(context, CollaborationProtocol.Role.WORKER)).invoke(message, systemPrompt)
+            AppLogger.collaboration(context, "WORKER_RESPONSE_RECEIVED", "OK", message.taskId, message.id, durationMs = System.currentTimeMillis() - started, detail = "raw_length=${raw.length}")
+            raw
+        } catch (e: Exception) {
+            AppLogger.collaboration(context, "WORKER_RESPONSE_RECEIVED", "FAIL", message.taskId, message.id, durationMs = System.currentTimeMillis() - started, error = e)
+            throw e
+        }
     }
 
     /** Execute exactly one Worker -> Decision AI round. */
