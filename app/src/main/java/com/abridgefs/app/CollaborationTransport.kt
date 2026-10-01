@@ -10,13 +10,14 @@ import org.json.JSONObject
  * Persistence is intentionally local for v0.1. The protocol does not depend on
  * GitHub Issues, files, or any specific network transport.
  */
-class CollaborationTransport(context: Context) {
+class CollaborationTransport(private val context: Context) {
     private val prefs = context.getSharedPreferences("collaboration_transport", Context.MODE_PRIVATE)
 
     fun append(message: CollaborationProtocol.Message) {
         val items = JSONArray(prefs.getString(KEY_MESSAGES, "[]") ?: "[]")
         items.put(message.toJson())
         prefs.edit().putString(KEY_MESSAGES, items.toString()).apply()
+        AppLogger.collaboration(context, "MESSAGE_STORED", "OK", message.taskId, message.id, message.replyTo, "type=${message.type.name} from=${message.from.name} to=${message.to.name}")
     }
 
     fun all(): List<CollaborationProtocol.Message> {
@@ -135,6 +136,7 @@ class CollaborationCoordinator(private val context: Context) {
         require(task.to == CollaborationProtocol.Role.WORKER)
         require(CollaborationProtocol.validate(task).valid)
         transport.append(task)
+        AppLogger.collaboration(context, "TASK_SUBMITTED", "OK", task.taskId, task.id, detail = "type=TASK")
     }
 
     fun callDecisionAi(message: CollaborationProtocol.Message, systemPrompt: String): String {
