@@ -14,6 +14,7 @@ import androidx.core.view.WindowInsetsCompat
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
+import java.util.concurrent.Executors
 
 data class ApiProfile(val id:String,val name:String,val baseUrl:String,val key:String,val model:String,val write:Boolean)
 
@@ -29,6 +30,25 @@ class V021Activity : Activity() {
     private var apiId = ""
     private enum class Page { WORKSPACE, CHAT, CONFIG }
     private var page = Page.WORKSPACE
+    private val executor = Executors.newSingleThreadExecutor()
+    private var pendingReceipt: String? = null
+    private val receiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context, intent: android.content.Intent) {
+            val status = intent.getStringExtra("status") ?: "UNKNOWN"
+            val command = intent.getStringExtra("command") ?: ""
+            val message = intent.getStringExtra("message") ?: ""
+            val projectId = intent.getStringExtra("projectId")
+            val target = projects.firstOrNull { it.id == projectId } ?: project
+            if (target != null) {
+                val receipt = BridgeReceiptRecord(status, command, message)
+                target.executions += receipt
+                pendingReceipt = formatReceipt(receipt)
+                store.save(projects)
+                if (page == Page.CHAT) render()
+                else Toast.makeText(this@V021Activity, "收到执行回执：$status", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
@@ -42,6 +62,7 @@ class V021Activity : Activity() {
         if (projects.isEmpty()) projects += store.newProject("默认工作区")
         project = projects.first()
         apiId = project?.apiId ?: apis().firstOrNull()?.id.orEmpty()
+        registerReceiver(receiver, IntentFilter("com.bridgefs.RESULT"), Context.RECEIVER_NOT_EXPORTED)
         buildShell()
     }
 
@@ -319,6 +340,16 @@ class V021Activity : Activity() {
             setHintTextColor(color(R.color.bridgefs_text_secondary))
         }
         composer.addView(input, LinearLayout.LayoutParams(0, dp(52), 1f))
+        composer.addView(actionButton("回执") {
+            val receipt = pendingReceipt
+            if (receipt.isNullOrBlank()) {
+                Toast.makeText(this, "当前没有待处理回执", Toast.LENGTH_SHORT).show()
+            } else {
+                input.setText(receipt)
+                input.setSelection(input.text.length)
+                pendingReceipt = null
+            }
+        }, LinearLayout.LayoutParams(dp(58), dp(52)).apply { marginStart = dp(6) })
         composer.addView(actionButton("发送") {
             send(input, apiId)
             input.text.clear()
@@ -425,19 +456,126 @@ class V021Activity : Activity() {
     }
 
     private fun send(input:EditText,id:String) {
-        val text=input.text.toString().trim();if(text.isBlank())return
-        val selectedId = project?.apiId ?: id
-        val a=apis().firstOrNull{it.id==selectedId}?:run{Toast.makeText(this,"请先选择 API",Toast.LENGTH_SHORT).show();return}
-        if(!AccessPolicy.isApiEnabled(this)){Toast.makeText(this,"API 全局访问已关闭",Toast.LENGTH_SHORT).show();return}
-        project?.apiId = a.id
-        apiId = a.id
-        project?.messages?.add(BridgeChatMessage("user",text));store.save(projects);render()
-        Thread {
-            runCatching{BridgeApiClient(BridgeApiConfig(a.baseUrl,a.key,a.model)).chat(project?.messages?:emptyList(),"你是 A-BridgeFS 协作 AI。")}
-                .onSuccess{answer->runOnUiThread{project?.messages?.add(BridgeChatMessage("assistant",answer));store.save(projects);render()}}
-                .onFailure{e->runOnUiThread{project?.messages?.add(BridgeChatMessage("assistant","请求失败："+(e.message?:"未知错误")));store.save(projects);render()}}
-        }.start()
+        val text=input.text.toString().trim()
+        if(text.isBlank()) return
+        val current=project ?: return
+        val selectedId=current.apiId ?: id
+        val a=apis().firstOrNull{it.id==selectedId} ?: run {
+            Toast.makeText(this,"请先选择 API",Toast.LENGTH_SHORT).show()
+            return
+        }
+        if(!AccessPolicy.isApiEnabled(this)){
+            Toast.makeText(this,"API 全局访问已关闭",Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        current.apiId=a.id
+        apiId=a.id
+        current.messages += BridgeChatMessage("user",text)
+        store.save(projects)
+        render()
+
+        executor.execute {
+            try {
+                val limit=prefs.getInt("command_limit",3).coerceIn(1,20)
+                val answer=BridgeApiClient(
+                    BridgeApiConfig(a.baseUrl,a.key,a.model)
+                ).chat(current.messages,BridgeCommandSpec.aiSystemPrompt(limit))
+                runOnUiThread {
+                    current.messages += BridgeChatMessage("assistant",answer)
+                    store.save(projects)
+                    render()
+                    executeAiCommands(answer,current,limit)
+                }
+            } catch(e:Exception) {
+                runOnUiThread {
+                    current.messages += BridgeChatMessage("tool","[API 错误]\n"+(e.message ?: "未知错误"))
+                    store.save(projects)
+                    render()
+                }
+            }
+        }
     }
+
+    private fun executeAiCommands(answer:String, current:BridgeProject, limit:Int) {
+        val blocks=BridgeRequest.extractAll(answer)
+        if(blocks.isEmpty()) {
+            recordReceipt(current,"NOT_TRIGGERED","AI command","AI 回复未包含 [bridgefs]...[/bridgefs] 指令区块，本轮未执行本地操作。")
+            return
+        }
+
+        val commands=blocks.flatMap { CommandParser.parse(it) }
+        if(commands.isEmpty()) {
+            recordReceipt(current,"FAILED","AI command",CommandParser.lastError ?: "未识别到 BridgeFS 指令")
+            return
+        }
+
+        if(commands.size>limit) {
+            recordReceipt(current,"DENIED","AI command batch","本轮指令数量 ${commands.size} 超过限制 ${limit}，未执行。")
+            return
+        }
+
+        val auth=authorization()
+        val denied=commands.firstOrNull { PermissionPolicy.check(it,auth)==Decision.DENY }
+        if(denied!=null) {
+            recordReceipt(current,"DENIED",denied.toString(),"当前权限设置禁止该操作")
+            return
+        }
+
+        val confirm=commands.firstOrNull { PermissionPolicy.check(it,auth)==Decision.CONFIRM }
+        if(confirm!=null) {
+            AlertDialog.Builder(this)
+                .setTitle("需要确认")
+                .setMessage(blocks.joinToString("\n\n"))
+                .setPositiveButton("执行") { _,_ -> dispatchToBridge(blocks.joinToString("\n\n"),current) }
+                .setNegativeButton("拒绝") { _,_ -> recordReceipt(current,"DENIED",confirm.toString(),"用户拒绝了本次执行") }
+                .show()
+        } else {
+            dispatchToBridge(blocks.joinToString("\n\n"),current)
+        }
+    }
+
+    private fun dispatchToBridge(command:String,current:BridgeProject) {
+        val root=prefs.getString("root_path","").orEmpty().trim()
+        if(root.isBlank()) {
+            recordReceipt(current,"FAILED","AI command","未设置 BridgeFS 工作目录，指令未执行。")
+            return
+        }
+
+        val intent=Intent(this,FileBridgeService::class.java)
+            .putExtra("bridgefs_external_command",command)
+            .putExtra("bridgefs_root",root)
+            .putExtra("projectId",current.id)
+
+        runCatching { startForegroundService(intent) }.onFailure {
+            recordReceipt(current,"FAILED","AI command","启动 BridgeFS 执行服务失败："+(it.message ?: "未知错误"))
+        }
+    }
+
+    private fun authorization():Authorization {
+        val allowed=mutableSetOf<FileAction>()
+        val confirm=mutableSetOf<FileAction>()
+        FileAction.values().forEach { action ->
+            when(prefs.getString("perm_"+action.name,
+                if(action==FileAction.LIST || action==FileAction.READ) "allow" else "confirm")) {
+                "allow" -> allowed += action
+                "confirm" -> { allowed += action; confirm += action }
+            }
+        }
+        return Authorization(prefs.getString("root_path","").orEmpty(),allowed,confirm)
+    }
+
+    private fun recordReceipt(current:BridgeProject,status:String,command:String,message:String) {
+        val receipt=BridgeReceiptRecord(status,command,message)
+        current.executions += receipt
+        pendingReceipt=formatReceipt(receipt)
+        store.save(projects)
+        if(page==Page.CHAT) render()
+    }
+
+    private fun formatReceipt(receipt:BridgeReceiptRecord):String =
+        "[Receipt] ${receipt.status}\ncommand=${receipt.command}\n${receipt.message}"
+
 
     private fun field(h:String,v:String?)=EditText(this).apply{
         hint=h
@@ -473,4 +611,10 @@ class V021Activity : Activity() {
     private fun color(res:Int)=resources.getColor(res)
     private fun colorDrawable(res:Int,r:Int)=GradientDrawable().apply{setColor(color(res));cornerRadius=dp(r).toFloat()}
     private fun dp(v:Int)=(v*resources.displayMetrics.density).toInt()
+
+    override fun onDestroy() {
+        runCatching { unregisterReceiver(receiver) }
+        executor.shutdownNow()
+        super.onDestroy()
+    }
 }
