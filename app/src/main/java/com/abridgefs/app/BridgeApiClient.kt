@@ -18,7 +18,7 @@ class BridgeApiClient(private val config: BridgeApiConfig) {
         c.requestMethod = "GET"
         c.connectTimeout = 10000
         c.readTimeout = 15000
-        if (config.apiKey.isNotBlank()) c.setRequestProperty("Authorization", "Bearer " + config.apiKey)
+        val apiKey = config.apiKey.trim()\n        if (apiKey.isNotBlank()) c.setRequestProperty("Authorization", "Bearer " + apiKey)
         val code = c.responseCode
         val stream = if (code in 200..299) c.inputStream else c.errorStream
         val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
