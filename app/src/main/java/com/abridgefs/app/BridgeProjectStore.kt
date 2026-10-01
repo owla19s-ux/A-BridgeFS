@@ -21,11 +21,20 @@ data class BridgeReceiptRecord(
 data class BridgeProject(
     val id: String,
     var name: String,
-    var githubRepository: String? = null,
-    var githubBranch: String? = null,
+    var github: GitHubWorkspace = GitHubWorkspace(),
     val messages: MutableList<BridgeChatMessage> = mutableListOf(),
     val executions: MutableList<BridgeReceiptRecord> = mutableListOf()
-)
+) {
+    @Deprecated("Use github.repository")
+    var githubRepository: String?
+        get() = github.repository
+        set(value) { github.repository = value }
+
+    @Deprecated("Use github.branch")
+    var githubBranch: String?
+        get() = github.branch
+        set(value) { github.branch = value }
+}
 
 class BridgeProjectStore(private val context: Context) {
     private val prefs = context.getSharedPreferences("bridgefs_projects", Context.MODE_PRIVATE)
@@ -41,8 +50,13 @@ class BridgeProjectStore(private val context: Context) {
             val project = BridgeProject(
                 id = obj.getString("id"),
                 name = obj.getString("name"),
-                githubRepository = obj.optString("githubRepository", "").ifBlank { null },
-                githubBranch = obj.optString("githubBranch", "").ifBlank { null }
+                github = GitHubWorkspace(
+                    accountLogin = obj.optString("githubAccount", "").ifBlank { null },
+                    repository = obj.optString("githubRepository", "").ifBlank { null },
+                    branch = obj.optString("githubBranch", "").ifBlank { null },
+                    readEnabled = obj.optBoolean("githubReadEnabled", true),
+                    writeEnabled = obj.optBoolean("githubWriteEnabled", false)
+                )
             )
 
             val messages = obj.optJSONArray("messages") ?: JSONArray()
@@ -79,8 +93,11 @@ class BridgeProjectStore(private val context: Context) {
             val obj = JSONObject()
                 .put("id", project.id)
                 .put("name", project.name)
-                .put("githubRepository", project.githubRepository.orEmpty())
-                .put("githubBranch", project.githubBranch.orEmpty())
+                .put("githubAccount", project.github.accountLogin.orEmpty())
+                .put("githubRepository", project.github.repository.orEmpty())
+                .put("githubBranch", project.github.branch.orEmpty())
+                .put("githubReadEnabled", project.github.readEnabled)
+                .put("githubWriteEnabled", project.github.writeEnabled)
 
             obj.put(
                 "messages",
