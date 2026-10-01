@@ -21,6 +21,8 @@ data class BridgeReceiptRecord(
 data class BridgeProject(
     val id: String,
     var name: String,
+    var githubRepository: String? = null,
+    var githubBranch: String? = null,
     val messages: MutableList<BridgeChatMessage> = mutableListOf(),
     val executions: MutableList<BridgeReceiptRecord> = mutableListOf()
 )
@@ -37,8 +39,10 @@ class BridgeProjectStore(private val context: Context) {
         for (i in 0 until array.length()) {
             val obj = array.getJSONObject(i)
             val project = BridgeProject(
-                obj.getString("id"),
-                obj.getString("name")
+                id = obj.getString("id"),
+                name = obj.getString("name"),
+                githubRepository = obj.optString("githubRepository", "").ifBlank { null },
+                githubBranch = obj.optString("githubBranch", "").ifBlank { null }
             )
 
             val messages = obj.optJSONArray("messages") ?: JSONArray()
@@ -75,6 +79,8 @@ class BridgeProjectStore(private val context: Context) {
             val obj = JSONObject()
                 .put("id", project.id)
                 .put("name", project.name)
+                .put("githubRepository", project.githubRepository.orEmpty())
+                .put("githubBranch", project.githubBranch.orEmpty())
 
             obj.put(
                 "messages",

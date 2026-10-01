@@ -464,6 +464,11 @@ class MainActivity : Activity() {
         val message = input.text.toString().trim()
         if (message.isBlank()) return
         val project = currentProject ?: return
+        if (!AccessPolicy.isApiEnabled(this)) {
+            Toast.makeText(this, "API 全局访问已关闭，请在「连接与访问」中开启", Toast.LENGTH_SHORT).show()
+            drawer.openDrawer(GravityCompat.END)
+            return
+        }
         val baseUrl = prefs.getString("api_base_url", "").orEmpty().trim()
         val model = prefs.getString("api_model", "").orEmpty().trim()
         if (baseUrl.isBlank() || model.isBlank()) {
@@ -841,6 +846,7 @@ class MainActivity : Activity() {
 
         val categories = listOf(
             "AI 与 API" to "API 地址、Key、Model、连接测试",
+            "连接与访问" to "API / GitHub 全局访问开关",
             "执行与权限" to "AI 指令执行范围与确认策略",
             "指令" to "BridgeFS 指令协议与说明",
             "文件与目录" to "工作目录与文件相关设置",
@@ -854,6 +860,8 @@ class MainActivity : Activity() {
             box.addView(settingCategory(title, summary) {
                 if (title == "AI 与 API") {
                     startActivity(Intent(this, ApiSettingsActivity::class.java))
+                } else if (title == "连接与访问") {
+                    startActivity(Intent(this, GlobalAccessActivity::class.java))
                 } else {
                     startActivity(Intent(this, SettingsCategoryActivity::class.java).putExtra("category", title))
                 }
