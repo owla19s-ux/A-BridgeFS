@@ -169,18 +169,40 @@ class CollaborationCoordinator(private val context: Context) {
 
     /** Execute exactly one Worker -> Decision AI round. */
     fun dispatchOneWorkerRound(workerSystemPrompt: String, decisionSystemPrompt: String): List<CollaborationProtocol.Message> {
-        val task = transport.pendingFor(CollaborationProtocol.Role.WORKER).firstOrNull { it.type == CollaborationProtocol.Type.TASK } ?: return emptyList()
-        val workerMessage = parseProtocolResponse(callWorker(task, workerSystemPrompt))
+        val task = transport.pendingFor(CollaborationProtocol.Role.WORKER)
+            .firstOrNull { it.type == CollaborationProtocol.Type.TASK } ?: return emptyList()
+        AppLogger.collaboration(context, "WORKER_DISPATCH", "START", task.taskId, task.id, detail = "pending TASK selected")
+        val workerMessage = try {
+            parseProtocolResponse(callWorker(task, workerSystemPrompt))
+        } catch (e: Exception) {
+            AppLogger.collaboration(context, "WORKER_PROTOCOL_PARSE", "FAIL", task.taskId, task.id, error = e)
+            throw e
+        }
         validateResponse(workerMessage, CollaborationProtocol.Role.WORKER)
+        AppLogger.collaboration(context, "DECISION_REQUEST_CREATED", "OK", workerMessage.taskId, workerMessage.id, workerMessage.replyTo, "type=${workerMessage.type.name} from=${workerMessage.from.name} to=${workerMessage.to.name}")
         transport.append(workerMessage)
         transport.markHandled(task.id)
+
         if (workerMessage.to != CollaborationProtocol.Role.DECISION_AI) return listOf(workerMessage)
-        val decisionMessage = parseProtocolResponse(callDecisionAi(workerMessage, decisionSystemPrompt))
+
+        val decisionMessage = try {
+            parseProtocolResponse(callDecisionAi(workerMessage, decisionSystemPrompt))
+        } catch (e: Exception) {
+            AppLogger.collaboration(context, "DECISION_PROTOCOL_PARSE", "FAIL", workerMessage.taskId, workerMessage.id, error = e)
+            throw e
+        }
         validateResponse(decisionMessage, CollaborationProtocol.Role.DECISION_AI)
+        require(decisionMessage.taskId == workerMessage.taskId) {
+            "task_id mismatch: request=${workerMessage.taskId} response=${decisionMessage.taskId}"
+        }
+        require(decisionMessage.replyTo == workerMessage.id) {
+            "DECISION_RESPONSE reply_to mismatch: expected=${workerMessage.id} actual=${decisionMessage.replyTo}"
+        }
+        AppLogger.collaboration(context, "DECISION_RESPONSE_VALIDATED", "OK", decisionMessage.taskId, decisionMessage.id, decisionMessage.replyTo, "type=${decisionMessage.type.name} from=${decisionMessage.from.name} to=${decisionMessage.to.name}")
         transport.append(decisionMessage)
+        AppLogger.collaboration(context, "ROUND_COMPLETE", "OK", decisionMessage.taskId, decisionMessage.id, decisionMessage.replyTo)
         return listOf(workerMessage, decisionMessage)
     }
-
     fun pendingFor(role: CollaborationProtocol.Role): List<CollaborationProtocol.Message> = transport.pendingFor(role)
 
     private fun parseProtocolResponse(raw: String): CollaborationProtocol.Message {
