@@ -21,6 +21,7 @@ data class ApiProfile(val id:String,val name:String,val baseUrl:String,val key:S
 class V021Activity : Activity() {
     private val prefs by lazy { getSharedPreferences("bridgefs", 0) }
     private val store by lazy { BridgeProjectStore(this) }
+    private val apiSecrets by lazy { ApiSecretStore(this) }
     private var projects = mutableListOf<BridgeProject>()
     private var project: BridgeProject? = null
     private lateinit var content: FrameLayout
@@ -450,6 +451,7 @@ class V021Activity : Activity() {
         AlertDialog.Builder(this).setTitle("移除 API").setMessage("确定移除「"+a.name+"」？")
             .setPositiveButton("移除"){_,_->
                 projects.forEach { if (it.apiId == a.id) it.apiId = null }
+                apiSecrets.remove(a.id)
                 saveApis(apis().filterNot{it.id==a.id})
             }
             .setNegativeButton("取消",null).show()
@@ -479,7 +481,7 @@ class V021Activity : Activity() {
             try {
                 val limit=prefs.getInt("command_limit",3).coerceIn(1,20)
                 val answer=BridgeApiClient(
-                    BridgeApiConfig(a.baseUrl,a.key,a.model)
+                    BridgeApiConfig(normalizeBaseUrl(a.baseUrl),a.key,a.model)
                 ).chat(current.messages,BridgeCommandSpec.aiSystemPrompt(limit))
                 runOnUiThread {
                     current.messages += BridgeChatMessage("assistant",answer)
@@ -584,9 +586,21 @@ class V021Activity : Activity() {
         setTextColor(color(R.color.bridgefs_text_primary))
         setHintTextColor(color(R.color.bridgefs_text_secondary))
     }
-    private fun saveApi(a:ApiProfile){saveApis(apis().filterNot{it.id==a.id}+a)}
+    private fun saveApi(a:ApiProfile){
+        apiSecrets.put(a.id,a.key)
+        saveApis(apis().filterNot{it.id==a.id}+a.copy(key=""))
+    }
     private fun saveApis(list:List<ApiProfile>){
-        prefs.edit().putString("api_profiles",JSONArray().apply{list.forEach{put(JSONObject().put("id",it.id).put("name",it.name).put("baseUrl",it.baseUrl).put("key",it.key).put("model",it.model).put("write",it.write))}}.toString()).apply()
+        prefs.edit().putString("api_profiles",JSONArray().apply{
+            list.forEach{
+                put(JSONObject()
+                    .put("id",it.id)
+                    .put("name",it.name)
+                    .put("baseUrl",it.baseUrl)
+                    .put("model",it.model)
+                    .put("write",it.write))
+            }
+        }.toString()).apply()
         val current = project?.apiId
         if (current != null && list.none { it.id == current }) {
             project?.apiId = list.firstOrNull()?.id
@@ -598,14 +612,30 @@ class V021Activity : Activity() {
     private fun apis():List<ApiProfile>{
         val raw=prefs.getString("api_profiles",null)?:return legacyApi()
         val arr=JSONArray(raw)
-        return List(arr.length()){i->val o=arr.getJSONObject(i);ApiProfile(o.getString("id"),o.optString("name"),o.optString("baseUrl"),o.optString("key"),o.optString("model"),o.optBoolean("write",false))}
+        return List(arr.length()){i->
+            val o=arr.getJSONObject(i)
+            val id=o.getString("id")
+            val legacyKey=o.optString("key","")
+            if(legacyKey.isNotBlank()){
+                apiSecrets.put(id,legacyKey)
+            }
+            ApiProfile(id,o.optString("name"),o.optString("baseUrl"),apiSecrets.get(id).orEmpty(),o.optString("model"),o.optBoolean("write",false))
+        }
     }
     private fun legacyApi():List<ApiProfile>{
         val u=prefs.getString("api_base_url","").orEmpty();val m=prefs.getString("api_model","").orEmpty()
         if(u.isBlank()&&m.isBlank())return emptyList()
         val a=ApiProfile("legacy",prefs.getString("api_provider","API")?:"API",u,prefs.getString("api_key","").orEmpty(),m,false)
-        prefs.edit().putString("api_profiles",JSONArray().put(JSONObject().put("id",a.id).put("name",a.name).put("baseUrl",a.baseUrl).put("key",a.key).put("model",a.model).put("write",false)).toString()).apply()
+        apiSecrets.put(a.id,a.key)
+        prefs.edit().putString("api_profiles",JSONArray().put(JSONObject().put("id",a.id).put("name",a.name).put("baseUrl",a.baseUrl).put("model",a.model).put("write",false)).toString()).apply()
         return listOf(a)
+    }
+
+    private fun normalizeBaseUrl(raw:String):String {
+        var value=raw.trim().trimEnd('/')
+        if(value.endsWith("/chat/completions")) value=value.removeSuffix("/chat/completions")
+        if(value.endsWith("/models")) value=value.removeSuffix("/models")
+        return value
     }
 
     private fun color(res:Int)=resources.getColor(res)
