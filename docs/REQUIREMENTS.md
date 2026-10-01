@@ -60,17 +60,20 @@ GitHub 必须是真实模块。
 - BridgeApiClient
 - BridgeProjectStore
 - 三页 UI 粗骨架
-- GitHub Repository / Branch 工作区字段（历史施工，不代表真实连接）
+- 多 API 配置列表（添加 / 修改 / 移除）
+- Chat → API 绑定持久化
+- API 输入框文字颜色与 Hint 颜色显式设置
+- GitHub PAT / Android Keystore / Repository / Branch 基础能力
 
 ## C. 当前开发
 
-- GitHub 真实授权
-- GitHub API 客户端
-- Repository / Branch 实时读取
-- GitHub 工作区页面
-- 工作区 GitHub 状态
-- UI Insets / IME 正确处理
-- GitHub 本地权限与 GitHub 实际权限的双层判断
+- Workspace API 成员 / 权限模型
+- Chat 列表与 Chat 独立数据模型
+- 对话 → CommandParser → PermissionPolicy → CommandExecutor → Receipt 主链
+- GitHub Repository / Branch 实时读取与工作区绑定
+- GitHub 工作区文件 / Commit / Issue / PR / Actions / Release 实际能力
+- GitHub 本地权限与 GitHub 实际 Token 权限的双层判断
+- API Key 统一安全存储
 
 ## D. 暂不做
 
@@ -97,3 +100,15 @@ GitHub 必须是真实模块。
 → 权限边界
 
 未完成真实验证，不标记为“已验证”。
+
+## F. 2026-10-02 对话可用性修复批次
+
+本批次已施工：
+
+- 每个 `BridgeProject` 保存当前 `apiId`，使当前对话能够持久绑定 API。
+- 对话页 API 选择会写回当前对话，而不是只修改页面临时变量。
+- 新建对话继承当前可用 API。
+- 移除 API 时清理受影响对话的绑定。
+- 对话输入框、API 编辑输入框显式设置文字与 Hint 颜色，避免主题继承导致文字不可见。
+
+状态：**已实现，待 Actions / APK / 真机验证。**
