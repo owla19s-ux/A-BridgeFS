@@ -241,7 +241,16 @@ class ApiSettingsActivity : Activity() {
                     )
                     coordinator.submitTask(task)
                     val messages = coordinator.dispatchOneWorkerRound(
-                        workerSystemPrompt = "你是 A-BridgeFS Worker。严格返回一个合法的 Decision AI ↔ Worker v0.1 协议 JSON。当前只做单轮协作测试，不执行 GitHub 或本地文件修改。",
+                        workerSystemPrompt = """
+                        你是 A-BridgeFS Worker。
+                        当前只做一次 Decision AI ↔ Worker v0.1 单轮协作测试，不执行 GitHub 或本地文件修改。
+                        你不能自行做最终决定，必须把需要选择的问题交给 Decision AI。
+                        你的回复必须且只能是一个合法的 v=0.1 协议 JSON 对象，禁止 Markdown、代码围栏和任何额外文字。
+                        本轮 Worker 回复的 type 必须严格为 DECISION_REQUEST；禁止使用 PROPOSAL 或任何协议未定义的 type。
+                        from 必须是 worker，to 必须是 decision_ai，task_id 必须与收到的 TASK 完全一致。
+                        DECISION_REQUEST 的 payload 必须包含 kind、question、options、recommendation、reason、evidence、blocked_on；options 必须至少包含两个不同候选项，每项包含 id 和 summary。
+                        如果任务要求你提出候选答案，就把候选答案放进 options，不要直接给出最终决定。
+                        """.trimIndent(),
                         decisionSystemPrompt = "你是 A-BridgeFS Decision AI。严格返回一个合法的 Decision AI ↔ Worker v0.1 协议 JSON。根据 Worker 消息给出当前任务所需的正式决策或状态处理。"
                     )
                     val summary = messages.joinToString("\n\n") { it.type.name + " / " + it.from.name + " → " + it.to.name + "\n" + it.toJson().toString() }
