@@ -177,13 +177,77 @@ class SettingsCategoryActivity : Activity() {
     }
 
     private fun buildLogs(box: LinearLayout) {
-        label(box, "日志保留")
+        label(box, "协作诊断")
         box.addView(TextView(this).apply {
-            text = "运行日志：" + File(filesDir, "logs").absolutePath + "\n崩溃日志：" + File(filesDir, "crash").absolutePath + "\n日志按日期保存，不自动发送给 AI。"
+            text = "协作日志：${AppLogger.diagnosticsRoot(this@SettingsCategoryActivity).absolutePath}\n运行日志：${AppLogger.runtimeLogDir(this@SettingsCategoryActivity).absolutePath}\n协作日志按日期保存为 JSONL，不记录 API Key。"
             textSize = 13f
             setTextColor(resources.getColor(R.color.bridgefs_text_secondary))
-            setPadding(dp(4), dp(8), dp(4), dp(18))
+            setPadding(dp(4), dp(8), dp(4), dp(14))
         })
+
+        val listHost = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+        box.addView(listHost, LinearLayout.LayoutParams(-1, -2))
+
+        fun refresh() {
+            listHost.removeAllViews()
+            val dir = AppLogger.diagnosticsRoot(this@SettingsCategoryActivity)
+            val files = dir.listFiles { file -> file.isFile && file.name.endsWith(".jsonl") }
+                ?.sortedByDescending { it.name }
+                .orEmpty()
+            if (files.isEmpty()) {
+                listHost.addView(TextView(this@SettingsCategoryActivity).apply {
+                    text = "还没有协作日志。下一次运行单轮协作后会自动生成。"
+                    textSize = 13f
+                    setTextColor(resources.getColor(R.color.bridgefs_text_secondary))
+                    setPadding(dp(4), dp(10), dp(4), dp(10))
+                })
+            } else {
+                files.forEach { file ->
+                    listHost.addView(actionButton(file.name + "  ·  " + formatBytes(file.length())) {
+                        showLogFile(file)
+                    })
+                }
+            }
+        }
+
+        box.addView(actionButton("刷新协作日志") { refresh() })
+        label(box, "运行日志")
+        box.addView(actionButton("查看今日运行日志") {
+            val day = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+            val file = File(AppLogger.runtimeLogDir(this@SettingsCategoryActivity), "$day.log")
+            if (file.exists()) showLogFile(file) else Toast.makeText(this, "今日运行日志不存在", Toast.LENGTH_SHORT).show()
+        })
+        refresh()
+    }
+
+    private fun showLogFile(file: File) {
+        val content = runCatching { file.readText() }.getOrElse { "读取失败：${it.message ?: it::class.java.simpleName}" }
+        val text = TextView(this).apply {
+            this.text = content
+            textSize = 12f
+            setTextIsSelectable(true)
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+            setTextColor(resources.getColor(R.color.bridgefs_text_primary))
+        }
+        val scroll = ScrollView(this).apply { addView(text) }
+        AlertDialog.Builder(this)
+            .setTitle(file.name)
+            .setView(scroll)
+            .setPositiveButton("复制") { _, _ ->
+                val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                cm.setPrimaryClip(android.content.ClipData.newPlainText("A-BridgeFS日志", content))
+                Toast.makeText(this, "日志已复制", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("关闭", null)
+            .show()
+    }
+
+    private fun formatBytes(bytes: Long): String = when {
+        bytes < 1024 -> "$bytes B"
+        bytes < 1024 * 1024 -> "${bytes / 1024} KB"
+        else -> "${bytes / (1024 * 1024)} MB"
     }
 
     private fun label(box: LinearLayout, text: String) {
