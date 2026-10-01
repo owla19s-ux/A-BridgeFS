@@ -31,7 +31,9 @@ class CollaborationTransport(private val context: Context) {
     }
 
     fun pendingFor(role: CollaborationProtocol.Role): List<CollaborationProtocol.Message> =
-        all().filter { it.to == role && !isHandled(it.id) }
+        all()
+            .filter { it.to == role && !isHandled(it.id) }
+            .sortedByDescending { it.ts }
 
     fun markHandled(messageId: String) {
         val handled = JSONArray(prefs.getString(KEY_HANDLED, "[]") ?: "[]")
@@ -171,7 +173,7 @@ class CollaborationCoordinator(private val context: Context) {
     fun dispatchOneWorkerRound(workerSystemPrompt: String, decisionSystemPrompt: String): List<CollaborationProtocol.Message> {
         val task = transport.pendingFor(CollaborationProtocol.Role.WORKER)
             .firstOrNull { it.type == CollaborationProtocol.Type.TASK } ?: return emptyList()
-        AppLogger.collaboration(context, "WORKER_DISPATCH", "START", task.taskId, task.id, detail = "pending TASK selected")
+        AppLogger.collaboration(context, "WORKER_DISPATCH", "START", task.taskId, task.id, detail = "newest pending TASK selected")
         val workerMessage = try {
             parseProtocolResponse(callWorker(task, workerSystemPrompt))
         } catch (e: Exception) {
