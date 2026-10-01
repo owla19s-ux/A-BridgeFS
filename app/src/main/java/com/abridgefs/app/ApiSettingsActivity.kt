@@ -88,6 +88,11 @@ class ApiSettingsActivity : Activity() {
         root.addView(status, LinearLayout.LayoutParams(-1, dp(42)))
 
         val test = actionButton("测试连接") {
+            if (!AccessPolicy.isApiEnabled(this)) {
+                status.text = "连接状态：API 全局访问已关闭"
+                Toast.makeText(this, "请先在「连接与访问」中开启 API", Toast.LENGTH_SHORT).show()
+                return@actionButton
+            }
             val url = baseUrl.text.toString().trim()
             val modelName = model.text.toString().trim()
             if (url.isBlank() || modelName.isBlank()) {
@@ -192,6 +197,11 @@ class ApiSettingsActivity : Activity() {
         root.addView(collaborationStatus, LinearLayout.LayoutParams(-1, dp(72)))
 
         root.addView(actionButton("运行单轮协作") {
+            if (!AccessPolicy.isApiEnabled(this)) {
+                collaborationStatus.text = "单轮协作状态：API 全局访问已关闭"
+                Toast.makeText(this, "请先在「连接与访问」中开启 API", Toast.LENGTH_SHORT).show()
+                return@actionButton
+            }
             val taskText = objective.text.toString().trim()
             val dUrl = decisionUrl.text.toString().trim()
             val dKey = decisionKey.text.toString()
