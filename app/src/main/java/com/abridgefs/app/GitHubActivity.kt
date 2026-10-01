@@ -4,6 +4,7 @@ import android.app.AlertDialog
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.text.InputType
 import android.view.Gravity
 import android.widget.*
 import androidx.core.view.ViewCompat
@@ -37,9 +38,7 @@ class GitHubActivity : android.app.Activity() {
             setPadding(dp(18), dp(18), dp(18), dp(18))
             setBackgroundColor(color(R.color.bridgefs_surface))
         }
-        val scroll = ScrollView(this).apply {
-            addView(root)
-        }
+        val scroll = ScrollView(this).apply { addView(root) }
         ViewCompat.setOnApplyWindowInsetsListener(scroll) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             view.setPadding(0, bars.top, 0, bars.bottom)
@@ -70,12 +69,16 @@ class GitHubActivity : android.app.Activity() {
 
         val auth = authStore.state()
         if (auth.accessToken.isNullOrBlank()) {
-            root.addView(info("○ 未连接", "尚未完成 GitHub 授权。"))
-            root.addView(button("连接 GitHub") { startDeviceFlow() })
+            root.addView(info("○ 未连接", "第一版支持 Fine-grained Personal Access Token；Device Flow 保留为后续授权方式。"))
+            root.addView(button("连接：Personal Access Token") { showPatDialog() })
+            if (BuildConfig.GITHUB_CLIENT_ID.isNotBlank()) {
+                root.addView(button("连接：GitHub Device Flow") { startDeviceFlow() })
+            }
             return
         }
 
         root.addView(info("● 已连接", auth.login ?: "GitHub 账号"))
+        root.addView(info("凭据", auth.credentialType ?: "GitHub Token"))
         root.addView(section("Repository"))
         root.addView(info(workspace?.githubRepository ?: "未选择 Repository", "当前工作区 Repository"))
         root.addView(button("切换 Repository") { chooseRepository() })
@@ -86,7 +89,7 @@ class GitHubActivity : android.app.Activity() {
 
         root.addView(section("访问权限"))
         root.addView(CheckBox(this).apply {
-            text = "读取"
+            text = "允许读取"
             isChecked = workspace?.githubReadEnabled ?: true
             setOnCheckedChangeListener { _, checked ->
                 workspace?.githubReadEnabled = checked
@@ -94,7 +97,7 @@ class GitHubActivity : android.app.Activity() {
             }
         })
         root.addView(CheckBox(this).apply {
-            text = "修改"
+            text = "允许修改"
             isChecked = workspace?.githubWriteEnabled ?: false
             setOnCheckedChangeListener { _, checked ->
                 workspace?.githubWriteEnabled = checked
@@ -105,7 +108,7 @@ class GitHubActivity : android.app.Activity() {
         root.addView(section("GitHub 工作区"))
         listOf("文件", "Commit", "Issue", "PR", "Actions", "Release").forEach { name ->
             root.addView(info(name, "真实模块入口；具体能力按版本逐步开放。"))
-        }
+        })
 
         root.addView(section("账号"))
         root.addView(button("断开 GitHub") {
@@ -113,9 +116,61 @@ class GitHubActivity : android.app.Activity() {
             workspace?.githubAccountLogin = null
             workspace?.githubRepository = null
             workspace?.githubBranch = null
+            workspace?.githubWriteEnabled = false
             save()
             render()
         })
+    }
+
+    private fun showPatDialog() {
+        val input = EditText(this).apply {
+            hint = "github_pat_…"
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setSingleLine(true)
+        }
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(4), 0, dp(4), 0)
+            addView(TextView(this@GitHubActivity).apply {
+                text = "建议使用 Fine-grained PAT，并仅授权需要的 Repository。Token 只保存在本机，不进入工作区数据、日志或 GitHub。"
+                textSize = 12f
+                setTextColor(color(R.color.bridgefs_text_secondary))
+                setPadding(0, 0, 0, dp(10))
+            })
+            addView(input, LinearLayout.LayoutParams(-1, dp(52)))
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("连接 Personal Access Token")
+            .setView(box)
+            .setPositiveButton("验证并保存") { _, _ -> verifyAndSavePat(input.text.toString().trim()) }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    private fun verifyAndSavePat(token: String) {
+        if (token.isBlank()) {
+            Toast.makeText(this, "Token 不能为空", Toast.LENGTH_SHORT).show()
+            return
+        }
+        executor.execute {
+            runCatching {
+                val client = GitHubClient(token)
+                val login = client.getLogin()
+                client.listRepositories()
+                login
+            }.onSuccess { login ->
+                authStore.save(login, token, "Personal Access Token")
+                runOnUiThread {
+                    Toast.makeText(this, "GitHub 已连接：" + login, Toast.LENGTH_SHORT).show()
+                    render()
+                }
+            }.onFailure {
+                runOnUiThread {
+                    Toast.makeText(this, "Token 验证失败：" + (it.message ?: "未知错误"), Toast.LENGTH_LONG).show()
+                }
+            }
+        }
     }
 
     private fun startDeviceFlow() {
@@ -159,7 +214,7 @@ class GitHubActivity : android.app.Activity() {
 
                 val authenticated = GitHubClient(token)
                 val login = authenticated.getLogin()
-                authStore.save(login, token)
+                authStore.save(login, token, "GitHub Device Flow")
                 runOnUiThread {
                     Toast.makeText(this, "GitHub 已连接：" + login, Toast.LENGTH_SHORT).show()
                     render()
@@ -188,6 +243,7 @@ class GitHubActivity : android.app.Activity() {
                                 val selected = repos[which]
                                 workspace?.githubRepository = selected.fullName
                                 workspace?.githubBranch = selected.defaultBranch
+                                workspace?.githubAccountLogin = authStore.state().login
                                 save()
                                 render()
                             }.show()
