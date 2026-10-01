@@ -194,20 +194,34 @@ class ApiSettingsActivity : Activity() {
         root.addView(actionButton("运行单轮协作") {
             val taskText = objective.text.toString().trim()
             val dUrl = decisionUrl.text.toString().trim()
+            val dKey = decisionKey.text.toString()
             val dModel = decisionModel.text.toString().trim()
             val wUrl = workerUrl.text.toString().trim()
+            val wKey = workerKey.text.toString()
             val wModel = workerModel.text.toString().trim()
-            if (taskText.isBlank() || dUrl.isBlank() || dModel.isBlank() || wUrl.isBlank() || wModel.isBlank()) {
-                collaborationStatus.text = "单轮协作状态：请先填写目标、Decision AI 和 Worker 的地址与模型"
+
+            val missing = buildList {
+                if (taskText.isBlank()) add("协作目标")
+                if (dUrl.isBlank()) add("Decision AI 地址")
+                if (dKey.isBlank()) add("Decision AI API Key")
+                if (dModel.isBlank()) add("Decision AI 模型")
+                if (wUrl.isBlank()) add("Worker 地址")
+                if (wKey.isBlank()) add("Worker API Key")
+                if (wModel.isBlank()) add("Worker 模型")
+            }
+            if (missing.isNotEmpty()) {
+                collaborationStatus.text = "单轮协作状态：请填写\n" + missing.joinToString("、")
                 return@actionButton
             }
 
+            // Persist exactly the values used by this run, so the runtime and
+            // the visible UI cannot silently diverge.
             prefs.edit()
                 .putString("collab_decision_base_url", dUrl)
-                .putString("collab_decision_api_key", decisionKey.text.toString())
+                .putString("collab_decision_api_key", dKey)
                 .putString("collab_decision_model", dModel)
                 .putString("collab_worker_base_url", wUrl)
-                .putString("collab_worker_api_key", workerKey.text.toString())
+                .putString("collab_worker_api_key", wKey)
                 .putString("collab_worker_model", wModel)
                 .apply()
 
