@@ -7,7 +7,7 @@ import android.view.View
 import android.widget.*
 import android.graphics.drawable.GradientDrawable
 
-class GlobalAccessActivity : Activity {
+class GlobalAccessActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.statusBarColor = resources.getColor(R.color.bridgefs_surface)
@@ -117,8 +117,8 @@ class GlobalAccessActivity : Activity {
     }
 
     private fun statusText() = TextView(this).apply {
-        text = "API：" + if (AccessPolicy.isApiEnabled(this@GlobalAccessActivity)) "允许访问" else "已关闭" +
-            "\nGitHub：" + if (AccessPolicy.isGithubEnabled(this@GlobalAccessActivity)) "允许访问" else "已关闭"
+        text = "API：" + (if (AccessPolicy.isApiEnabled(this@GlobalAccessActivity)) "允许访问" else "已关闭") +
+            "\nGitHub：" + (if (AccessPolicy.isGithubEnabled(this@GlobalAccessActivity)) "允许访问" else "已关闭")
         textSize = 13f
         setTextColor(resources.getColor(R.color.bridgefs_text_primary))
         setPadding(dp(12), dp(12), dp(12), dp(12))
