@@ -5,8 +5,8 @@ import android.os.Bundle
 import android.text.InputType
 import android.view.Gravity
 import android.view.View
+import android.view.WindowInsets
 import android.widget.*
-import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 
 /** Dedicated API configuration page. MainActivity should only provide the entry point. */
@@ -24,6 +24,7 @@ class ApiSettingsActivity : Activity() {
             setBackgroundColor(resources.getColor(R.color.bridgefs_surface))
             setPadding(dp(16), dp(12), dp(16), dp(20))
         }
+        val baseTop = dp(12)
 
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -121,7 +122,6 @@ class ApiSettingsActivity : Activity() {
             finish()
         }, LinearLayout.LayoutParams(-1, dp(46)).apply { topMargin = dp(10) })
 
-
         root.addView(sectionLabel("AI 协作（Decision AI / Worker）"))
         val decisionUrl = EditText(this).apply {
             hint = "Decision AI API 地址"
@@ -214,8 +214,6 @@ class ApiSettingsActivity : Activity() {
                 return@actionButton
             }
 
-            // Persist exactly the values used by this run, so the runtime and
-            // the visible UI cannot silently diverge.
             prefs.edit()
                 .putString("collab_decision_base_url", dUrl)
                 .putString("collab_decision_api_key", dKey)
@@ -263,7 +261,22 @@ class ApiSettingsActivity : Activity() {
         })
 
         val scroll = ScrollView(this).apply { addView(root) }
+
+        // Android 15/16 with target SDK 35 uses edge-to-edge by default.
+        // Reserve system-bar and IME space without changing the global theme.
+        root.setOnApplyWindowInsetsListener { _, insets ->
+            val bars = insets.getInsets(WindowInsets.Type.systemBars())
+            root.setPadding(dp(16), baseTop + bars.top, dp(16), dp(20))
+            insets
+        }
+        scroll.setOnApplyWindowInsetsListener { _, insets ->
+            val bars = insets.getInsets(WindowInsets.Type.systemBars())
+            val ime = insets.getInsets(WindowInsets.Type.ime())
+            scroll.setPadding(0, 0, 0, maxOf(bars.bottom, ime.bottom))
+            insets
+        }
         setContentView(scroll)
+        scroll.requestApplyInsets()
     }
 
     private fun sectionLabel(text: String) = TextView(this).apply {
