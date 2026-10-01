@@ -41,7 +41,7 @@ class V021Activity : Activity() {
         projects = store.load()
         if (projects.isEmpty()) projects += store.newProject("默认工作区")
         project = projects.first()
-        apiId = apis().firstOrNull()?.id.orEmpty()
+        apiId = project?.apiId ?: apis().firstOrNull()?.id.orEmpty()
         buildShell()
     }
 
@@ -225,18 +225,23 @@ class V021Activity : Activity() {
         val names = if (apis.isEmpty()) arrayOf("暂无 API") else apis.map { it.name.ifBlank { "未命名 API" } }.toTypedArray()
         val spinner = Spinner(this).apply {
             adapter = ArrayAdapter(this@V021Activity, android.R.layout.simple_spinner_dropdown_item, names)
-            val idx = apis.indexOfFirst { it.id == apiId }
+            val idx = apis.indexOfFirst { it.id == (project?.apiId ?: apiId) }
             if (idx >= 0) setSelection(idx)
             onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
                 override fun onNothingSelected(p:AdapterView<*>?) {}
                 override fun onItemSelected(p:AdapterView<*>?, v:View?, pos:Int, id:Long) {
-                    if (pos < apis.size) apiId = apis[pos].id
+                    if (pos < apis.size) {
+                        apiId = apis[pos].id
+                        project?.apiId = apiId
+                        store.save(projects)
+                    }
                 }
             }
         }
         top.addView(spinner, LinearLayout.LayoutParams(0, dp(46), 1f))
         top.addView(textButton("新建") {
-            project = store.newProject("新聊天 " + (projects.size + 1))
+            project = store.newProject("新聊天 " + (projects.size + 1)).also { it.apiId = apis.firstOrNull()?.id }
+            apiId = project?.apiId.orEmpty()
             projects += project!!
             store.save(projects)
             render()
@@ -283,6 +288,8 @@ class V021Activity : Activity() {
             maxLines = 4
             setPadding(dp(12), dp(8), dp(12), dp(8))
             background = colorDrawable(R.color.bridgefs_input_surface, 14)
+            setTextColor(color(R.color.bridgefs_text_primary))
+            setHintTextColor(color(R.color.bridgefs_text_secondary))
         }
         composer.addView(input, LinearLayout.LayoutParams(0, dp(52), 1f))
         composer.addView(actionButton("发送") {
@@ -383,14 +390,20 @@ class V021Activity : Activity() {
 
     private fun removeApi(a:ApiProfile) {
         AlertDialog.Builder(this).setTitle("移除 API").setMessage("确定移除「"+a.name+"」？")
-            .setPositiveButton("移除"){_,_->saveApis(apis().filterNot{it.id==a.id})}
+            .setPositiveButton("移除"){_,_->
+                projects.forEach { if (it.apiId == a.id) it.apiId = null }
+                saveApis(apis().filterNot{it.id==a.id})
+            }
             .setNegativeButton("取消",null).show()
     }
 
     private fun send(input:EditText,id:String) {
         val text=input.text.toString().trim();if(text.isBlank())return
-        val a=apis().firstOrNull{it.id==id}?:run{Toast.makeText(this,"请先添加 API",Toast.LENGTH_SHORT).show();return}
+        val selectedId = project?.apiId ?: id
+        val a=apis().firstOrNull{it.id==selectedId}?:run{Toast.makeText(this,"请先选择 API",Toast.LENGTH_SHORT).show();return}
         if(!AccessPolicy.isApiEnabled(this)){Toast.makeText(this,"API 全局访问已关闭",Toast.LENGTH_SHORT).show();return}
+        project?.apiId = a.id
+        apiId = a.id
         project?.messages?.add(BridgeChatMessage("user",text));store.save(projects);render()
         Thread {
             runCatching{BridgeApiClient(BridgeApiConfig(a.baseUrl,a.key,a.model)).chat(project?.messages?:emptyList(),"你是 A-BridgeFS 协作 AI。")}
@@ -399,11 +412,22 @@ class V021Activity : Activity() {
         }.start()
     }
 
-    private fun field(h:String,v:String?)=EditText(this).apply{hint=h;setText(v.orEmpty());textSize=14f}
+    private fun field(h:String,v:String?)=EditText(this).apply{
+        hint=h
+        setText(v.orEmpty())
+        textSize=14f
+        setTextColor(color(R.color.bridgefs_text_primary))
+        setHintTextColor(color(R.color.bridgefs_text_secondary))
+    }
     private fun saveApi(a:ApiProfile){saveApis(apis().filterNot{it.id==a.id}+a)}
     private fun saveApis(list:List<ApiProfile>){
         prefs.edit().putString("api_profiles",JSONArray().apply{list.forEach{put(JSONObject().put("id",it.id).put("name",it.name).put("baseUrl",it.baseUrl).put("key",it.key).put("model",it.model).put("write",it.write))}}.toString()).apply()
-        apiId=list.firstOrNull()?.id.orEmpty()
+        val current = project?.apiId
+        if (current != null && list.none { it.id == current }) {
+            project?.apiId = list.firstOrNull()?.id
+        }
+        apiId = project?.apiId ?: list.firstOrNull()?.id.orEmpty()
+        store.save(projects)
         render()
     }
     private fun apis():List<ApiProfile>{
