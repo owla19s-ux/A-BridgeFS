@@ -4,47 +4,69 @@
 
 ## 1. 第一版授权路线
 
-Android App 使用 GitHub OAuth 设备流（Device Flow）完成用户授权。
+A-BridgeFS 第一版支持两种 GitHub 连接方式：
 
-流程：
+1. **Fine-grained Personal Access Token（PAT）**：第一版主路径。
+2. **OAuth Device Flow**：保留为后续/可选路径；需要配置 `GITHUB_CLIENT_ID`。
+
+PAT 适合个人 Android 工作站：用户可以在 GitHub 侧限制 Repository 与权限，并可选择较长的凭据生命周期。
+
+PAT 流程：
 
 ```
+GitHub
+ ↓
+Fine-grained personal access token
+ ↓
+限制 Repository / 权限
+ ↓
+复制 Token
+ ↓
 A-BridgeFS
  ↓
-请求 device_code
+/user 验证账号
  ↓
-展示 user_code
+/user/repos 验证 Repository 访问
  ↓
-用户在 GitHub /login/device 完成授权
- ↓
-A-BridgeFS 按 interval 轮询
- ↓
-获得 access token
- ↓
-调用 GitHub API
- ↓
-读取 /user 确认账号
+Android Keystore 加密保存
 ```
 
-设备流不需要把 client secret 放进 Android APK。
+## 2. PAT 权限边界
 
-## 2. 为什么采用 Device Flow
+A-BridgeFS 不自行扩大 GitHub 权限。
 
-移动端直接保存 OAuth client secret 不安全。
+最终实际操作权限：
 
-GitHub 官方 Device Flow 使用 client_id，不要求 client_secret；授权完成后返回 access token。授权码有有效期，轮询必须遵守 GitHub 返回的 interval。
+```
+GitHub 全局允许
+AND
+工作区允许
+AND
+GitHub 凭据实际权限
+AND
+Repository 可访问
+```
 
-因此第一版采用：
+例如：
 
-- GitHub App / OAuth Device Flow
-- client_id 可进入 App 配置
-- client_secret 不进入 App
-- access token 本地安全存储
-- GitHub API 统一经过 GitHubClient
+```
+工作区允许修改 = 开
+GitHub PAT = Contents Read-only
+        ↓
+实际仍然不能写入
+```
 
-## 3. Token 存储
+## 3. PAT 连接
 
-access token 不进入：
+UI 提供：
+
+- 连接：Personal Access Token
+- Token 输入框使用密码显示
+- 先验证 `/user`
+- 再验证 Repository 列表可读取
+- 验证成功后才写入本地凭据
+
+Token 不进入：
 
 - Repository 数据
 - BridgeProject JSON
@@ -52,17 +74,35 @@ access token 不进入：
 - 日志
 - Commit
 - Crash 日志
+- Intent extras
 
-应使用 Android Keystore 保护本地凭据。
+## 4. Token 存储
 
-第一版至少保存：
+使用 Android Keystore 保护 Token。
 
-- token
-- token expiration（如果 GitHub 返回）
-- refresh token（如果授权方式返回）
+SharedPreferences 只保存：
+
+- 加密后的 token
 - GitHub login
+- credential type
 
-## 4. 全局访问开关
+明文 Token 不持久化。
+
+断开 GitHub 时清除本地凭据。
+
+## 5. OAuth Device Flow
+
+Device Flow 不需要把 client secret 放进 Android APK。
+
+需要：
+
+```
+GITHUB_CLIENT_ID
+```
+
+授权成功后仍统一经过 `GitHubTokenStore` 与 `GitHubClient`。
+
+## 6. 全局访问开关
 
 `AccessPolicy.isGithubEnabled` 是 GitHub API 的第一道闸门。
 
@@ -78,9 +118,27 @@ token 是否存在
 GitHub API
 ```
 
-## 5. 授权状态
+## 7. 账号确认
 
-App 内部至少区分：
+凭据验证成功后调用 GitHub user API，以 GitHub 返回的 login 作为当前账号身份。
+
+Repository 列表必须来自授权账号实际可访问的仓库。
+
+## 8. Repository 与 Branch
+
+工作区保存：
+
+- GitHub account login
+- Repository
+- Branch
+- A-BridgeFS 读取权限
+- A-BridgeFS 修改权限
+
+Token 本身不写入工作区数据。
+
+## 9. 授权状态
+
+后续应继续完善：
 
 - NOT_CONFIGURED
 - AUTHORIZING
@@ -89,89 +147,9 @@ App 内部至少区分：
 - REVOKED
 - ERROR
 
-UI 不得用“有 Repository 字符串”推断 AUTHORIZED。
+当前 UI 已区分“未连接 / 已连接”，但 Token 过期、撤销等状态仍待进一步实现。
 
-## 6. 账号确认
-
-授权成功后调用 GitHub user API。
-
-以 GitHub 返回的 login 作为当前账号身份。
-
-Repository 列表必须来自授权账号实际可访问的仓库。
-
-## 7. Repository 权限
-
-GitHub 本身的权限优先级高于 A-BridgeFS 本地权限。
-
-例如：
-
-```
-A-BridgeFS 修改权限 = 开
-GitHub token = read-only
-        ↓
-实际仍然不能修改
-```
-
-反过来也一样：
-
-```
-GitHub token = write
-A-BridgeFS 修改权限 = 关
-        ↓
-A-BridgeFS 不允许发起写操作
-```
-
-最终写操作必须同时满足：
-
-```
-Global GitHub Enabled
-AND
-Workspace Read/Write Enabled
-AND
-GitHub Credential Allows Operation
-AND
-Repository Accessible
-```
-
-## 8. Device Flow 状态
-
-GitHub Device Flow 可能返回：
-
-- authorization_pending
-- slow_down
-- expired_token
-- access_denied
-- incorrect_device_code
-- device_flow_disabled
-
-这些状态需要映射成明确 UI，而不是显示通用失败。
-
-## 9. Client ID
-
-client_id 是 App 注册后获得的公开标识，不属于 client secret。
-
-仓库中不提交 secret。
-
-施工阶段使用配置入口：
-
-```
-GITHUB_CLIENT_ID
-```
-
-没有配置 client ID 时，UI 明确显示“GitHub 连接尚未配置”，而不是假装可以连接。
-
-## 10. 后续迁移
-
-如果以后需要更强的 Repository 范围控制，可以迁移到：
-
-GitHub App
-→ Installation
-→ User Access Token / Installation Access Token
-→ repository_ids / permissions
-
-第一版接口应避免把 OAuth Device Flow 细节泄漏到 UI 和工作区数据结构。
-
-## 11. 安全边界
+## 10. 安全边界
 
 禁止：
 
@@ -182,4 +160,3 @@ GitHub App
 - 把 token 写进 GitHub repository
 - 把 token 放进 APK 静态资源
 - 将 client secret 放进 Android APK
-

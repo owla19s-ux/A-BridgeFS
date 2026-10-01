@@ -69,7 +69,12 @@ class GitHubClient(private val accessToken: String? = null) {
         val array = request("$API/user/repos?per_page=100&sort=updated") as JSONArray
         return List(array.length()) { i ->
             val o = array.getJSONObject(i)
-            GitHubRepository(o.getLong("id"), o.getString("full_name"), o.optBoolean("private"), o.optString("default_branch"))
+            GitHubRepository(
+                o.getLong("id"),
+                o.getString("full_name"),
+                o.optBoolean("private"),
+                o.optString("default_branch")
+            )
         }
     }
 
@@ -88,7 +93,9 @@ class GitHubClient(private val accessToken: String? = null) {
         c.readTimeout = 20000
         c.setRequestProperty("Accept", "application/vnd.github+json")
         c.setRequestProperty("X-GitHub-Api-Version", API_VERSION)
-        accessToken?.takeIf { it.isNotBlank() }?.let { c.setRequestProperty("Authorization", "Bearer $it") }
+        accessToken?.takeIf { it.isNotBlank() }?.let {
+            c.setRequestProperty("Authorization", "Bearer $it")
+        }
         val code = c.responseCode
         val stream = if (code in 200..299) c.inputStream else c.errorStream
         val text = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
@@ -96,7 +103,11 @@ class GitHubClient(private val accessToken: String? = null) {
         return if (text.trimStart().startsWith("[")) JSONArray(text) else JSONObject(text)
     }
 
-    private fun formPost(url: String, values: Map<String, String>, allowOAuthError: Boolean = false): JSONObject {
+    private fun formPost(
+        url: String,
+        values: Map<String, String>,
+        allowOAuthError: Boolean = false
+    ): JSONObject {
         val c = URL(url).openConnection() as HttpURLConnection
         c.requestMethod = "POST"
         c.connectTimeout = 10000
@@ -111,7 +122,9 @@ class GitHubClient(private val accessToken: String? = null) {
         val code = c.responseCode
         val stream = if (code in 200..299) c.inputStream else c.errorStream
         val text = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
-        if (code !in 200..299 && !(allowOAuthError && text.contains("\"error\""))) error("GitHub OAuth $code: " + text.take(300))
+        if (code !in 200..299 && !(allowOAuthError && text.contains("\"error\""))) {
+            error("GitHub OAuth $code: " + text.take(300))
+        }
         return JSONObject(text)
     }
 }
