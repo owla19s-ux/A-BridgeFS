@@ -239,6 +239,51 @@ class V021Activity : Activity() {
         }
         root.addView(header("对话", "与当前工作区中的 API 协作"))
 
+        val chatSelector = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(14), dp(8), dp(8), dp(8))
+            background = colorDrawable(R.color.bridgefs_input_surface, 14)
+            setOnClickListener {
+                if (projects.isEmpty()) return@setOnClickListener
+                val labels = projects.map { it.name.ifBlank { "未命名对话" } }.toTypedArray()
+                val currentIndex = projects.indexOfFirst { it.id == project?.id }.coerceAtLeast(0)
+                AlertDialog.Builder(this@V021Activity)
+                    .setTitle("切换对话")
+                    .setSingleChoiceItems(labels, currentIndex) { dialog, which ->
+                        project = projects[which]
+                        apiId = project?.apiId.orEmpty()
+                        store.save(projects)
+                        dialog.dismiss()
+                        render()
+                    }
+                    .setNegativeButton("取消", null)
+                    .show()
+            }
+        }
+        chatSelector.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(TextView(this@V021Activity).apply {
+                text = "当前对话"
+                textSize = 12f
+                setTextColor(color(R.color.bridgefs_text_secondary))
+            })
+            addView(TextView(this@V021Activity).apply {
+                text = project?.name ?: "未选择对话"
+                textSize = 16f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(color(R.color.bridgefs_text_primary))
+                setPadding(0, dp(3), 0, 0)
+            })
+        }, LinearLayout.LayoutParams(0, -2, 1f))
+        chatSelector.addView(TextView(this).apply {
+            text = "切换 ›"
+            textSize = 13f
+            gravity = Gravity.CENTER
+            setTextColor(color(R.color.bridgefs_accent))
+        }, LinearLayout.LayoutParams(dp(72), dp(44)))
+        root.addView(chatSelector, LinearLayout.LayoutParams(-1, dp(64)).apply { bottomMargin = dp(8) })
+
         val apis = apis()
         val selected = apis.firstOrNull { it.id == (project?.apiId ?: apiId) }
         val selector = LinearLayout(this).apply {
@@ -303,18 +348,32 @@ class V021Activity : Activity() {
             setPadding(0, dp(8), 0, dp(8))
         }
         project?.messages?.forEach { m ->
-            val bubble = TextView(this).apply {
-                text = m.content
-                textSize = 14f
-                setTextColor(color(R.color.bridgefs_text_primary))
-                setPadding(dp(12), dp(10), dp(12), dp(10))
+            val bubbleBox = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(4), dp(4), dp(4), dp(2))
                 background = colorDrawable(
                     if (m.role == "user") R.color.bridgefs_selected_surface else R.color.bridgefs_input_surface,
                     14
                 )
             }
+            val bubble = TextView(this).apply {
+                text = m.content
+                textSize = 14f
+                setTextColor(color(R.color.bridgefs_text_primary))
+                setPadding(dp(8), dp(6), dp(8), dp(6))
+                setTextIsSelectable(true)
+            }
+            val copy = textButton("复制") {
+                val cm = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                cm.setPrimaryClip(android.content.ClipData.newPlainText("A-BridgeFS 消息", m.content))
+                Toast.makeText(this@V021Activity, "消息已复制", Toast.LENGTH_SHORT).show()
+            }
+            bubbleBox.addView(bubble)
+            bubbleBox.addView(copy, LinearLayout.LayoutParams(dp(58), dp(30)).apply {
+                gravity = if (m.role == "user") Gravity.RIGHT else Gravity.LEFT
+            })
             val row = FrameLayout(this)
-            row.addView(bubble, FrameLayout.LayoutParams(-2, -2).apply {
+            row.addView(bubbleBox, FrameLayout.LayoutParams(-2, -2).apply {
                 gravity = if (m.role == "user") Gravity.RIGHT else Gravity.LEFT
                 leftMargin = dp(4); rightMargin = dp(4)
             })
