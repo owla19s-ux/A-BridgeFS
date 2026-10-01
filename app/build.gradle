@@ -1,10 +1,12 @@
 plugins { id 'com.android.application'; id 'org.jetbrains.kotlin.android' }
 
 android {
+    buildFeatures { buildConfig true }
     namespace 'com.abridgefs.app'
     compileSdk 35
 
     defaultConfig {
+        buildConfigField 'String', 'GITHUB_CLIENT_ID', '"' + (System.getenv("GITHUB_CLIENT_ID") ?: "") + '"'
         applicationId 'com.abridgefs.app'
         minSdk 30
         targetSdk 35
