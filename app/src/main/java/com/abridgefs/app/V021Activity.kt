@@ -466,6 +466,35 @@ class V021Activity : Activity() {
             })
         }
 
+        if (task.status == CollaborationTaskRecord.STATUS_FAILED && !task.constructionHolderAiMemberId.isNullOrBlank()) {
+            box.addView(actionButton("根据 Verify 失败结果继续修复") {
+                executor.execute {
+                    runCatching {
+                        val coordinator = CollaborationCoordinator(
+                            this,
+                            workspace!!.id,
+                            conversation!!.id,
+                            memberA?.apiProfileId.orEmpty(),
+                            memberB?.apiProfileId.orEmpty(),
+                            memberB?.id
+                        )
+                        val result = coordinator.retryAfterVerifyFailure(
+                            task.taskId,
+                            "你是 Decision AI。上一 Commit 的 GitHub Actions Verify 已失败。请分析失败结果并给出下一步修复指令，不得直接宣布完成。",
+                            "你是 Worker AI。根据 Decision AI 的修复指令进行有限范围施工。"
+                        )
+                        runOnUiThread {
+                            Toast.makeText(this, result.message, Toast.LENGTH_LONG).show()
+                            render()
+                        }
+                    }.onFailure {
+                        runOnUiThread {
+                            Toast.makeText(this, "修复轮启动失败：${it.message ?: "未知错误"}", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
+            })
+        }
         if (task.status == CollaborationTaskRecord.STATUS_WAITING_VERIFY) {
             box.addView(actionButton("检查当前 Commit") {
                 executor.execute {
@@ -478,7 +507,11 @@ class V021Activity : Activity() {
                             memberB?.apiProfileId.orEmpty(),
                             memberB?.id
                         )
-                        val result = coordinator.verifyTask(task.taskId)
+                        val result = coordinator.verifyAndContinue(
+                            task.taskId,
+                            "你是 Decision AI。只根据真实 Verify 结果决定是否完成任务或继续施工。",
+                            "你是 Worker AI。根据 Decision AI 的施工指令执行有限范围内的下一步。"
+                        )
                         runOnUiThread {
                             Toast.makeText(this, result.message, Toast.LENGTH_LONG).show()
                             render()
