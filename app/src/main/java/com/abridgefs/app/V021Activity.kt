@@ -1180,7 +1180,7 @@ class V021Activity : Activity() {
                     val profile = profileByRole[message.from]
                     BridgeChatMessage(
                         role = "assistant",
-                        content = "[协作 ${message.type.name}] ${message.from.name} → ${message.to.name}\n${message.toJson()}",
+                        content = formatCollaborationMessage(message),
                         apiId = profile?.id,
                         apiName = profile?.name?.ifBlank { "未命名 API" },
                         apiAvatar = profile?.let { it.avatar.ifBlank { it.name.trim().take(1).ifBlank { "AI" } } }
@@ -1230,6 +1230,31 @@ class V021Activity : Activity() {
         }
     }
 
+    private fun formatCollaborationMessage(message: CollaborationProtocol.Message): String {
+        val roleName = when (message.from) {
+            CollaborationProtocol.Role.DECISION_AI -> "Decision AI"
+            CollaborationProtocol.Role.WORKER -> "Worker"
+            CollaborationProtocol.Role.HUMAN -> "用户"
+        }
+        val targetName = when (message.to) {
+            CollaborationProtocol.Role.DECISION_AI -> "Decision AI"
+            CollaborationProtocol.Role.WORKER -> "Worker"
+            CollaborationProtocol.Role.HUMAN -> "用户"
+        }
+        val payload = message.payload
+        val detail = when (message.type) {
+            CollaborationProtocol.Type.TASK -> payload.optString("objective").ifBlank { "已生成协作任务" }
+            CollaborationProtocol.Type.DECISION_REQUEST -> payload.optString("question").ifBlank { "Worker 请求 Decision AI 决策" }
+            CollaborationProtocol.Type.DECISION_RESPONSE -> payload.optString("decision").ifBlank { "Decision AI 已返回决策" }
+            CollaborationProtocol.Type.PROGRESS -> payload.optString("message").ifBlank { payload.optString("objective").ifBlank { "协作进度更新" } }
+            CollaborationProtocol.Type.BLOCKED -> payload.optString("blocked_on").ifBlank { "Worker 暂时受阻" }
+            CollaborationProtocol.Type.COMMIT -> "Commit " + payload.optString("sha").takeIf { it.isNotBlank() }?.take(10).orEmpty()
+            CollaborationProtocol.Type.VERIFY -> "Verify：" + payload.optString("verdict").ifBlank { "待确认" }
+            CollaborationProtocol.Type.COMPLETE -> payload.optString("summary").ifBlank { "协作任务完成" }
+            CollaborationProtocol.Type.ESCALATE -> "需要用户处理"
+        }
+        return "[协作 " + message.type.name + "] " + roleName + " → " + targetName + "\n" + detail
+    }
     private fun collaborationProfileIds(): Pair<String,String> {
         val members = project?.aiMembers.orEmpty()
         return (members.getOrNull(0)?.apiProfileId.orEmpty()) to
