@@ -279,6 +279,7 @@ class CollaborationCoordinator(
         val rawTask = callDecisionAi(humanMessage, decisionSystemPrompt)
         val task = parseProtocolResponse(rawTask)
         require(task.type == CollaborationProtocol.Type.TASK) { "Decision AI did not return TASK" }
+        require(task.taskId == taskId) { "Decision AI changed task_id; collaboration task state cannot be recovered safely" }
         require(task.from == CollaborationProtocol.Role.DECISION_AI && task.to == CollaborationProtocol.Role.WORKER) {
             "Decision AI TASK route is invalid"
         }
