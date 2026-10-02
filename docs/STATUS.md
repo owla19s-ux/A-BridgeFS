@@ -268,3 +268,10 @@ Workspace + Repository + Branch
 - 这不是无限后台循环：每次 Verify 后最多继续一轮，后续 Commit 必须再次经过真实 Verify。
 - Workspace UI 已提供 Verify 失败后的“根据 Verify 失败结果继续修复”入口；Verify 等待入口改为执行“Verify + 有界继续”。
 - 本轮仍未合并、未构建、未真机验证；状态机代码需要下一轮 Release 构建确认编译与运行行为。
+
+
+## 2026-10-02 协作状态机第七轮代码审查
+
+- 修复：Worker 施工后若 GitHub Actions Verify 已经返回失败，随后 Decision AI 返回 COMPLETE 时，不再把 FAILED 覆盖为 WAITING_VERIFY。
+- 状态优先保留真实 Verify 结果；COMPLETE 不能覆盖 FAILED / WAITING_VERIFY / 已完成状态。
+- 当前仍未执行 Release 构建或真机验证；该修复需要后续正式构建确认编译，并用真实 Commit → Actions → Verify 流验证。
