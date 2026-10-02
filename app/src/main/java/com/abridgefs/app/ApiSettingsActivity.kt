@@ -11,6 +11,7 @@ import android.graphics.drawable.GradientDrawable
 
 /** Dedicated API configuration page. MainActivity should only provide the entry point. */
 class ApiSettingsActivity : Activity() {
+    private val secrets by lazy { ApiSecretStore(this) }
     private val prefs by lazy { getSharedPreferences("bridgefs", 0) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
