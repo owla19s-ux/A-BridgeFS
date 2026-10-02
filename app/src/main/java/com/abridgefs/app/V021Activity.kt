@@ -196,7 +196,7 @@ class V021Activity : Activity() {
             setPadding(0, dp(2), 0, dp(8))
         })
         box.addView(actionButton("进入 GitHub") {
-            startActivity(Intent(this, GitHubActivity::class.java))
+            startActivity(Intent(this, GitHubActivity::class.java).putExtra("workspaceId", project?.id))
         })
         return box
     }
