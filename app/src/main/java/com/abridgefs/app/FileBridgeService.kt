@@ -62,16 +62,17 @@ val text=intent.getStringExtra("bridgefs_external_command").orEmpty()
 val rootPath=intent.getStringExtra("bridgefs_root").orEmpty()
 val projectId=intent.getStringExtra("projectId")
 val conversationId=intent.getStringExtra("conversationId")
+val workspaceId=intent.getStringExtra("workspaceId")
 val standaloneConversationId=intent.getStringExtra("standaloneConversationId")
 commandExecutor.submit {
-val result=executeExternalCommand(rootPath,text,projectId,conversationId,standaloneConversationId)
+val result=executeExternalCommand(rootPath,text,projectId,conversationId,workspaceId,standaloneConversationId)
 broadcastReceipt(result.first,result.second,result.third,projectId,conversationId,standaloneConversationId)
 }
 }
 return START_NOT_STICKY
 }
 
-private fun executeExternalCommand(rootPath:String,text:String,projectId:String?,conversationId:String?,standaloneConversationId:String?):Triple<String,String,String>{
+private fun executeExternalCommand(rootPath:String,text:String,projectId:String?,conversationId:String?,workspaceId:String?,standaloneConversationId:String?):Triple<String,String,String>{
 val rootFile=File(rootPath)
 if(rootPath.isBlank()||!rootFile.isDirectory||isProtectedWorkspace(rootPath)){
 return Triple("FAILED",text,"工作目录无效或属于受保护区域："+rootPath)
@@ -86,7 +87,7 @@ if (commands.size > limit) {
     AppLogger.log(this, "EXECUTION_DENIED", "reason=command_limit count=" + commands.size + " limit=" + limit)
     return Triple("DENIED", text, "本轮指令数量 " + commands.size + " 超过限制 " + limit + "，未执行。")
 }
-val workspace = projectId?.let { id -> BridgeProjectStore(this).load().firstOrNull { it.id == id } }
+val workspace = (workspaceId ?: projectId)?.let { id -> BridgeProjectStore(this).load().firstOrNull { it.id == id } }
 val workspaceConversation = workspace?.let { ws -> conversationId?.let { id -> ws.conversations.firstOrNull { it.id == id } } ?: ws.activeConversation() }
 val standaloneConversation = standaloneConversationId?.let { id ->
     BridgeConversationStore(this).load().firstOrNull { it.id == id }
