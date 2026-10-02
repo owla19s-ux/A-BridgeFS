@@ -78,14 +78,22 @@ data class CollaborationApiConfig(
             role: CollaborationProtocol.Role
         ): CollaborationApiConfig {
             val prefs = context.getSharedPreferences("bridgefs", 0)
+            val secrets = ApiSecretStore(context)
             val prefix = when (role) {
                 CollaborationProtocol.Role.DECISION_AI -> "collab_decision_"
                 CollaborationProtocol.Role.WORKER -> "collab_worker_"
                 CollaborationProtocol.Role.HUMAN -> return CollaborationApiConfig("", "", "")
             }
+            val secretKey = prefix + "api_key"
+            val encrypted = secrets.getNamed(secretKey)
+            val legacy = prefs.getString(secretKey, "").orEmpty()
+            if (encrypted.isNullOrBlank() && legacy.isNotBlank()) {
+                secrets.putNamed(secretKey, legacy)
+                prefs.edit().remove(secretKey).apply()
+            }
             return CollaborationApiConfig(
                 baseUrl = prefs.getString(prefix + "base_url", "").orEmpty().trim(),
-                apiKey = prefs.getString(prefix + "api_key", "").orEmpty(),
+                apiKey = encrypted ?: legacy,
                 model = prefs.getString(prefix + "model", "").orEmpty().trim()
             )
         }
