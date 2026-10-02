@@ -30,7 +30,7 @@ class V021Activity : Activity() {
     private lateinit var navChat: TextView
     private lateinit var navConfig: TextView
     private var apiId = ""
-    private enum class Page { WORKSPACE, CHAT, CONFIG }
+    private enum class Page { WORKSPACE, CHAT, NEW_CHAT, CONFIG }
     private var page = Page.WORKSPACE
     private val executor = Executors.newSingleThreadExecutor()
     private var pendingReceipt: String? = null
@@ -120,6 +120,7 @@ class V021Activity : Activity() {
         when (page) {
             Page.WORKSPACE -> renderWorkspace()
             Page.CHAT -> renderChat()
+            Page.NEW_CHAT -> renderNewChat()
             Page.CONFIG -> renderConfig()
         }
         updateNav()
@@ -359,10 +360,7 @@ class V021Activity : Activity() {
         root.addView(selector, LinearLayout.LayoutParams(-1, dp(68)).apply { bottomMargin = dp(8) })
 
         root.addView(textButton("＋ 新建对话") {
-            project = store.newProject("新聊天 " + (projects.size + 1)).also { it.apiId = apis.firstOrNull()?.id }
-            apiId = project?.apiId.orEmpty()
-            projects += project!!
-            store.save(projects)
+            page = Page.NEW_CHAT
             render()
         }, LinearLayout.LayoutParams(-1, dp(42)).apply { bottomMargin = dp(4) })
 
@@ -445,6 +443,35 @@ class V021Activity : Activity() {
             input.text.clear()
         }, LinearLayout.LayoutParams(dp(70), dp(52)).apply { marginStart = dp(6) })
         root.addView(composer)
+        content.addView(root)
+    }
+
+    private fun renderNewChat() {
+        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(18), dp(12), dp(18), dp(14)) }
+        root.addView(header("新聊天", "创建一个独立对话，并选择初始 API"))
+        val name = EditText(this).apply { hint = "对话名称"; textSize = 14f; setText("新聊天 " + (projects.size + 1)); setTextColor(color(R.color.bridgefs_text_primary)); setHintTextColor(color(R.color.bridgefs_text_secondary)) }
+        root.addView(name, LinearLayout.LayoutParams(-1, dp(52)))
+        root.addView(sectionTitle("初始 API"))
+        val list = apis()
+        var selectedId = list.firstOrNull()?.id.orEmpty()
+        val apiLabel = TextView(this).apply {
+            text = list.firstOrNull()?.name?.ifBlank { "未命名 API" } ?: "未选择 API"
+            textSize = 15f; gravity = Gravity.CENTER_VERTICAL; setTextColor(color(R.color.bridgefs_text_primary));
+            background = colorDrawable(R.color.bridgefs_input_surface, 14); setPadding(dp(14), 0, dp(14), 0)
+            setOnClickListener {
+                if (list.isEmpty()) { Toast.makeText(this@V021Activity, "请先在工作区添加 API", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
+                AlertDialog.Builder(this@V021Activity).setTitle("选择初始 API")
+                    .setSingleChoiceItems(list.map { it.name.ifBlank { "未命名 API" } }.toTypedArray(), list.indexOfFirst { it.id == selectedId }.coerceAtLeast(0)) { dialog, which ->
+                        selectedId = list[which].id; apiLabel.text = list[which].name.ifBlank { "未命名 API" }; dialog.dismiss()
+                    }.setNegativeButton("取消", null).show()
+            }
+        }
+        root.addView(apiLabel, LinearLayout.LayoutParams(-1, dp(52)))
+        root.addView(actionButton("创建并进入对话") {
+            val chat = store.newProject(name.text.toString().trim().ifBlank { "新聊天 " + (projects.size + 1) }).also { it.apiId = selectedId.ifBlank { null } }
+            projects += chat; project = chat; apiId = chat.apiId.orEmpty(); store.save(projects); page = Page.CHAT; render()
+        }, LinearLayout.LayoutParams(-1, dp(46)).apply { topMargin = dp(14) })
+        root.addView(textButton("取消") { page = Page.CHAT; render() }, LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(6) })
         content.addView(root)
     }
 
