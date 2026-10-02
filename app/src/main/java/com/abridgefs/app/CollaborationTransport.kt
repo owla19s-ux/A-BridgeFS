@@ -27,7 +27,7 @@ class CollaborationTransport(
     }
 
     fun all(): List<CollaborationProtocol.Message> {
-        val items = JSONArray(prefs.getString(KEY_MESSAGES, "[]") ?: "[]")
+        val items = JSONArray(prefs.getString("${KEY_MESSAGES}_$keySuffix", "[]") ?: "[]")
         return buildList {
             for (index in 0 until items.length()) {
                 val message = CollaborationProtocol.Message.fromJson(items.getJSONObject(index))
@@ -48,7 +48,7 @@ class CollaborationTransport(
     }
 
     private fun isHandled(messageId: String): Boolean {
-        val handled = JSONArray(prefs.getString(KEY_HANDLED, "[]") ?: "[]")
+        val handled = JSONArray(prefs.getString("${KEY_HANDLED}_$keySuffix", "[]") ?: "[]")
         return (0 until handled.length()).any { handled.optString(it) == messageId }
     }
 
