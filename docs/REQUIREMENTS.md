@@ -5,110 +5,84 @@
 ## A. 已确认
 
 ### 一级页面
-
-底部一级导航固定为：
-
-1. 工作区
-2. 对话
-3. 配置
+底部一级导航固定为：工作区、对话、配置。
 
 ### 工作区
-
-工作区是 AI 协作资源集合，不是普通设置页。
-
-必须至少包含：
-
+工作区是 AI 协作资源集合，至少包含：
+- AI 成员
 - API 模块
 - GitHub 模块
+- 权限与施工权
 - 工作区操作
 
+### 双 AI 协作
+工作区支持两个协作 AI。
+
+两 AI：
+- 默认共享读取能力
+- 可以同时读取同一 Repository
+- 可以同时分析、沟通和检查结果
+- 不固定谁是 Decision AI、谁是 Worker
+- 施工角色随任务变化
+
+施工权限：
+- 属于 Workspace + Repository + Branch
+- 同一 Repository / Branch 同时最多一个 AI 拥有修改权
+- 修改权可转移
+- API Profile 不直接拥有工作区施工权
+
 ### GitHub
-
-GitHub 必须是真实模块。
-
-至少包含：
-
+GitHub 必须是真实模块，至少包含：
 - 连接状态
 - GitHub 账号
 - Repository
 - Branch
 - 读取权限
-- 修改权限
+- 修改权限 / 施工权
 - GitHub 工作区入口
 
-### 配置
-
-配置保留分类：
-
-- AI 与 API
-- 连接与访问
-- 执行与权限
-- 指令
-- 文件与目录
-- 通知
-- 外观
-- 系统
-- 日志与诊断
-
 ## B. 已实现
-
 - Android 原生工程
-- applicationId `com.abridgefs.app`
+- applicationId com.abridgefs.app
 - target SDK 35
-- API 全局访问开关
-- GitHub 全局访问开关
+- API / GitHub 全局访问开关
 - BridgeApiClient
 - BridgeProjectStore
 - 三页 UI 粗骨架
-- 多 API 配置列表（添加 / 修改 / 移除）
+- 多 API 配置列表
 - Chat → API 绑定持久化
-- API 输入框文字颜色与 Hint 颜色显式设置
 - GitHub PAT / Android Keystore / Repository / Branch 基础能力
 
 ## C. 当前开发
-
-- Workspace API 成员 / 权限模型
-- Chat 列表与 Chat 独立数据模型
-- 对话 → CommandParser → PermissionPolicy → CommandExecutor → Receipt 主链
-- GitHub Repository / Branch 实时读取与工作区绑定
-- GitHub 工作区文件 / Commit / Issue / PR / Actions / Release 实际能力
-- GitHub 本地权限与 GitHub 实际 Token 权限的双层判断
-- API Key 统一安全存储
+- Workspace AI 成员 / 权限模型
+- Repository / Branch 施工锁
+- Chat 独立数据模型
+- CommandParser → PermissionPolicy → CommandExecutor → Receipt 主链统一
+- GitHub 实际文件修改 / Commit / Issue / PR / Actions / Release 能力
+- GitHub 本地权限与 GitHub Token 实际权限的双层判断
+- 双 AI 协作消息与连续任务循环
+- 协作日志与 Receipt 时间线统一
 
 ## D. 暂不做
-
-- 多 GitHub 账号复杂管理
+- 多于两个协作 AI
+- 复杂 Agent 调度
 - 完整 Git 客户端
 - 全量 GitHub API
 - 复杂组织管理
-- 完整 Agent 调度
-- 多 Worker 调度器
+- 多层自动调度器
+- 自动绕过用户授权
 
-## E. 验证要求
-
-任何 GitHub 功能完成后必须至少验证：
-
-代码 Commit
-→ Actions
-→ APK
-→ 安装
-→ GitHub 授权
-→ 账号读取
-→ Repository 列表
-→ Branch 列表
-→ 工作区绑定
-→ 权限边界
+## E. 当前设计验收
+1. 两个 AI 可以同时读取允许范围内的 Repository。
+2. 两个 AI 可以互相发送协作消息。
+3. 同一 Repository / Branch 同时最多一个 AI 可以修改。
+4. 施工权可以转移。
+5. 持有施工权的 AI 可以在授权范围内连续施工。
+6. 普通实现问题不要求用户逐次输入“继续”。
+7. 真正需要产品、架构或权限决策时才暂停协作。
+8. Verify 必须以真实外部工序结果为依据。
 
 未完成真实验证，不标记为“已验证”。
 
-## F. 2026-10-02 核心协作施工批次
-
-本批次已施工：
-
-- 每个 `BridgeProject` 保存当前 `apiId`，使当前对话能够持久绑定 API。
-- 对话页 API 选择会写回当前对话，而不是只修改页面临时变量。
-- 新建对话继承当前可用 API。
-- 移除 API 时清理受影响对话的绑定。
-- 对话输入框、API 编辑输入框显式设置文字与 Hint 颜色，避免主题继承导致文字不可见。
-
-状态：**代码已施工，待统一 Actions / APK / 真机验证。**
+## F. 状态定义
+待讨论 / 候选 / 已确认 / 开发中 / 已实现 / 已验证 / 阻塞 / 废弃
