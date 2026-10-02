@@ -29,7 +29,7 @@ class CollaborationVerifyService(private val context: Context) {
 
         val workspace = BridgeProjectStore(context).load()
             .firstOrNull { it.id == task.workspaceId }
-            ?: error("工作区不存在：\${task.workspaceId}")
+            ?: error("工作区不存在：${task.workspaceId}")
 
         val token = GitHubTokenStore(context).state().accessToken
             ?.takeIf { it.isNotBlank() }
