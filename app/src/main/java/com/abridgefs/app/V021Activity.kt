@@ -17,12 +17,10 @@ import org.json.JSONObject
 import java.util.UUID
 import java.util.concurrent.Executors
 
-data class ApiProfile(val id:String,val name:String,val baseUrl:String,val key:String,val model:String,val avatar:String="")
-
 class V021Activity : Activity() {
     private val prefs by lazy { getSharedPreferences("bridgefs", 0) }
     private val store by lazy { BridgeProjectStore(this) }
-    private val apiSecrets by lazy { ApiSecretStore(this) }
+    private val apiProfiles by lazy { ApiProfileStore(this) }
     private var projects = mutableListOf<BridgeProject>()
     private var project: BridgeProject? = null
     private lateinit var content: FrameLayout
@@ -687,24 +685,36 @@ class V021Activity : Activity() {
 
     private fun editApi(old:ApiProfile?) {
         val box=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(4),0,dp(4),0)}
-        val n=field("名称",old?.name);val av=field("头像（文字 / Emoji）",old?.avatar);val u=field("API 地址",old?.baseUrl);val k=field("API Key",old?.key);val m=field("模型",old?.model)
+        val n=field("名称",old?.name)
+        val av=field("头像（文字 / Emoji）",old?.avatar)
+        val u=field("API 地址",old?.baseUrl)
+        val k=field("API Key",old?.key)
+        val m=field("模型",old?.model)
         listOf(n,av,u,k,m).forEach{box.addView(it)}
         AlertDialog.Builder(this).setTitle(if(old==null)"添加 API" else "修改 API").setView(box)
-            .setPositiveButton("保存"){_,_->saveApi(ApiProfile(old?.id?:UUID.randomUUID().toString(),n.text.toString().trim(),u.text.toString().trim(),k.text.toString(),m.text.toString().trim(),av.text.toString().trim()))}
+            .setPositiveButton("保存"){_,_->
+                saveApi(ApiProfile(
+                    old?.id?:UUID.randomUUID().toString(),
+                    n.text.toString().trim(),
+                    u.text.toString().trim(),
+                    k.text.toString(),
+                    m.text.toString().trim(),
+                    av.text.toString().trim()
+                ))
+            }
             .setNegativeButton("取消",null).show()
     }
-
 
     private fun removeApi(a:ApiProfile) {
         AlertDialog.Builder(this).setTitle("移除 API").setMessage("确定移除「"+a.name+"」？")
             .setPositiveButton("移除"){_,_->
                 projects.forEach { workspace ->
-            workspace.conversations.forEach { conversation ->
-                if (conversation.apiId == a.id) conversation.apiId = null
-            }
-        }
-                apiSecrets.remove(a.id)
-                saveApis(apis().filterNot{it.id==a.id})
+                    workspace.conversations.forEach { conversation ->
+                        if (conversation.apiId == a.id) conversation.apiId = null
+                    }
+                }
+                apiProfiles.remove(a.id)
+                syncSelectedApi()
             }
             .setNegativeButton("取消",null).show()
     }
@@ -869,50 +879,23 @@ class V021Activity : Activity() {
         setHintTextColor(color(R.color.bridgefs_text_secondary))
     }
     private fun saveApi(a:ApiProfile){
-        apiSecrets.put(a.id,a.key)
-        saveApis(apis().filterNot{it.id==a.id}+a.copy(key=""))
+        apiProfiles.save(a)
+        syncSelectedApi()
     }
-    private fun saveApis(list:List<ApiProfile>){
-        prefs.edit().putString("api_profiles",JSONArray().apply{
-            list.forEach{
-                put(JSONObject()
-                    .put("id",it.id)
-                    .put("name",it.name)
-                    .put("avatar",it.avatar)
-                    .put("baseUrl",it.baseUrl)
-                    .put("model",it.model)
-                    )
-            }
-        }.toString()).apply()
-        val current = project?.activeConversation()?.apiId
-        if (current != null && list.none { it.id == current }) {
-            project?.activeConversation()?.apiId = list.firstOrNull()?.id
+
+    private fun apis():List<ApiProfile> = apiProfiles.list()
+
+    private fun syncSelectedApi(){
+        val list=apis()
+        val current=project?.activeConversation()?.apiId
+        if(current != null && list.none { it.id == current }){
+            project?.activeConversation()?.apiId=list.firstOrNull()?.id
         }
-        apiId = project?.activeConversation()?.apiId ?: list.firstOrNull()?.id.orEmpty()
+        apiId=project?.activeConversation()?.apiId ?: list.firstOrNull()?.id.orEmpty()
         store.save(projects)
         render()
     }
-    private fun apis():List<ApiProfile>{
-        val raw=prefs.getString("api_profiles",null)?:return legacyApi()
-        val arr=JSONArray(raw)
-        return List(arr.length()){i->
-            val o=arr.getJSONObject(i)
-            val id=o.getString("id")
-            val legacyKey=o.optString("key","")
-            if(legacyKey.isNotBlank()){
-                apiSecrets.put(id,legacyKey)
-            }
-            ApiProfile(id,o.optString("name"),o.optString("baseUrl"),apiSecrets.get(id).orEmpty(),o.optString("model"),o.optString("avatar"))
-        }
-    }
-    private fun legacyApi():List<ApiProfile>{
-        val u=prefs.getString("api_base_url","").orEmpty();val m=prefs.getString("api_model","").orEmpty()
-        if(u.isBlank()&&m.isBlank())return emptyList()
-        val a=ApiProfile("legacy",prefs.getString("api_provider","API")?:"API",u,prefs.getString("api_key","").orEmpty(),m,"AI")
-        apiSecrets.put(a.id,a.key)
-        prefs.edit().putString("api_profiles",JSONArray().put(JSONObject().put("id",a.id).put("name",a.name).put("baseUrl",a.baseUrl).put("model",a.model).put("write",false)).toString()).apply()
-        return listOf(a)
-    }
+
 
     private fun normalizeBaseUrl(raw:String):String {
         var value=raw.trim().trimEnd('/')
