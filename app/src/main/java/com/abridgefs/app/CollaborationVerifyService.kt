@@ -96,11 +96,42 @@ class CollaborationVerifyService(private val context: Context) {
 
     private fun findExactRun(array: org.json.JSONArray?, commitSha: String): JSONObject? {
         if (array == null) return null
-        for (i in 0 until array.length()) {
-            val run = array.optJSONObject(i) ?: continue
-            if (run.optString("head_sha") == commitSha) return run
+
+        // Verify must come from the formal Android Release workflow, not merely
+        // any Actions run attached to the same Commit. Multiple workflows or
+        // manual dispatches may exist for one SHA, so select deterministically:
+        // exact SHA -> formal workflow -> newest run.
+        val candidates = buildList {
+            for (i in 0 until array.length()) {
+                val run = array.optJSONObject(i) ?: continue
+                if (run.optString("head_sha") != commitSha) continue
+
+                val workflowPath = run.optString("path").trim()
+                val workflowName = run.optString("name").trim()
+                if (workflowPath != FORMAL_VERIFY_WORKFLOW_PATH &&
+                    workflowName != FORMAL_VERIFY_WORKFLOW_NAME
+                ) continue
+
+                add(run)
+            }
         }
-        return null
+
+        return candidates.maxByOrNull {
+            runTimestamp(it, "created_at")
+        }
+    }
+
+    private fun runTimestamp(run: JSONObject, field: String): Long {
+        return run.optString(field).trim().let {
+            runCatching {
+                java.time.Instant.parse(it).toEpochMilli()
+            }.getOrDefault(0L)
+        }
+    }
+
+    companion object {
+        private const val FORMAL_VERIFY_WORKFLOW_NAME = "Android Build and Release"
+        private const val FORMAL_VERIFY_WORKFLOW_PATH = ".github/workflows/android-build.yml"
     }
 
     private fun releaseAfterSuccess(
