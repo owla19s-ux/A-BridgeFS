@@ -15,6 +15,12 @@ data class BridgeChatMessage(
 )
 data class BridgeReceiptRecord(val status: String, val command: String, val message: String, val time: Long = System.currentTimeMillis())
 
+data class BridgeAiMember(
+    val id: String,
+    var name: String,
+    var apiProfileId: String? = null
+)
+
 /**
  * A conversation belongs to a workspace.
  *
@@ -42,6 +48,7 @@ data class BridgeProject(
     var name: String,
     var localFileModifyEnabled: Boolean = false,
     var github: GitHubWorkspace = GitHubWorkspace(),
+    val aiMembers: MutableList<BridgeAiMember> = mutableListOf(),
     val conversations: MutableList<BridgeConversation> = mutableListOf(),
     var activeConversationId: String? = null
 ) {
@@ -124,6 +131,18 @@ class BridgeProjectStore(private val context: Context) {
                 activeConversationId = obj.optString("activeConversationId", "").ifBlank { null }
             )
 
+            val aiMembers = obj.optJSONArray("aiMembers")
+            if (aiMembers != null) {
+                for (j in 0 until aiMembers.length()) {
+                    val member = aiMembers.getJSONObject(j)
+                    project.aiMembers += BridgeAiMember(
+                        id = member.getString("id"),
+                        name = member.optString("name", "AI"),
+                        apiProfileId = member.optString("apiProfileId", "").ifBlank { null }
+                    )
+                }
+            }
+
             // New format: conversations live inside the workspace.
             val conversations = obj.optJSONArray("conversations")
             if (conversations != null) {
@@ -168,6 +187,15 @@ class BridgeProjectStore(private val context: Context) {
                 .put("githubReadEnabled", project.github.readEnabled)
                 .put("githubWriteEnabled", project.github.writeEnabled)
 
+            obj.put("aiMembers", JSONArray().apply {
+                project.aiMembers.forEach {
+                    put(JSONObject()
+                        .put("id", it.id)
+                        .put("name", it.name)
+                        .put("apiProfileId", it.apiProfileId.orEmpty()))
+                }
+            })
+
             obj.put("conversations", JSONArray().apply {
                 project.conversations.forEach { conversation ->
                     put(JSONObject()
@@ -196,6 +224,8 @@ class BridgeProjectStore(private val context: Context) {
 
     fun newProject(name: String): BridgeProject {
         val workspace = BridgeProject(UUID.randomUUID().toString(), name)
+        workspace.aiMembers += BridgeAiMember(UUID.randomUUID().toString(), "AI A")
+        workspace.aiMembers += BridgeAiMember(UUID.randomUUID().toString(), "AI B")
         val conversation = BridgeConversation(UUID.randomUUID().toString(), "默认对话")
         workspace.conversations += conversation
         workspace.activeConversationId = conversation.id
