@@ -1164,7 +1164,9 @@ class V021Activity : Activity() {
                 val ids = collaborationProfileIds()
                 require(ids.first.isNotBlank() && ids.second.isNotBlank()) { "请先选择两个协作 AI" }
                 val conversation = current.activeConversation()
-                val coordinator = CollaborationCoordinator(this, current.id, conversation.id, ids.first, ids.second)
+                val conversationId = conversation.id
+                val workspaceId = current.id
+                val coordinator = CollaborationCoordinator(this, workspaceId, conversationId, ids.first, ids.second)
                 val messages = coordinator.runObjective(
                     objective = objective,
                     decisionSystemPrompt = "你是本轮协作的规划参与者。你必须只返回一个合法 JSON 对象，不要 Markdown、代码围栏或解释文字。协议版本必须为 0.1；from 只能是 decision_ai，to 只能是 worker；type 必须是 TASK。task_id 必须原样使用输入消息的 task_id。payload 必须包含 objective、scope、acceptance、autonomy、context_refs。当前阶段只负责分析、拆解与提出任务，不执行本地文件或 GitHub 操作。",
@@ -1187,7 +1189,13 @@ class V021Activity : Activity() {
                 }
                 runOnUiThread {
                     collaborationRunningConversationId = null
-                    val target = current.activeConversation()
+                    val targetWorkspace = projects.firstOrNull { it.id == workspaceId }
+                    val target = targetWorkspace?.conversations?.firstOrNull { it.id == conversationId }
+                    if (target == null) {
+                        collaborationRunningConversationId = null
+                        render()
+                        return@runOnUiThread
+                    }
                     val progressIndex = target.messages.indexOfLast { it.role == "tool" && it.content.startsWith("[协作进行中]") }
                     if (progressIndex >= 0) {
                         target.messages.removeAt(progressIndex)
@@ -1202,7 +1210,13 @@ class V021Activity : Activity() {
                 AppLogger.log(this, AppLogger.Category.COLLABORATION, "ROUND_FAILED", reason)
                 runOnUiThread {
                     collaborationRunningConversationId = null
-                    val target = current.activeConversation()
+                    val targetWorkspace = projects.firstOrNull { it.id == workspaceId }
+                    val target = targetWorkspace?.conversations?.firstOrNull { it.id == conversationId }
+                    if (target == null) {
+                        collaborationRunningConversationId = null
+                        render()
+                        return@runOnUiThread
+                    }
                     val progressIndex = target.messages.indexOfLast { it.role == "tool" && it.content.startsWith("[协作进行中]") }
                     if (progressIndex >= 0) {
                         target.messages.removeAt(progressIndex)
