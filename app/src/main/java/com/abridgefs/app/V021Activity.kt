@@ -837,18 +837,7 @@ class V021Activity : Activity() {
         }
     }
 
-    private fun authorization():Authorization {
-        val allowed=mutableSetOf<FileAction>()
-        val confirm=mutableSetOf<FileAction>()
-        FileAction.values().forEach { action ->
-            when(prefs.getString("perm_"+action.name,
-                if(action==FileAction.LIST || action==FileAction.READ) "allow" else "confirm")) {
-                "allow" -> allowed += action
-                "confirm" -> { allowed += action; confirm += action }
-            }
-        }
-        return Authorization(prefs.getString("root_path","").orEmpty(),allowed,confirm)
-    }
+    private fun authorization():Authorization = PermissionPolicy.authorization(this, project, project?.activeConversation())
 
     private fun recordReceipt(current:BridgeProject,status:String,command:String,message:String) {
         val conversation = current.activeConversation()
