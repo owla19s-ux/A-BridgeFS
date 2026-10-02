@@ -62,6 +62,18 @@ class SettingsCategoryActivity : Activity() {
     }
 
     private fun buildExecution(box: LinearLayout) {
+        val autoExecute = CheckBox(this).apply {
+            text = "允许 AI 回复自动触发 BridgeFS"
+            isChecked = prefs.getBoolean("ai_auto_bridgefs_enabled", true)
+        }
+        box.addView(autoExecute, LinearLayout.LayoutParams(-1, dp(48)))
+        box.addView(TextView(this).apply {
+            text = "关闭后，AI 回复中的 [bridgefs] 指令不会自动执行；仍可正常对话。"
+            textSize = 12f
+            setTextColor(resources.getColor(R.color.bridgefs_text_secondary))
+            setPadding(dp(4), 0, dp(4), dp(10))
+        })
+
         label(box, "AI 单次执行上限")
         val limit = EditText(this).apply {
             inputType = InputType.TYPE_CLASS_NUMBER
@@ -89,7 +101,10 @@ class SettingsCategoryActivity : Activity() {
             box.addView(row)
         }
         box.addView(actionButton("保存执行权限") {
-            prefs.edit().putInt("command_limit", limit.text.toString().toIntOrNull()?.coerceIn(1, 20) ?: 3).apply()
+            prefs.edit()
+                .putBoolean("ai_auto_bridgefs_enabled", autoExecute.isChecked)
+                .putInt("command_limit", limit.text.toString().toIntOrNull()?.coerceIn(1, 20) ?: 3)
+                .apply()
             for (i in 0 until box.childCount) {
                 val row = box.getChildAt(i) as? LinearLayout ?: continue
                 val action = row.tag as? FileAction ?: continue
