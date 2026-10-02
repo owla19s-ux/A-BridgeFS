@@ -165,6 +165,10 @@ class BridgeProjectStore(private val context: Context) {
                 project.activeConversationId = legacy.id
             }
 
+            if (project.aiMembers.isEmpty()) {
+                project.aiMembers += BridgeAiMember(UUID.randomUUID().toString(), "AI A")
+                project.aiMembers += BridgeAiMember(UUID.randomUUID().toString(), "AI B")
+            }
             project.activeConversation()
             result += project
         }
