@@ -313,9 +313,16 @@ class CollaborationCoordinator(
         require(task.status == CollaborationTaskRecord.STATUS_FAILED) {
             "只有 Verify 失败的任务可以进入修复轮"
         }
-        require(!task.constructionHolderAiMemberId.isNullOrBlank()) {
-            "当前任务没有施工者，无法自动进入修复轮"
-        }
+        val repairHolder = task.constructionHolderAiMemberId?.takeIf { it.isNotBlank() }
+            ?: error("当前任务没有施工者，无法自动进入修复轮")
+
+        val workspace = BridgeProjectStore(context).load().firstOrNull { it.id == workspaceId }
+            ?: error("工作区不存在：$workspaceId")
+
+        // A Verify failure deliberately retains construction authority for the
+        // repair round. Do not transition FAILED -> RUNNING unless the actual
+        // Repository/Branch lock is still held by the recorded repair owner.
+        ConstructionLockStore(context).requireHolder(workspace, repairHolder)
 
         CollaborationTaskStore(context).update(taskId) {
             it.status = CollaborationTaskRecord.STATUS_RUNNING
