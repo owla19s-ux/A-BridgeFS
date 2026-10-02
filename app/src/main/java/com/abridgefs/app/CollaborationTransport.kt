@@ -18,7 +18,7 @@ class CollaborationTransport(
     private val prefs = context.getSharedPreferences("collaboration_transport", Context.MODE_PRIVATE)
     private val keySuffix = workspaceId.ifBlank { "unknown_workspace" } + "_" +
         conversationId.ifBlank { "unknown_conversation" }
-    private val prefs = context.getSharedPreferences("collaboration_transport", Context.MODE_PRIVATE)
+
 
     fun append(message: CollaborationProtocol.Message) {
         val items = JSONArray(prefs.getString("${KEY_MESSAGES}_$keySuffix", "[]") ?: "[]")
