@@ -295,7 +295,7 @@ if(cs.isEmpty()){
 }else if(CommandParser.lastError!=null){
     val message=CommandParser.lastError!!
     findReceipt(box)?.let{it.text=message;it.setTextColor(Color.DKGRAY)}
-    broadcastReceipt("FAILED",raw,message,null,null)
+    broadcastReceipt("FAILED",raw,message,null,null,null)
 }else{
     runButton?.isEnabled=false
     commandExecutor.submit{
