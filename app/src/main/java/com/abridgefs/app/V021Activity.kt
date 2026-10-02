@@ -147,6 +147,7 @@ class V021Activity : Activity() {
 
         root.addView(header("工作区", "管理协作资源与权限"))
         root.addView(workspaceCard())
+        root.addView(collaborationCard())
         root.addView(sectionTitle("API"))
         val list = apis()
         if (list.isEmpty()) {
@@ -197,6 +198,28 @@ class V021Activity : Activity() {
         box.addView(actionButton("进入 GitHub") {
             startActivity(Intent(this, GitHubActivity::class.java))
         })
+        return box
+    }
+
+    private fun collaborationCard(): View {
+        val box = card()
+        val configured = CollaborationApiConfig.fromPreferences(this, CollaborationProtocol.Role.DECISION_AI).isConfigured() &&
+            CollaborationApiConfig.fromPreferences(this, CollaborationProtocol.Role.WORKER).isConfigured()
+        box.addView(TextView(this).apply { text = "AI 协作"; textSize = 16f; typeface = Typeface.DEFAULT_BOLD })
+        box.addView(TextView(this).apply {
+            text = if (configured) "Decision AI / Worker 已配置" else "Decision AI / Worker 尚未完整配置"
+            textSize = 13f
+            setTextColor(color(R.color.bridgefs_text_secondary))
+            setPadding(0, dp(4), 0, dp(8))
+        })
+        box.addView(Switch(this).apply {
+            text = "启用三方协作模式"
+            textSize = 13f
+            isChecked = prefs.getBoolean("collaboration_mode_enabled", false)
+            isEnabled = configured
+            setOnCheckedChangeListener { _, value -> prefs.edit().putBoolean("collaboration_mode_enabled", value).apply() }
+        })
+        box.addView(actionButton("配置协作 API") { startActivity(Intent(this, ApiSettingsActivity::class.java)) })
         return box
     }
 
@@ -523,6 +546,25 @@ class V021Activity : Activity() {
             .setNegativeButton("取消",null).show()
     }
 
+    private fun runCollaboration(current: BridgeProject, objective: String) {
+        executor.execute {
+            runCatching {
+                val coordinator = CollaborationCoordinator(this)
+                val messages = coordinator.runObjective(
+                    objective = objective,
+                    decisionSystemPrompt = "你是 A-BridgeFS Decision AI。将用户目标转成一个合法的 Decision AI → Worker v0.1 TASK JSON。不要执行本地文件或 GitHub 操作。",
+                    workerSystemPrompt = "你是 A-BridgeFS Worker。严格返回合法的 Decision AI ↔ Worker v0.1 协议 JSON。本轮不要直接修改 GitHub 或本地文件，遇到需要决策的问题返回 DECISION_REQUEST。"
+                )
+                val summary = messages.joinToString("\n\n") { "[协作 ${it.type.name}] ${it.from.name} → ${it.to.name}\n${it.toJson()}" }
+                runOnUiThread { current.messages += BridgeChatMessage("assistant", summary); store.save(projects); render() }
+            }.onFailure { e ->
+                val reason = e.message ?: e::class.simpleName ?: "未知错误"
+                AppLogger.log(this, AppLogger.Category.COLLABORATION, "ROUND_FAILED", reason)
+                runOnUiThread { current.messages += BridgeChatMessage("tool", "[协作错误]\n" + reason); store.save(projects); render() }
+            }
+        }
+    }
+
     private fun send(input:EditText,id:String) {
         val text=input.text.toString().trim()
         if(text.isBlank()) return
@@ -542,6 +584,17 @@ class V021Activity : Activity() {
         current.messages += BridgeChatMessage("user",text)
         store.save(projects)
         render()
+
+        if (prefs.getBoolean("collaboration_mode_enabled", false)) {
+            val d = CollaborationApiConfig.fromPreferences(this, CollaborationProtocol.Role.DECISION_AI)
+            val w = CollaborationApiConfig.fromPreferences(this, CollaborationProtocol.Role.WORKER)
+            if (!d.isConfigured() || !w.isConfigured()) {
+                current.messages += BridgeChatMessage("tool", "[协作未启动]\n请先配置 Decision AI 与 Worker。")
+                store.save(projects); render(); return
+            }
+            runCollaboration(current, text)
+            return
+        }
 
         executor.execute {
             try {
