@@ -283,3 +283,13 @@ Workspace + Repository + Branch
 - 修复：GitHub Contents 写入后如果响应缺少 Commit SHA，不再继续进入 WAITING_VERIFY，直接停止并报告异常，避免形成无法验证的任务状态。
 - 修复：Workspace 的 Verify / Verify 失败修复按钮增加任务级互斥，避免重复点击同时启动两次协作继续轮。
 - 本轮仅修改开发分支，仍未合并、未构建、未真机验证。
+
+## 2026-10-02 Verify 对应 Run 第九轮检查
+
+- 修复：Verify 不再只按 `head_sha` 命中第一个 Actions Run。
+- 正式 Verify 现在限定为 `.github/workflows/android-build.yml` / `Android Build and Release`。
+- 同一 Commit 存在多个正式 Run 时，按 `created_at` 选择最新 Run；较旧 Run 不再抢先决定 PASS / FAIL。
+- 这与当前正式 APK 构建链保持一致：**Android Build and Release 才是 A-BridgeFS 的正式 Release / Verify 来源**。
+- 当前实际历史 Commit 查询显示，现有正式构建 Commit 各只有一个对应 Run；本轮修复主要针对未来增加其他 Workflow、同 SHA 手动触发等情况。
+- 本轮仍仅修改开发分支，未合并、未构建、未真机验证。
+
