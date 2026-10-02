@@ -24,7 +24,7 @@ Decision AI / Worker AI 只作为任务阶段角色标签，不是固定身份�
 | API / 对话 | 已实现 / 待统一验证 | API 可配置、可聊天；Chat → API 持久绑定已实现 |
 | 本地指令 / BridgeFS | 已实现 | 保留真实本地执行能力 |
 | GitHub 连接基础 | 已实现 / 待真机验证 | PAT、Keystore、账号、Repository、Branch 基础能力已落地 |
-| 工作区 | 开发中 | 当前仍需从 BridgeProject 继续演化 |
+| 工作区 | 开发中 | 已开始采用 Workspace → Conversations 数据结构；仍需完成 UI 与权限链迁移 |
 | 双 AI 协作协议 | 已确认设计 / 尚未完整实现 | 共享读取、施工权独占且可转移 |
 | 协作消息 | 开发中 | 当前实现仍偏旧单轮协作链 |
 | 施工锁 | 已设计未实现 | Repository / Branch 级独占写权限 |
@@ -76,7 +76,7 @@ Workspace + Repository + Branch
 - 本地文件修改开关尚未真正阻断 WRITE / EDIT。
 - Chat 级本地文件权限覆盖尚未实现；目标是 `Chat override ?: Workspace permission`。
 - GitHub 文件写入尚未连接 AI 施工流程、Commit / PR / Actions / Verify。
-- Workspace 与 Conversation 数据模型仍需继续拆分。
+- Workspace → Conversation 数据结构已落地，V021 对话切换/新建已开始使用工作区内 Conversation；仍保留兼容 facade，后续继续清理旧调用。
 - API 页面仍需从固定 Decision / Worker 配置迁移为 AI 成员 + API Profile 资源模型。
 
 ### 本批次状态
@@ -96,7 +96,7 @@ Workspace + Repository + Branch
 - MainActivity 仍存在，且包含尚未迁移的历史功能，暂不能直接删除。
 - BridgeFS 本地执行链真实存在。
 - GitHub Workspace 边界已有基础实现。
-- API Profile 的 write 字段目前尚未接入统一 PermissionPolicy。
+- V021 已移除 API Profile 的“允许修改”UI/模型字段；历史持久化中的 `write` 字段仅作兼容读取，不再作为权限来源。
 - Receipt 仍存在 executions / pending_receipt / messages / input 四处分散状态。
 - V021 启动时尚未恢复 pending receipt。
 - Workspace 与 Conversation 仍未完全分离。
@@ -110,7 +110,7 @@ Workspace + Repository + Branch
 1. 统一正式架构文档：双 AI、共享读取、Repository / Branch 施工权独占且可转移。
 2. 统一 Receipt 状态链。
 3. 把 API Profile 与实际权限边界分离清楚。
-4. 逐步拆分 Workspace / Conversation 数据模型。
+4. 完成 Workspace / Conversation 迁移，清理兼容 facade。
 5. 实现 Repository / Branch 施工锁。
 6. 连接真实 GitHub 写入与 Verify。
 7. 实现双 AI 连续协作循环。
