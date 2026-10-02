@@ -48,6 +48,9 @@ class GitHubApiClient(
     fun listWorkflowRuns(owner: String, repo: String, perPage: Int = 20): JSONObject =
         get("/repos/${owner}/${repo}/actions/runs?per_page=${perPage.coerceIn(1, 100)}")
 
+    fun listWorkflowRunsForCommit(owner: String, repo: String, commitSha: String, perPage: Int = 20): JSONObject =
+        get("/repos/${owner}/${repo}/actions/runs?head_sha=${commitSha}&per_page=${perPage.coerceIn(1, 100)}")
+
     fun getWorkflowRun(owner: String, repo: String, runId: Long): JSONObject =
         get("/repos/${owner}/${repo}/actions/runs/${runId}")
 
