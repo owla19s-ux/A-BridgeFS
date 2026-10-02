@@ -59,6 +59,7 @@ class V021Activity : Activity() {
                     conversation.executions += receipt
                     conversation.messages += BridgeChatMessage("receipt", formatReceipt(receipt))
                     conversationStore.save(standaloneConversations)
+                    getSharedPreferences("bridgefs", 0).edit().remove("pending_receipt").apply()
                     if (page == Page.CHAT) render()
                     else Toast.makeText(this@V021Activity, "收到执行回执：$status", Toast.LENGTH_SHORT).show()
                 }
@@ -73,6 +74,7 @@ class V021Activity : Activity() {
                 conversation.executions += receipt
                 conversation.messages += BridgeChatMessage("receipt", formatReceipt(receipt))
                 store.save(projects)
+                getSharedPreferences("bridgefs", 0).edit().remove("pending_receipt").apply()
                 if (page == Page.WORKSPACE_CHAT) render()
                 else Toast.makeText(this@V021Activity, "收到执行回执：$status", Toast.LENGTH_SHORT).show()
             }
