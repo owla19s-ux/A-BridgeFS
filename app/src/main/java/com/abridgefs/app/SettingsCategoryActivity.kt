@@ -179,7 +179,10 @@ class SettingsCategoryActivity : Activity() {
     private fun buildLogs(box: LinearLayout) {
         label(box, "日志保留")
         box.addView(TextView(this).apply {
-            text = "运行日志：" + File(filesDir, "logs").absolutePath + "\n崩溃日志：" + File(filesDir, "crash").absolutePath + "\n日志按日期保存，不自动发送给 AI。"
+            text = "运行日志：runtime / collaboration / execution / api / github\n" +
+                "日志目录：" + File(filesDir, "logs").absolutePath + "\n" +
+                "崩溃日志：" + File(filesDir, "crash").absolutePath + "\n" +
+                "日志按日期保存，不自动发送给 AI。\n协作日志与执行日志已分离。"
             textSize = 13f
             setTextColor(resources.getColor(R.color.bridgefs_text_secondary))
             setPadding(dp(4), dp(8), dp(4), dp(18))
