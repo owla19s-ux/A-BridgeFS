@@ -1443,8 +1443,9 @@ class V021Activity : Activity() {
         val intent = Intent(this, FileBridgeService::class.java)
             .putExtra("bridgefs_external_command", command)
             .putExtra("bridgefs_root", root)
-            .putExtra("projectId", workspace?.id)
-            .putExtra("conversationId", conversation.id)
+            .putExtra("projectId", null as String?)
+            .putExtra("conversationId", null as String?)
+            .putExtra("standaloneConversationId", conversation.id)
 
         runCatching { startForegroundService(intent) }.onFailure {
             recordReceipt(conversation, "FAILED", "AI command", "启动 BridgeFS 执行服务失败：" + (it.message ?: "未知错误"))
