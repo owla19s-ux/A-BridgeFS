@@ -324,3 +324,13 @@ Workspace + Repository + Branch
 - 结果：施工 Branch 可以获得与正式链一致的 Build / signature verification / Artifact / Commit-scoped Verify；不会覆盖正式 `latest` Release。
 - 注意：该修改目前只存在于开发分支，尚未产生新的 Actions Run，不能标记为已验证。
 
+
+
+## 2026-10-02 构建 / 签名链第十三轮检查
+
+- 按 Android 官方方式补强 APK 签名身份校验：apksigner verify --print-certs 可取得 APK 的 SHA-256 证书摘要；官方文档明确该工具可用于读取已签名应用的 SHA-256 certificate digest。 
+- Workflow 现在从受保护的正式 Release Keystore 导出其公钥证书，计算 SHA-256，再与最终 app-release.apk 的实际 Signer #1 SHA-256 逐字比对。
+- 因此不需要把证书指纹本身再作为 Secret 保存；私钥材料仍只通过 GitHub Secrets 注入，证书指纹作为公开身份信息在 CI 中计算。
+- 新门槛同时保留 apksigner verify --verbose：一层确认 APK 签名结构有效，一层确认签名者就是当前正式 Keystore 的证书。
+- 本次修改 Commit：68101b58eb79c5b79fdf32c1f2ed534039ce038a，目前仍在 PR #36 开发分支；该 Commit 尚无新的 Actions Run，因此不能标记为已验证。
+- 结论：签名链从“签名有效”提升为“签名有效 + 签名身份与正式 Keystore 一致”；但尚未获得 CI 实际执行证据。
