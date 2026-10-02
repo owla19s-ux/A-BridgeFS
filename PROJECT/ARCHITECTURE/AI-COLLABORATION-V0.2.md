@@ -175,7 +175,16 @@ GitHub 写入采用分层边界：
 - 施工任务通过 GitHubWorkspaceService.updateFile() 进入真实 Contents API 写入边界。
 - Contents API 返回的 Commit SHA 会保存到任务状态，并将任务推进到 WAITING_VERIFY。
 
-尚未连接 Actions / Check Run / Job → Verify 的真实结果链。
+Verify 实链第一版已经接入：
+- 以任务保存的 Commit SHA 查询 GitHub Actions。
+- 只接受 head_sha 与任务 Commit SHA 完全一致的 Run。
+- queued / in_progress 等状态保持 WAITING_VERIFY。
+- completed + success 才进入 COMPLETE，并释放 ConstructionLock。
+- completed + 非 success 进入 FAILED，保留施工锁以允许继续修复。
+
+尚未完成：
+- 新 Actions Run / APK / 真机验证。
+- 更细的 Job / Step 结果汇总与 UI 展示。
 
 ### 11.3 下一阶段
 
