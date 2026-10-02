@@ -117,6 +117,7 @@ class GitHubActivity : android.app.Activity() {
             workspace?.githubAccountLogin = null
             workspace?.githubRepository = null
             workspace?.githubBranch = null
+            workspace?.github.githubRepositoryIdReset()
             workspace?.githubWriteEnabled = false
             save()
             render()
@@ -229,22 +230,28 @@ class GitHubActivity : android.app.Activity() {
     }
 
     private fun chooseRepository() {
-        val token = authStore.state().accessToken ?: return
+        val service = workspaceService() ?: return
         executor.execute {
-            runCatching { GitHubClient(token).listRepositories() }
+            runCatching { service.repositories() }
                 .onSuccess { repos ->
                     runOnUiThread {
-                        if (repos.isEmpty()) {
+                        if (repos.length() == 0) {
                             Toast.makeText(this, "没有可访问的 Repository", Toast.LENGTH_SHORT).show()
                             return@runOnUiThread
                         }
+                        val items = List(repos.length()) { index ->
+                            repos.getJSONObject(index).optString("full_name")
+                        }
                         AlertDialog.Builder(this)
                             .setTitle("选择 Repository")
-                            .setItems(repos.map { it.fullName }.toTypedArray()) { _, which ->
-                                val selected = repos[which]
-                                workspace?.githubRepository = selected.fullName
-                                workspace?.githubBranch = selected.defaultBranch
-                                workspace?.githubAccountLogin = authStore.state().login
+                            .setItems(items.toTypedArray()) { _, which ->
+                                val selected = repos.getJSONObject(which)
+                                workspace?.github?.apply {
+                                    repositoryId = selected.optLong("id", 0L).takeIf { it > 0L }
+                                    repository = selected.optString("full_name").ifBlank { null }
+                                    branch = selected.optString("default_branch").ifBlank { null }
+                                    accountLogin = authStore.state().login
+                                }
                                 save()
                                 render()
                             }.show()
@@ -259,20 +266,22 @@ class GitHubActivity : android.app.Activity() {
     }
 
     private fun chooseBranch() {
-        val token = authStore.state().accessToken ?: return
-        val repo = workspace?.githubRepository
-        if (repo.isNullOrBlank()) {
+        val service = workspaceService() ?: return
+        if (workspace?.github?.repository.isNullOrBlank()) {
             Toast.makeText(this, "请先选择 Repository", Toast.LENGTH_SHORT).show()
             return
         }
         executor.execute {
-            runCatching { GitHubClient(token).listBranches(repo) }
+            runCatching { service.branches() }
                 .onSuccess { branches ->
                     runOnUiThread {
+                        val items = List(branches.length()) { index ->
+                            branches.getJSONObject(index).optString("name")
+                        }
                         AlertDialog.Builder(this)
                             .setTitle("选择 Branch")
-                            .setItems(branches.toTypedArray()) { _, which ->
-                                workspace?.githubBranch = branches[which]
+                            .setItems(items.toTypedArray()) { _, which ->
+                                workspace?.github?.branch = items[which]
                                 save()
                                 render()
                             }.show()
@@ -284,6 +293,16 @@ class GitHubActivity : android.app.Activity() {
                     }
                 }
         }
+    }
+
+    private fun workspaceService(): GitHubWorkspaceService? {
+        val project = workspace ?: return null
+        val token = authStore.state().accessToken
+        if (token.isNullOrBlank()) {
+            Toast.makeText(this, "GitHub 尚未连接", Toast.LENGTH_SHORT).show()
+            return null
+        }
+        return GitHubWorkspaceService(GitHubApiClient(this, token), project.github)
     }
 
     private fun save() { projectStore.save(projects) }
@@ -327,4 +346,8 @@ class GitHubActivity : android.app.Activity() {
 
     private fun color(id: Int) = resources.getColor(id)
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+}
+
+private fun GitHubWorkspace.githubRepositoryIdReset() {
+    repositoryId = null
 }
