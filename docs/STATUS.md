@@ -87,3 +87,27 @@ Workspace + Repository + Branch
 6. 连接真实 GitHub 写入与 Verify。
 7. 实现双 AI 连续协作循环。
 8. 清理旧 MainActivity / 旧日志路径等历史实现。
+
+## 2026-10-02 追加确认：API 页面与对话执行链
+
+### API 页面
+当前 V021 的「配置协作 API」仍使用旧版 **Decision AI / Worker** 双角色配置界面。
+
+这不是当前正式架构。后续应改为：
+- 两个 AI 成员 / API 资源可独立配置
+- AI 身份与 API Profile 解耦
+- 不再用 Decision AI / Worker 作为固定配置槽位
+- 施工权由 Workspace + Repository + Branch 管理
+
+### 对话 → BridgeFS
+当前对话已经存在真实的自动执行链：
+
+`用户消息 → API 对话 → AI 回复 → [bridgefs] 区块识别 → CommandParser → PermissionPolicy → BridgeFS 执行 → Receipt`
+
+因此「AI 对话会触发 A-BridgeFS / BridgeFS 执行回执」属于**当前已存在的实现能力**，不是待设计功能。
+
+当前缺口不是是否执行，而是执行链与新双 AI 协作模型尚未统一：
+- Receipt 尚未统一进入对话消息时间线
+- pending receipt 启动恢复尚未完成
+- API Profile 的 write 开关尚未成为实际执行权限边界
+- 双 AI 协作尚未接入同一套施工权 / Receipt / Verify 链
