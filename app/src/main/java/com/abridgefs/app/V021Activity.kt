@@ -681,10 +681,10 @@ class V021Activity : Activity() {
 
     private fun editApi(old:ApiProfile?) {
         val box=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(4),0,dp(4),0)}
-        val n=field("名称",old?.name);val u=field("API 地址",old?.baseUrl);val k=field("API Key",old?.key);val m=field("模型",old?.model)
-        listOf(n,u,k,m).forEach{box.addView(it)}
+        val n=field("名称",old?.name);val av=field("头像（文字 / Emoji）",old?.avatar);val u=field("API 地址",old?.baseUrl);val k=field("API Key",old?.key);val m=field("模型",old?.model)
+        listOf(n,av,u,k,m).forEach{box.addView(it)}
         AlertDialog.Builder(this).setTitle(if(old==null)"添加 API" else "修改 API").setView(box)
-            .setPositiveButton("保存"){_,_->saveApi(ApiProfile(old?.id?:UUID.randomUUID().toString(),n.text.toString().trim(),u.text.toString().trim(),k.text.toString(),m.text.toString().trim()))}
+            .setPositiveButton("保存"){_,_->saveApi(ApiProfile(old?.id?:UUID.randomUUID().toString(),n.text.toString().trim(),u.text.toString().trim(),k.text.toString(),m.text.toString().trim(),av.text.toString().trim()))}
             .setNegativeButton("取消",null).show()
     }
 
@@ -872,6 +872,7 @@ class V021Activity : Activity() {
                 put(JSONObject()
                     .put("id",it.id)
                     .put("name",it.name)
+                    .put("avatar",it.avatar)
                     .put("baseUrl",it.baseUrl)
                     .put("model",it.model)
                     )
@@ -895,13 +896,13 @@ class V021Activity : Activity() {
             if(legacyKey.isNotBlank()){
                 apiSecrets.put(id,legacyKey)
             }
-            ApiProfile(id,o.optString("name"),o.optString("baseUrl"),apiSecrets.get(id).orEmpty(),o.optString("model"))
+            ApiProfile(id,o.optString("name"),o.optString("baseUrl"),apiSecrets.get(id).orEmpty(),o.optString("model"),o.optString("avatar"))
         }
     }
     private fun legacyApi():List<ApiProfile>{
         val u=prefs.getString("api_base_url","").orEmpty();val m=prefs.getString("api_model","").orEmpty()
         if(u.isBlank()&&m.isBlank())return emptyList()
-        val a=ApiProfile("legacy",prefs.getString("api_provider","API")?:"API",u,prefs.getString("api_key","").orEmpty(),m)
+        val a=ApiProfile("legacy",prefs.getString("api_provider","API")?:"API",u,prefs.getString("api_key","").orEmpty(),m,"AI")
         apiSecrets.put(a.id,a.key)
         prefs.edit().putString("api_profiles",JSONArray().put(JSONObject().put("id",a.id).put("name",a.name).put("baseUrl",a.baseUrl).put("model",a.model).put("write",false)).toString()).apply()
         return listOf(a)
