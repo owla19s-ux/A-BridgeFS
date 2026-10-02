@@ -62,6 +62,34 @@ Workspace + Repository + Branch
 
 申请 → 授权 → 施工 → Commit → Verify → 释放 / 转移
 
+## 2026-10-02 追加：工作区 / GitHub 第一批施工
+
+### 已落地
+
+- `BridgeProject` 已增加工作区级 `localFileModifyEnabled`，并持久化保存。
+- V021 工作区页已出现“本地文件”权限卡；该开关目前表达**工作区意图**，尚未接入 `PermissionPolicy` 的最终执行判定。
+- GitHub 低层 `GitHubApiClient.updateFile()` 已支持 Contents API 的文件更新。
+- `GitHubWorkspaceService.updateFile()` 已作为工作区级写入边界，先检查 GitHub read/write 权限，再调用低层客户端。
+
+### 尚未完成
+
+- 本地文件修改开关尚未真正阻断 WRITE / EDIT。
+- Chat 级本地文件权限覆盖尚未实现；目标是 `Chat override ?: Workspace permission`。
+- GitHub 文件写入尚未连接 AI 施工流程、Commit / PR / Actions / Verify。
+- Workspace 与 Conversation 数据模型仍需继续拆分。
+- API 页面仍需从固定 Decision / Worker 配置迁移为 AI 成员 + API Profile 资源模型。
+
+### 本批次状态
+
+| 项目 | 状态 |
+| --- | --- |
+| 工作区本地修改权限数据 | 已实现 |
+| 工作区本地修改权限 UI | 已实现 |
+| 本地修改权限实际执行拦截 | 已设计未实现 |
+| GitHub 低层文件更新 | 已实现 |
+| GitHub Workspace 写入边界 | 已实现 |
+| GitHub → Commit → Verify | 开发中 |
+
 ## 当前代码事实
 
 - V021Activity 是当前 Launcher。
