@@ -42,6 +42,7 @@ class V021Activity : Activity() {
     private var pendingReceipt: String? = null
     private var collaborationRunningConversationId: String? = null
     private var standaloneSendingConversationId: String? = null
+    private var collaborationTaskActionRunningId: String? = null
     private val receiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: android.content.Context, intent: android.content.Intent) {
             val status = intent.getStringExtra("status") ?: "UNKNOWN"
@@ -467,7 +468,11 @@ class V021Activity : Activity() {
         }
 
         if (task.status == CollaborationTaskRecord.STATUS_FAILED && !task.constructionHolderAiMemberId.isNullOrBlank()) {
-            box.addView(actionButton("根据 Verify 失败结果继续修复") {
+            val actionRunning = collaborationTaskActionRunningId == task.taskId
+            val repairButton = actionButton(if (actionRunning) "修复处理中…" else "根据 Verify 失败结果继续修复") {
+                if (collaborationTaskActionRunningId == task.taskId) return@actionButton
+                collaborationTaskActionRunningId = task.taskId
+                render()
                 executor.execute {
                     runCatching {
                         val coordinator = CollaborationCoordinator(
@@ -494,9 +499,21 @@ class V021Activity : Activity() {
                     }
                 }
             })
+                    runOnUiThread {
+                        collaborationTaskActionRunningId = null
+                        render()
+                    }
+                }
+            }
+            repairButton.isEnabled = !actionRunning
+            box.addView(repairButton)
         }
         if (task.status == CollaborationTaskRecord.STATUS_WAITING_VERIFY) {
-            box.addView(actionButton("检查当前 Commit") {
+            val actionRunning = collaborationTaskActionRunningId == task.taskId
+            val verifyButton = actionButton(if (actionRunning) "Verify处理中…" else "检查当前 Commit") {
+                if (collaborationTaskActionRunningId == task.taskId) return@actionButton
+                collaborationTaskActionRunningId = task.taskId
+                render()
                 executor.execute {
                     runCatching {
                         val coordinator = CollaborationCoordinator(
