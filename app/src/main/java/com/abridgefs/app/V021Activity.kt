@@ -723,9 +723,16 @@ class V021Activity : Activity() {
                     workspace.conversations.forEach { conversation ->
                         if (conversation.apiId == a.id) conversation.apiId = null
                     }
+                    workspace.aiMembers.forEach { member ->
+                        if (member.apiProfileId == a.id) member.apiProfileId = null
+                    }
                 }
                 apiProfiles.remove(a.id)
+                if (collaborationProfileIds().first.isBlank() || collaborationProfileIds().second.isBlank()) {
+                    prefs.edit().putBoolean("collaboration_mode_enabled", false).apply()
+                }
                 syncSelectedApi()
+                store.save(projects)
             }
             .setNegativeButton("取消",null).show()
     }
@@ -738,8 +745,8 @@ class V021Activity : Activity() {
                 val coordinator = CollaborationCoordinator(this, ids.first, ids.second)
                 val messages = coordinator.runObjective(
                     objective = objective,
-                    decisionSystemPrompt = "你是 A-BridgeFS Decision AI。将用户目标转成一个合法的 Decision AI → Worker v0.1 TASK JSON。不要执行本地文件或 GitHub 操作。",
-                    workerSystemPrompt = "你是 A-BridgeFS Worker。严格返回合法的 Decision AI ↔ Worker v0.1 协议 JSON。本轮不要直接修改 GitHub 或本地文件，遇到需要决策的问题返回 DECISION_REQUEST。"
+                    decisionSystemPrompt = "你是本轮协作的规划参与者。将用户目标转成一个合法的协作 TASK JSON。当前阶段只负责分析、拆解与提出任务，不执行本地文件或 GitHub 操作。",
+                    workerSystemPrompt = "你是本轮协作的执行参与者。严格返回合法的协作协议 JSON。当前阶段只负责分析任务并返回执行结果或 DECISION_REQUEST，不直接修改 GitHub 或本地文件。"
                 )
                 val summary = messages.joinToString("\n\n") { "[协作 ${it.type.name}] ${it.from.name} → ${it.to.name}\n${it.toJson()}" }
                 runOnUiThread { current.activeConversation().messages += BridgeChatMessage("assistant", summary); store.save(projects); render() }
@@ -752,9 +759,6 @@ class V021Activity : Activity() {
     }
 
     private fun collaborationProfileIds(): Pair<String,String> {
-        val savedFirst = prefs.getString("collaboration_first_api_id", "").orEmpty()
-        val savedSecond = prefs.getString("collaboration_second_api_id", "").orEmpty()
-        if (savedFirst.isNotBlank() && savedSecond.isNotBlank()) return savedFirst to savedSecond
         val members = project?.aiMembers.orEmpty()
         return (members.getOrNull(0)?.apiProfileId.orEmpty()) to
             (members.getOrNull(1)?.apiProfileId.orEmpty())
@@ -771,10 +775,6 @@ class V021Activity : Activity() {
         var second = list.indexOfFirst { it.id == current.second }.takeIf { it >= 0 } ?: if (first == 0) 1 else 0
         val labels = list.map { it.name.ifBlank { "未命名 API" } }.toTypedArray()
         fun save() {
-            prefs.edit()
-                .putString("collaboration_first_api_id", list[first].id)
-                .putString("collaboration_second_api_id", list[second].id)
-                .apply()
             project?.let { workspace ->
                 if (workspace.aiMembers.size < 2) {
                     while (workspace.aiMembers.size < 2) {
