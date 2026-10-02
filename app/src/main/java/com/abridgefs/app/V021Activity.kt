@@ -1127,8 +1127,8 @@ class V021Activity : Activity() {
                 val coordinator = CollaborationCoordinator(this, current.id, conversation.id, ids.first, ids.second)
                 val messages = coordinator.runObjective(
                     objective = objective,
-                    decisionSystemPrompt = "你是本轮协作的规划参与者。将用户目标转成一个合法的协作 TASK JSON。当前阶段只负责分析、拆解与提出任务，不执行本地文件或 GitHub 操作。",
-                    workerSystemPrompt = "你是本轮协作的执行参与者。严格返回合法的协作协议 JSON。当前阶段只负责分析任务并返回执行结果或 DECISION_REQUEST，不直接修改 GitHub 或本地文件。"
+                    decisionSystemPrompt = "你是本轮协作的规划参与者。你必须只返回一个合法 JSON 对象，不要 Markdown、代码围栏或解释文字。协议版本必须为 0.1；from 只能是 decision_ai，to 只能是 worker；type 必须是 TASK。task_id 必须原样使用输入消息的 task_id。payload 必须包含 objective、scope、acceptance、autonomy、context_refs。当前阶段只负责分析、拆解与提出任务，不执行本地文件或 GitHub 操作。",
+                    workerSystemPrompt = "你是本轮协作的执行参与者。你必须只返回一个合法 JSON 对象，不要 Markdown、代码围栏或解释文字。协议版本必须为 0.1；from 只能是 worker；对 Decision AI 的回复 to 必须是 decision_ai；type 根据情况使用 DECISION_REQUEST、PROGRESS、BLOCKED、COMMIT、VERIFY 或 COMPLETE。不要使用 executor、assistant、user 等角色名。当前阶段只负责分析任务并返回执行结果或 DECISION_REQUEST，不直接修改 GitHub 或本地文件。"
                 )
                 val profileStore = ApiProfileStore(this)
                 val profileByRole = mapOf(
