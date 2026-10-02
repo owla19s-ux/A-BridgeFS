@@ -194,3 +194,13 @@ Workspace + Repository + Branch
 - Run completed + 非 success：任务 FAILED，并写入 VERIFY_FAIL Receipt；施工锁不自动释放，便于继续修复。
 - Commit 产生后禁止普通 releaseConstruction 提前释放施工锁，避免 Verify 等待期间其他 AI 修改同一 Repository / Branch。
 - 当前分支存在 PR #16，但当前代码尚未产生新的 Actions Run；因此 Verify 代码链仍未获得真实 CI 验证。
+
+
+### 2026-10-02 协作 UI 可达性检查第五轮
+
+- V021 工作区页此前只有“选择两个协作 AI / 启用 AI 协作”，没有任务状态、施工锁、Verify 的用户入口。
+- 本轮已新增“协作任务”卡片：按当前 Workspace + Conversation 展示最新 Task、状态、Commit、施工者。
+- WAITING_CONSTRUCTION 时提供“AI A 申请施工锁”入口，实际调用 CollaborationCoordinator.requestConstruction()。
+- WAITING_VERIFY 时提供“检查当前 Commit”入口，实际调用 CollaborationCoordinator.verifyTask()。
+- ⚠️ 当前仍有一个关键断点：CollaborationCoordinator.updateFile() 虽已具备真实 GitHub Contents 写入能力，但 runObjective() 当前 Worker 提示词仍明确禁止直接修改 GitHub，协议运行链也没有把 Worker 的文件修改结果映射到 updateFile()；因此“AI 自主施工 → Commit”目前仍不可达。
+- 该断点属于 GitHub 实际写入链继续施工范围，不将本轮 UI 补口误标为完整施工链或已验证。
