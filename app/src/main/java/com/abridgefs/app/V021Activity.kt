@@ -258,6 +258,30 @@ class V021Activity : Activity() {
         return box
     }
 
+    private fun localFilePermissionCard(): View {
+        val box = card()
+        val enabled = project?.localFileModifyEnabled ?: false
+        box.addView(TextView(this).apply {
+            text = "本地文件"
+            textSize = 16f
+            typeface = Typeface.DEFAULT_BOLD
+        })
+        box.addView(CheckBox(this).apply {
+            text = "允许当前工作区进行本地文件修改"
+            isChecked = enabled
+            setOnCheckedChangeListener { _, checked ->
+                project?.localFileModifyEnabled = checked
+                store.save(projects)
+            }
+        })
+        box.addView(TextView(this).apply {
+            text = if (enabled) "修改权限：已开启" else "修改权限：已关闭"
+            textSize = 12f
+            setTextColor(color(R.color.bridgefs_text_secondary))
+        })
+        return box
+    }
+
     private fun renderChat() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
