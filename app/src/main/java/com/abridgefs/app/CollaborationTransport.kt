@@ -10,13 +10,20 @@ import org.json.JSONObject
  * Persistence is intentionally local for v0.1. The protocol does not depend on
  * GitHub Issues, files, or any specific network transport.
  */
-class CollaborationTransport(context: Context) {
+class CollaborationTransport(
+    context: Context,
+    workspaceId: String,
+    conversationId: String
+) {
+    private val prefs = context.getSharedPreferences("collaboration_transport", Context.MODE_PRIVATE)
+    private val keySuffix = workspaceId.ifBlank { "unknown_workspace" } + "_" +
+        conversationId.ifBlank { "unknown_conversation" }
     private val prefs = context.getSharedPreferences("collaboration_transport", Context.MODE_PRIVATE)
 
     fun append(message: CollaborationProtocol.Message) {
-        val items = JSONArray(prefs.getString(KEY_MESSAGES, "[]") ?: "[]")
+        val items = JSONArray(prefs.getString("${KEY_MESSAGES}_$keySuffix", "[]") ?: "[]")
         items.put(message.toJson())
-        prefs.edit().putString(KEY_MESSAGES, items.toString()).apply()
+        prefs.edit().putString("${KEY_MESSAGES}_$keySuffix", items.toString()).apply()
     }
 
     fun all(): List<CollaborationProtocol.Message> {
@@ -33,10 +40,10 @@ class CollaborationTransport(context: Context) {
         all().filter { it.to == role && !isHandled(it.id) }
 
     fun markHandled(messageId: String) {
-        val handled = JSONArray(prefs.getString(KEY_HANDLED, "[]") ?: "[]")
+        val handled = JSONArray(prefs.getString("${KEY_HANDLED}_$keySuffix", "[]") ?: "[]")
         if ((0 until handled.length()).none { handled.optString(it) == messageId }) {
             handled.put(messageId)
-            prefs.edit().putString(KEY_HANDLED, handled.toString()).apply()
+            prefs.edit().putString("${KEY_HANDLED}_$keySuffix", handled.toString()).apply()
         }
     }
 
@@ -47,8 +54,8 @@ class CollaborationTransport(context: Context) {
 
     fun clear() {
         prefs.edit()
-            .remove(KEY_MESSAGES)
-            .remove(KEY_HANDLED)
+            .remove("${KEY_MESSAGES}_$keySuffix")
+            .remove("${KEY_HANDLED}_$keySuffix")
             .apply()
     }
 
@@ -122,8 +129,14 @@ class CollaborationApiClient(private val config: CollaborationApiConfig) {
  * Decision AI API → protocol transport → Worker API.
  * It deliberately does not execute GitHub work yet.
  */
-class CollaborationCoordinator(\n    private val context: Context,\n    private val firstProfileId: String,\n    private val secondProfileId: String\n) {
-    private val transport = CollaborationTransport(context)
+class CollaborationCoordinator(
+    private val context: Context,
+    private val workspaceId: String,
+    private val conversationId: String,
+    private val firstProfileId: String,
+    private val secondProfileId: String
+) {
+    private val transport = CollaborationTransport(context, workspaceId, conversationId)
 
     fun submitTask(task: CollaborationProtocol.Message) {
         require(task.type == CollaborationProtocol.Type.TASK) { "submitTask requires TASK" }
