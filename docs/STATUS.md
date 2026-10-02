@@ -275,3 +275,11 @@ Workspace + Repository + Branch
 - 修复：Worker 施工后若 GitHub Actions Verify 已经返回失败，随后 Decision AI 返回 COMPLETE 时，不再把 FAILED 覆盖为 WAITING_VERIFY。
 - 状态优先保留真实 Verify 结果；COMPLETE 不能覆盖 FAILED / WAITING_VERIFY / 已完成状态。
 - 当前仍未执行 Release 构建或真机验证；该修复需要后续正式构建确认编译，并用真实 Commit → Actions → Verify 流验证。
+
+
+## 2026-10-02 协作状态机第八轮代码审查
+
+- 修复：Verify PASS 后任务进入 RUNNING 时，历史 lastCommitSha 不再被当作“当前仍需 Verify”的依据；Decision AI 在没有产生新 Commit 的情况下可以正常 COMPLETE。
+- 修复：GitHub Contents 写入后如果响应缺少 Commit SHA，不再继续进入 WAITING_VERIFY，直接停止并报告异常，避免形成无法验证的任务状态。
+- 修复：Workspace 的 Verify / Verify 失败修复按钮增加任务级互斥，避免重复点击同时启动两次协作继续轮。
+- 本轮仅修改开发分支，仍未合并、未构建、未真机验证。
