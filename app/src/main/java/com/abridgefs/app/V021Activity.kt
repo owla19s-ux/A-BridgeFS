@@ -62,7 +62,9 @@ class V021Activity : Activity() {
 
         projects = store.load()
         if (projects.isEmpty()) projects += store.newProject("默认工作区")
-        project = projects.first()
+        val activeWorkspaceId = prefs.getString("active_workspace_id", null)
+        project = projects.firstOrNull { it.id == activeWorkspaceId } ?: projects.first()
+        prefs.edit().putString("active_workspace_id", project?.id).apply()
         apiId = project?.activeConversation()?.apiId ?: apis().firstOrNull()?.id.orEmpty()
         registerReceiver(receiver, IntentFilter("com.bridgefs.RESULT"), Context.RECEIVER_NOT_EXPORTED)
         buildShell()
@@ -193,6 +195,7 @@ class V021Activity : Activity() {
                 .setTitle("切换工作区")
                 .setSingleChoiceItems(labels, index) { dialog, which ->
                     project = workspaces[which]
+                    prefs.edit().putString("active_workspace_id", project?.id).apply()
                     apiId = project?.activeConversation()?.apiId ?: apis().firstOrNull()?.id.orEmpty()
                     store.save(projects)
                     dialog.dismiss()
@@ -225,6 +228,7 @@ class V021Activity : Activity() {
                     val created = store.newProject(name)
                     projects += created
                     project = created
+                    prefs.edit().putString("active_workspace_id", created.id).apply()
                     apiId = created.activeConversation().apiId ?: apis().firstOrNull()?.id.orEmpty()
                     store.save(projects)
                     render()
