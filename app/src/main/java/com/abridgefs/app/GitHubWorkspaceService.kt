@@ -59,6 +59,18 @@ class GitHubWorkspaceService(
      * This method only checks permission; it does not claim that a write
      * operation is currently implemented.
      */
+    /**
+     * Workspace-scoped GitHub file update boundary.
+     *
+     * Callers use this service so the workspace read/write boundary is checked
+     * before a repository write reaches the low-level GitHub client.
+     */
+    fun updateFile(path: String, content: String, message: String, sha: String): JSONObject {
+        requireWritePermission()
+        val (owner, name) = repositoryParts()
+        return client.updateFile(owner, name, path, content, message, workspace.branch, sha)
+    }
+
     fun requireWritePermission() {
         requireRead()
         check(workspace.writeEnabled) { "当前工作区未允许 GitHub 修改" }
