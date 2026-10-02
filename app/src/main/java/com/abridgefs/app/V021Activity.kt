@@ -821,6 +821,7 @@ class V021Activity : Activity() {
     }
 
     private fun dispatchToBridge(command:String,current:BridgeProject) {
+        val conversation = current.activeConversation()
         val root=prefs.getString("root_path","").orEmpty().trim()
         if(root.isBlank()) {
             recordReceipt(current,"FAILED","AI command","未设置 BridgeFS 工作目录，指令未执行。")
@@ -831,6 +832,7 @@ class V021Activity : Activity() {
             .putExtra("bridgefs_external_command",command)
             .putExtra("bridgefs_root",root)
             .putExtra("projectId",current.id)
+            .putExtra("conversationId",conversation.id)
 
         runCatching { startForegroundService(intent) }.onFailure {
             recordReceipt(current,"FAILED","AI command","启动 BridgeFS 执行服务失败："+(it.message ?: "未知错误"))
