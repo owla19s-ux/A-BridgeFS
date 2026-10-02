@@ -17,7 +17,7 @@ import org.json.JSONObject
 import java.util.UUID
 import java.util.concurrent.Executors
 
-data class ApiProfile(val id:String,val name:String,val baseUrl:String,val key:String,val model:String,val write:Boolean)
+data class ApiProfile(val id:String,val name:String,val baseUrl:String,val key:String,val model:String)
 
 class V021Activity : Activity() {
     private val prefs by lazy { getSharedPreferences("bridgefs", 0) }
@@ -242,19 +242,12 @@ class V021Activity : Activity() {
             setTextColor(color(R.color.bridgefs_text_secondary))
             setPadding(0, dp(4), 0, dp(8))
         })
-        val access = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        access.addView(TextView(this).apply {
-            text = "读取  已允许"
+        box.addView(TextView(this).apply {
+            text = "API 仅表示连接资源；文件/GitHub 修改权限由工作区与对话权限控制。"
             textSize = 12f
             setTextColor(color(R.color.bridgefs_text_secondary))
-        }, LinearLayout.LayoutParams(0, dp(40), 1f))
-        access.addView(Switch(this).apply {
-            text = "允许修改"
-            textSize = 12f
-            isChecked = a.write
-            setOnCheckedChangeListener { _, v -> saveApi(a.copy(write = v)) }
+            setPadding(0, dp(4), 0, 0)
         })
-        box.addView(access)
         return box
     }
 
@@ -597,7 +590,7 @@ class V021Activity : Activity() {
         val n=field("名称",old?.name);val u=field("API 地址",old?.baseUrl);val k=field("API Key",old?.key);val m=field("模型",old?.model)
         listOf(n,u,k,m).forEach{box.addView(it)}
         AlertDialog.Builder(this).setTitle(if(old==null)"添加 API" else "修改 API").setView(box)
-            .setPositiveButton("保存"){_,_->saveApi(ApiProfile(old?.id?:UUID.randomUUID().toString(),n.text.toString().trim(),u.text.toString().trim(),k.text.toString(),m.text.toString().trim(),old?.write?:false))}
+            .setPositiveButton("保存"){_,_->saveApi(ApiProfile(old?.id?:UUID.randomUUID().toString(),n.text.toString().trim(),u.text.toString().trim(),k.text.toString(),m.text.toString().trim()))}
             .setNegativeButton("取消",null).show()
     }
 
@@ -790,7 +783,7 @@ class V021Activity : Activity() {
                     .put("name",it.name)
                     .put("baseUrl",it.baseUrl)
                     .put("model",it.model)
-                    .put("write",it.write))
+                    )
             }
         }.toString()).apply()
         val current = project?.apiId
@@ -811,13 +804,13 @@ class V021Activity : Activity() {
             if(legacyKey.isNotBlank()){
                 apiSecrets.put(id,legacyKey)
             }
-            ApiProfile(id,o.optString("name"),o.optString("baseUrl"),apiSecrets.get(id).orEmpty(),o.optString("model"),o.optBoolean("write",false))
+            ApiProfile(id,o.optString("name"),o.optString("baseUrl"),apiSecrets.get(id).orEmpty(),o.optString("model"))
         }
     }
     private fun legacyApi():List<ApiProfile>{
         val u=prefs.getString("api_base_url","").orEmpty();val m=prefs.getString("api_model","").orEmpty()
         if(u.isBlank()&&m.isBlank())return emptyList()
-        val a=ApiProfile("legacy",prefs.getString("api_provider","API")?:"API",u,prefs.getString("api_key","").orEmpty(),m,false)
+        val a=ApiProfile("legacy",prefs.getString("api_provider","API")?:"API",u,prefs.getString("api_key","").orEmpty(),m)
         apiSecrets.put(a.id,a.key)
         prefs.edit().putString("api_profiles",JSONArray().put(JSONObject().put("id",a.id).put("name",a.name).put("baseUrl",a.baseUrl).put("model",a.model).put("write",false)).toString()).apply()
         return listOf(a)
