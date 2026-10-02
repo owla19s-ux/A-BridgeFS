@@ -227,6 +227,9 @@ class CollaborationCoordinator(
         require(task.workspaceId == workspaceId && task.conversationId == conversationId) {
             "协作任务不属于当前工作区 / 对话"
         }
+        require(task.status == CollaborationTaskRecord.STATUS_CONSTRUCTING) {
+            "任务已有 Commit，施工锁必须保留到 Verify 完成"
+        }
         val workspace = BridgeProjectStore(context).load().firstOrNull { it.id == workspaceId }
             ?: error("工作区不存在：$workspaceId")
         ConstructionLockStore(context).release(workspace, aiMemberId)
