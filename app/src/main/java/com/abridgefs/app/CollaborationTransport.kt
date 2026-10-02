@@ -238,6 +238,13 @@ class CollaborationCoordinator(
     }
 
     /**
+     * Checks the exact Commit SHA against GitHub Actions and closes the task
+     * only after a completed successful run.
+     */
+    fun verifyTask(taskId: String): GitHubVerifyResult =
+        CollaborationVerifyService(context).verify(taskId)
+
+    /**
      * Returns the current persisted task for this Workspace + Conversation.
      */
     fun currentTask(): CollaborationTaskRecord? =
