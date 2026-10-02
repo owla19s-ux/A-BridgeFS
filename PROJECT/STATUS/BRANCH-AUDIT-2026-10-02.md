@@ -4,9 +4,11 @@
 
 ## 审计基线
 
-- 当前正式基线：main
-- 本次文档整理后 HEAD：6dcac6e5ca89f998d050c833ec2b97a662089291
+- 正式稳定基线：main
+- 当前施工分支：`refactor/workspace-github-v02`
+- 当前施工分支 HEAD：`3665fa3863f2263bc8b3f7fe80e4426e9cc74b9f`
 - 规则：不把历史 feature branch 整体合并到当前 main；只提取仍然符合当前设计的具体能力。
+- 本轮文档更新均发生在当前施工分支，不代表 main 已同步。
 
 ## PR #1：双 AI 协作
 
@@ -58,4 +60,6 @@ PROJECT/ARCHITECTURE/AI-COLLABORATION-V0.2.md
 
 main 继续保持唯一正式代码基线。
 
-下一阶段不是继续合并旧协作分支，而是依据双 AI + Repository / Branch 施工锁设计检查当前代码模型，并逐步实现。
+当前阶段不是继续合并旧协作分支，而是依据双 AI + Repository / Branch 施工锁设计检查当前代码模型，并逐步实现 Worker → 文件修改请求 → Commit → Verify 的真实施工链。
+
+当前代码事实：ConstructionLock、真实 `updateFile()`、Commit SHA 持久化以及 Commit-scoped Verify 已具备；尚未完成的是 Worker 文件修改结果到 `updateFile()` 的安全协议接线，以及新的 Actions / APK / 真机验证。
