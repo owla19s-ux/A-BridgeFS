@@ -81,18 +81,18 @@ return Triple("FAILED",text,CommandParser.lastError ?: "未识别到可执行指
 val prefs = getSharedPreferences("bridgefs", 0)
 val limit = prefs.getInt("command_limit", 3).coerceIn(1, 20)
 if (commands.size > limit) {
-    AppLogger.log(this, "EXECUTION_DENIED", "reason=command_limit count="+d+"commands.size} limit="+d+"limit}")
-    return Triple("DENIED", text, "本轮指令数量 "+d+"commands.size} 超过限制 "+d+"limit}，未执行。")
+    AppLogger.log(this, "EXECUTION_DENIED", "reason=command_limit count=" + commands.size + " limit=" + limit)
+    return Triple("DENIED", text, "本轮指令数量 " + commands.size + " 超过限制 " + limit + "，未执行。")
 }
 val auth = PermissionPolicy.authorization(this)
 val denied = commands.firstOrNull { PermissionPolicy.check(it, auth) == Decision.DENY }
 if (denied != null) {
-    AppLogger.log(this, "EXECUTION_DENIED", "reason=permission command="+d+"denied}")
+    AppLogger.log(this, "EXECUTION_DENIED", "reason=permission command=" + denied)
     return Triple("DENIED", denied.toString(), "当前权限设置禁止该操作")
 }
 val confirm = commands.firstOrNull { PermissionPolicy.check(it, auth) == Decision.CONFIRM }
 if (confirm != null) {
-    AppLogger.log(this, "EXECUTION_DENIED", "reason=confirmation_required command="+d+"confirm}")
+    AppLogger.log(this, "EXECUTION_DENIED", "reason=confirmation_required command=" + confirm)
     return Triple("DENIED", confirm.toString(), "该操作需要用户确认，Service 不允许绕过确认直接执行")
 }
 return try{
