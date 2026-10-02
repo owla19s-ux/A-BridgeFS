@@ -49,6 +49,21 @@ A-BridgeFS 当前作为 AI 协作的移动端控制入口进行真实验证。
 
 当前状态：**施工批次已完成代码提交，等待统一 Actions / APK / 真机验证。**
 
+## 2026-10-02 P0 施工批次
+
+已施工代码：
+
+1. 聊天气泡宽度改为屏幕约 82%，避免消息内容被压成窄条。
+2. Receipt 进入当前对话时间线，不再只能通过“回执”按钮粘贴。
+3. BridgeFS Service 增加第二层权限 Gate，统一检查指令数量、禁止操作与需确认操作。
+4. PermissionPolicy 增加统一 `authorization(context)` 入口。
+5. 日志拆分为 `runtime / collaboration / execution / api / github`，Crash 独立保留。
+6. Decision AI / Worker API Key 迁移到 Android Keystore 加密存储，并保留旧配置自动迁移。
+7. 用户目标可在开启协作模式后进入 Decision AI → Worker → Decision AI 单轮协作链。
+8. GitHub 页面入口绑定当前工作区，不再固定使用第一个工作区。
+9. 工作区增加 AI 协作状态与启用开关。
+
+状态：**代码已施工，等待 Actions / APK / 真机统一验证。**
 ## 当前核心问题
 
 1. Worker 需要用户反复输入“继续”，无法在一次明确授权后持续完成当前施工阶段。
