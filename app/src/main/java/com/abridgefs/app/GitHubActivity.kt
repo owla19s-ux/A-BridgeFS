@@ -81,27 +81,27 @@ class GitHubActivity : android.app.Activity() {
         root.addView(info("● 已连接", auth.login ?: "GitHub 账号"))
         root.addView(info("凭据", auth.credentialType ?: "GitHub Token"))
         root.addView(section("Repository"))
-        root.addView(info(workspace?.githubRepository ?: "未选择 Repository", "当前工作区 Repository"))
+        root.addView(info(workspace?.github?.displayRepository() ?: "未选择 Repository", "当前工作区 Repository"))
         root.addView(button("切换 Repository") { chooseRepository() })
 
         root.addView(section("Branch"))
-        root.addView(info(workspace?.githubBranch ?: "未选择 Branch", "当前工作区 Branch"))
+        root.addView(info(workspace?.github?.displayBranch() ?: "未选择 Branch", "当前工作区 Branch"))
         root.addView(button("切换 Branch") { chooseBranch() })
 
         root.addView(section("访问权限"))
         root.addView(CheckBox(this).apply {
             text = "允许读取"
-            isChecked = workspace?.githubReadEnabled ?: true
+            isChecked = workspace?.github?.readEnabled ?: true
             setOnCheckedChangeListener { _, checked ->
-                workspace?.githubReadEnabled = checked
+                workspace?.github?.readEnabled = checked
                 save()
             }
         })
         root.addView(CheckBox(this).apply {
             text = "允许修改"
-            isChecked = workspace?.githubWriteEnabled ?: false
+            isChecked = workspace?.github?.writeEnabled ?: false
             setOnCheckedChangeListener { _, checked ->
-                workspace?.githubWriteEnabled = checked
+                workspace?.github?.writeEnabled = checked
                 save()
             }
         })
@@ -114,11 +114,11 @@ class GitHubActivity : android.app.Activity() {
         root.addView(section("账号"))
         root.addView(button("断开 GitHub") {
             authStore.clear()
-            workspace?.githubAccountLogin = null
-            workspace?.githubRepository = null
-            workspace?.githubBranch = null
+            workspace?.github?.accountLogin = null
+            workspace?.github?.repository = null
+            workspace?.github?.branch = null
             workspace?.github?.repositoryId = null
-            workspace?.githubWriteEnabled = false
+            workspace?.github?.writeEnabled = false
             save()
             render()
         })
