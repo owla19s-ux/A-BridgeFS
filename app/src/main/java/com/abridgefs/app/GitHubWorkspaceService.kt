@@ -98,7 +98,7 @@ class GitHubWorkspaceService(
 
     fun requireWritePermission(aiMemberId: String) {
         requireWritePermission()
-        ConstructionLockStore(context).requireHolder(project ?: error("GitHub 写入必须绑定工作区")) , aiMemberId)
+        ConstructionLockStore(context).requireHolder(project ?: error("GitHub 写入必须绑定工作区"), aiMemberId)
     }
 
     private fun requireRead() {
