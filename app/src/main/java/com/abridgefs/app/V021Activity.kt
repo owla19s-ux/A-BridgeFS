@@ -917,6 +917,7 @@ class V021Activity : Activity() {
                 when (m.role) {
                     "user" -> R.color.bridgefs_selected_surface
                     "receipt" -> R.color.bridgefs_button_bg
+                    "tool" -> R.color.bridgefs_button_bg
                     else -> R.color.bridgefs_input_surface
                 },
                 14
@@ -959,7 +960,7 @@ class V021Activity : Activity() {
         })
         return FrameLayout(this).apply {
             addView(bubbleBox, FrameLayout.LayoutParams(
-                (resources.displayMetrics.widthPixels * 0.82f).toInt(), -2
+                (resources.displayMetrics.widthPixels * 0.92f).toInt(), -2
             ).apply {
                 gravity = if (m.role == "user") Gravity.RIGHT else Gravity.LEFT
                 leftMargin = dp(4); rightMargin = dp(4)
@@ -1178,6 +1179,7 @@ class V021Activity : Activity() {
                     )
                 }
                 runOnUiThread {
+                    collaborationRunningConversationId = null
                     current.activeConversation().messages += collaborationMessages
                     store.save(projects)
                     render()
@@ -1185,7 +1187,12 @@ class V021Activity : Activity() {
             }.onFailure { e ->
                 val reason = e.message ?: e::class.simpleName ?: "未知错误"
                 AppLogger.log(this, AppLogger.Category.COLLABORATION, "ROUND_FAILED", reason)
-                runOnUiThread { current.activeConversation().messages += BridgeChatMessage("tool", "[协作错误]\n" + reason); store.save(projects); render() }
+                runOnUiThread {
+                    collaborationRunningConversationId = null
+                    current.activeConversation().messages += BridgeChatMessage("tool", "[协作错误]\n" + reason)
+                    store.save(projects)
+                    render()
+                }
             }
         }
     }
