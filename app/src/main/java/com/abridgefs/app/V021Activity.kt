@@ -769,10 +769,16 @@ class V021Activity : Activity() {
                 pendingReceipt = null
             }
         }, LinearLayout.LayoutParams(dp(58), dp(52)).apply { marginStart = dp(6) })
-        composer.addView(actionButton("发送") {
-            sendStandalone(input, conversation)
-            input.text.clear()
-        }, LinearLayout.LayoutParams(dp(70), dp(52)).apply { marginStart = dp(6) })
+        val standaloneSendButton = actionButton(if (standaloneSendingConversationId == conversation.id) "发送中…" else "发送") {
+            if (standaloneSendingConversationId == conversation.id) {
+                Toast.makeText(this@V021Activity, "正在等待 API 回复，请稍候。", Toast.LENGTH_SHORT).show()
+            } else {
+                sendStandalone(input, conversation)
+                input.text.clear()
+            }
+        }
+        standaloneSendButton.isEnabled = standaloneSendingConversationId != conversation.id
+        composer.addView(standaloneSendButton, LinearLayout.LayoutParams(dp(78), dp(52)).apply { marginStart = dp(6) })
         root.addView(composer)
         content.addView(root)
     }
@@ -1254,6 +1260,7 @@ class V021Activity : Activity() {
         conversation.apiId = a.id
         apiId = a.id
         conversation.messages += BridgeChatMessage("user", text)
+        standaloneSendingConversationId = conversation.id
         conversationStore.save(standaloneConversations)
         render()
 
@@ -1272,6 +1279,7 @@ class V021Activity : Activity() {
                         apiAvatar = a.avatar.ifBlank { a.name.trim().take(1).ifBlank { "AI" } }
                     )
                     conversationStore.save(standaloneConversations)
+                    standaloneSendingConversationId = null
                     render()
                     if (prefs.getBoolean("ai_auto_bridgefs_enabled", true)) {
                         executeAiCommands(answer, conversation, limit)
@@ -1286,6 +1294,7 @@ class V021Activity : Activity() {
                 }
             } catch (e: Exception) {
                 runOnUiThread {
+                    standaloneSendingConversationId = null
                     conversation.messages += BridgeChatMessage("tool", "[API 错误]\n" + (e.message ?: "未知错误"))
                     conversationStore.save(standaloneConversations)
                     render()
@@ -1308,7 +1317,8 @@ class V021Activity : Activity() {
             return
         }
         conversation.messages += BridgeChatMessage("user", text)
-        conversation.messages += BridgeChatMessage("tool", "[协作进行中]\n正在请求 Decision AI → Worker，请稍候……")
+        conversation.messages += BridgeChatMessage("tool", "[协作进行中]\nDecision AI 正在分析并生成任务，Worker 随后接收任务。")
+        collaborationRunningConversationId = conversation.id
         store.save(projects)
         render()
         runCollaboration(current, text)
