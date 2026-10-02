@@ -1272,6 +1272,10 @@ class V021Activity : Activity() {
         val text = input.text.toString().trim()
         if (text.isBlank()) return
         val current = project ?: return
+        if (!AccessPolicy.isApiEnabled(this)) {
+            Toast.makeText(this, "API 全局访问已关闭", Toast.LENGTH_SHORT).show()
+            return
+        }
         val ids = collaborationProfileIds()
         if (ids.first.isBlank() || ids.second.isBlank() || ids.first == ids.second) {
             Toast.makeText(this, "请先在工作区选择两个不同的协作 AI", Toast.LENGTH_SHORT).show()
@@ -1337,7 +1341,8 @@ class V021Activity : Activity() {
         val intent = Intent(this, FileBridgeService::class.java)
             .putExtra("bridgefs_external_command", command)
             .putExtra("bridgefs_root", root)
-            .putExtra("standaloneConversationId", conversation.id)
+            .putExtra("projectId", workspace?.id)
+            .putExtra("conversationId", conversation.id)
 
         runCatching { startForegroundService(intent) }.onFailure {
             recordReceipt(conversation, "FAILED", "AI command", "启动 BridgeFS 执行服务失败：" + (it.message ?: "未知错误"))
