@@ -446,17 +446,17 @@ class V021Activity : Activity() {
             setPadding(0, dp(2), 0, dp(8))
         })
 
-        if (task.status == CollaborationTaskRecord.STATUS_WAITING_CONSTRUCTION && memberA != null) {
-            box.addView(actionButton("AI A 申请施工锁") {
+        if (task.status == CollaborationTaskRecord.STATUS_WAITING_CONSTRUCTION && memberB != null) {
+            box.addView(actionButton("Worker AI 申请施工锁") {
                 runCatching {
                     val coordinator = CollaborationCoordinator(
                         this,
                         workspace!!.id,
                         conversation!!.id,
-                        memberA.apiProfileId.orEmpty(),
-                        memberB?.apiProfileId.orEmpty()
+                        memberA?.apiProfileId.orEmpty(),
+                        memberB.apiProfileId.orEmpty()
                     )
-                    coordinator.requestConstruction(task.taskId, memberA.id)
+                    coordinator.requestConstruction(task.taskId, memberB.id)
                     AppLogger.log(this, AppLogger.Category.COLLABORATION, "CONSTRUCTION_REQUESTED_UI", "taskId=${task.taskId}")
                     render()
                 }.onFailure {
