@@ -87,6 +87,7 @@ class V021Activity : Activity() {
 
         projects = store.load()
         if (projects.isEmpty()) projects += store.newProject("默认工作区")
+        migrateLegacyWorkspaceDirectory()
         standaloneConversations = conversationStore.load()
         if (standaloneConversations.isEmpty()) {
             standaloneConversations += conversationStore.newConversation("默认对话", apis().firstOrNull()?.id)
@@ -478,7 +479,7 @@ class V021Activity : Activity() {
     private fun localFilePermissionCard(): View {
         val box = card()
         val enabled = project?.localFileModifyEnabled ?: false
-        val rootPath = prefs.getString("root_path", "").orEmpty().trim()
+        val rootPath = project?.workspaceDirectory.orEmpty().trim()
 
         box.addView(TextView(this).apply {
             text = "本地文件"
@@ -523,6 +524,14 @@ class V021Activity : Activity() {
         return box
     }
 
+    private fun migrateLegacyWorkspaceDirectory() {
+        val legacyRoot = prefs.getString("root_path", "").orEmpty().trim()
+        if (legacyRoot.isBlank() || projects.any { !it.workspaceDirectory.isNullOrBlank() }) return
+        val target = project ?: projects.firstOrNull() ?: return
+        target.workspaceDirectory = legacyRoot
+        store.save(projects)
+    }
+
     private fun openWorkspaceDirectoryPicker() {
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
             addFlags(
@@ -553,8 +562,14 @@ class V021Activity : Activity() {
             )
         }
 
-        prefs.edit().putString("root_path", path).apply()
-        Toast.makeText(this, "工作目录已设置：$path", Toast.LENGTH_SHORT).show()
+        val workspace = project
+        if (workspace == null) {
+            Toast.makeText(this, "当前没有可用工作区。", Toast.LENGTH_SHORT).show()
+            return
+        }
+        workspace.workspaceDirectory = path
+        store.save(projects)
+        Toast.makeText(this, "当前工作区目录已设置：$path", Toast.LENGTH_SHORT).show()
         render()
     }
 
