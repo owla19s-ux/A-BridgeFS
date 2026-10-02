@@ -97,15 +97,15 @@ GitHub
 工作区 GitHub 资源保存：
 
 - `githubAccount`：当前绑定的 GitHub 登录名
-- `githubRepositoryId`：GitHub Repository 稳定 ID
+- `github.repositoryId`：GitHub Repository 稳定 ID
 - `githubRepository`：Repository full name，格式为 `owner/name`
-- `githubBranch`：当前 Branch
-- `githubReadEnabled`
-- `githubWriteEnabled`
+- `github.branch`：当前 Branch
+- `github.readEnabled`
+- `github.writeEnabled`
 
 授权凭据单独存储，不进入工作区普通 JSON。
 
-历史数据如果只有 `githubAccountLogin` 而没有 `githubAccount`，加载时仍兼容。
+历史数据如果只有 `github.accountLogin` 而没有 `githubAccount`，加载时仍兼容。
 
 ## 6. Repository 选择
 
