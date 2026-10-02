@@ -454,7 +454,8 @@ class V021Activity : Activity() {
                         workspace!!.id,
                         conversation!!.id,
                         memberA?.apiProfileId.orEmpty(),
-                        memberB.apiProfileId.orEmpty()
+                        memberB.apiProfileId.orEmpty(),
+                        memberB.id
                     )
                     coordinator.requestConstruction(task.taskId, memberB.id)
                     AppLogger.log(this, AppLogger.Category.COLLABORATION, "CONSTRUCTION_REQUESTED_UI", "taskId=${task.taskId}")
@@ -474,7 +475,8 @@ class V021Activity : Activity() {
                             workspace!!.id,
                             conversation!!.id,
                             memberA?.apiProfileId.orEmpty(),
-                            memberB?.apiProfileId.orEmpty()
+                            memberB?.apiProfileId.orEmpty(),
+                            memberB?.id
                         )
                         val result = coordinator.verifyTask(task.taskId)
                         runOnUiThread {
