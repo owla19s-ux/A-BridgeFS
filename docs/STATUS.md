@@ -2,6 +2,8 @@
 
 更新时间：2026-10-02
 
+> 本状态文档按“用户实际可操作功能”判定完成度；代码中已有数据模型或 UI 入口但用户尚不能实际完成该功能时，不标记为已实现。
+
 ## 项目定位
 
 A-BridgeFS 当前作为 **AI 协作移动端工作台 + 本地执行桥** 进行真实验证。
@@ -76,6 +78,20 @@ Workspace + Repository + Branch
 - GitHub 实际写入尚未形成完整 GitHub → Verify 链。
 
 此前关于“协作 API Key 明文写入 SharedPreferences”的判断已撤回；当前代码已有 SecretStore / Android Keystore 迁移逻辑。
+
+## 最近一次功能核对（2026-10-02）
+
+以下问题已由实际 App 使用情况确认：
+- 消息宽度：已解决。
+- API 名称：目前只在对话页上部显示，消息本身未显示对应 API 名称。
+- API 头像：消息本身未显示对应 API 头像。
+- Workspace / Conversation：代码已开始拆分，但当前 APK 尚未提供真正独立的 Workspace 管理与单独新建 Conversation 功能。
+
+因此，代码层已有 Workspace / Conversation 数据模型不能直接视为用户功能完成。
+
+## APK 构建前检查规则
+
+每次生成新的 APK 前，必须先执行一次完整预检：检查需求表、Issue #29、当前代码、UI 与真实功能链；确认本轮已知问题没有被遗漏后再构建。构建完成后记录 Commit SHA、Actions/Job、APK 构建信息、SHA-256，并进行真机验证。
 
 ## 当前施工优先级
 
