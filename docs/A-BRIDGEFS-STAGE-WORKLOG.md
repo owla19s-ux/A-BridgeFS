@@ -1,76 +1,40 @@
 # A-BridgeFS 阶段工作日志
 
-## 2026-09-30 — 重新定位：遥控器 + 仓库
+## 2026-10-02 — 双 AI 协作设计校正
 
-### 状态
-- Decision AI ↔ Worker 协作协议 v0.1：**已确认并写入正式架构文档**
-- 第一阶段方向：**已确认**
-- GitHub 仓库控制：**开发中**
-- Decision AI → Worker 自动对接：**已设计未实现**
-- Worker 连续施工：**已发现问题**
-- 协作日志：**已设计未实现**
+### 已确认
+
+本阶段不采用“固定 Decision AI + 固定 Worker AI”作为正式身份模型。
+
+正式方向：
+
+**两个 AI 共享读取能力；施工权限属于 Workspace + Repository + Branch，同一 Repository / Branch 同时最多一个 AI 持有修改权，施工权可以转移。**
+
+Decision / Worker 可以作为任务阶段角色，但不是永久身份。
 
 ### 当前实验
 
-A-BridgeFS 作为移动端控制入口：
+A-BridgeFS 作为移动端 AI 协作工作台：
 
-人
-→ A-BridgeFS
-→ Worker
-→ GitHub 项目
+AI A / AI B
+→ Workspace
+→ GitHub / BridgeFS
 → Commit / Verify
-→ 回执
+→ Receipt
 
-当前真实项目使用 A-177 作为施工实验场。
+A-177 仍可作为真实施工实验项目，但它不是系统架构中的固定 Worker 身份。
 
-### 已确认的关键问题
+### 当前已发现的问题
 
-1. Worker 当前经常完成一个小节点后暂停，需要用户再次输入“继续”。
-2. 小问题也会触发暂停汇报，说明施工授权边界还不够连续。
-3. Decision AI 与 Worker 之间目前没有自动决策交接链。
-4. Verify 需要按 Commit SHA 追踪实际 Run / Check Run / Job，而不是假定自动工序已经发生。
-5. 用户需要的是简洁状态，不是 CI 内部流水账。
-
-### 当前设计方向
-
-Decision AI：
-
-- 理解目标
-- 判断施工阶段
-- 给出方案
-- 给 Worker 施工边界
-- 处理真正需要决策的问题
-- 审查阶段结果
-
-Worker：
-
-- 读取项目状态
-- 连续施工
-- 自行处理普通小问题
-- Commit
-- 确认 Verify
-- 根据真实结果继续或回报
-- 超出边界时请求 Decision AI
-
-A-BridgeFS：
-
-- 提供人的控制入口
-- 展示项目与 Worker 状态
-- 发送控制指令
-- 接收回执
-- 后续承载协作日志
-
-### 当前不做
-
-- 多 Worker
-- 复杂任务调度
-- 完整 Agent 平台
-- 大型权限系统
-- 全新 UI 架构
-- 删除原有本地指令 / BridgeFS 能力
+1. 当前代码仍存在旧的单轮协作链。
+2. Worker / Decision 相关命名会让实现误以为两 AI 是固定角色。
+3. 施工权尚未形成 Repository / Branch 级锁。
+4. GitHub 实际写入与 Verify 仍未完全接通。
+5. Receipt 仍分散在 executions / pending_receipt / messages / input。
+6. Workspace 与 Conversation 数据模型仍需拆分。
 
 ### 下一阶段
 
-先让遥控器 + 仓库真实运行一段时间。
+先完成设计文档统一，再按统一架构施工。
 
-记录实际问题，再决定哪些需求值得进入下一颗“种子”。
+不要先按旧 Decision AI / Worker 模型继续扩展代码。
