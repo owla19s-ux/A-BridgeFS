@@ -420,7 +420,19 @@ class CollaborationCoordinator(
 
     /** Execute exactly one Worker -> Decision AI round. */
     fun dispatchOneWorkerRound(workerSystemPrompt: String, decisionSystemPrompt: String): List<CollaborationProtocol.Message> {
-        val task = transport.pendingFor(CollaborationProtocol.Role.WORKER).firstOrNull { it.taskId == currentTask()?.taskId && (it.type == CollaborationProtocol.Type.TASK || it.type == CollaborationProtocol.Type.DECISION_RESPONSE) } ?: return emptyList()
+        val current = currentTask() ?: return emptyList()
+        // A persisted TASK/DECISION_RESPONSE may remain unhandled after a process
+        // restart. Never replay it after a real Commit has already moved the task
+        // into Verify/terminal state.
+        if (current.status != CollaborationTaskRecord.STATUS_RUNNING &&
+            current.status != CollaborationTaskRecord.STATUS_CONSTRUCTING
+        ) return emptyList()
+
+        val task = transport.pendingFor(CollaborationProtocol.Role.WORKER)
+            .firstOrNull {
+                it.taskId == current.taskId &&
+                    (it.type == CollaborationProtocol.Type.TASK || it.type == CollaborationProtocol.Type.DECISION_RESPONSE)
+            } ?: return emptyList()
         val workerMessage = parseProtocolResponseWithRetry(callWorker(task, workerSystemPrompt)) {
             callWorker(task, workerSystemPrompt + compactRetryPrompt(CollaborationProtocol.Role.WORKER))
         }
