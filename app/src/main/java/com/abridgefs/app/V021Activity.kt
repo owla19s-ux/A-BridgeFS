@@ -46,7 +46,8 @@ class V021Activity : Activity() {
             if (conversation != null) {
                 val receipt = BridgeReceiptRecord(status, command, message)
                 conversation.executions += receipt
-                conversation.messages += BridgeChatMessage("receipt", formatReceipt(receipt))                pendingReceipt = formatReceipt(receipt)
+                conversation.messages += BridgeChatMessage("receipt", formatReceipt(receipt))
+                pendingReceipt = formatReceipt(receipt)
                 store.save(projects)
                 if (page == Page.CHAT) render()
                 else Toast.makeText(this@V021Activity, "收到执行回执：$status", Toast.LENGTH_SHORT).show()
