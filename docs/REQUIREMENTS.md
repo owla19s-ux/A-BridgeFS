@@ -42,6 +42,9 @@ GitHub 必须是真实模块，至少包含：
 - GitHub 工作区入口
 
 ## B. 已实现
+
+以下“已实现”仅表示代码/基础能力存在，不代表用户功能已经通过真机验证。
+
 - Android 原生工程
 - applicationId com.abridgefs.app
 - target SDK 35
@@ -52,6 +55,18 @@ GitHub 必须是真实模块，至少包含：
 - 多 API 配置列表
 - Chat → API 绑定持久化
 - GitHub PAT / Android Keystore / Repository / Branch 基础能力
+
+## B1. 当前实际功能核对
+
+### 已确认解决
+- 消息宽度：当前正常。
+
+### 当前仍未完成
+- API 消息需要显示对应 API 名称。
+- API 消息需要显示对应 API 头像。
+- Workspace 需要在 App 中成为用户可直接进入和管理的独立工作区。
+- Workspace 内需要支持独立新建 / 切换 Conversation。
+- Workspace / Conversation 的代码拆分必须最终反映到实际 UI 和操作路径。
 
 ## C. 当前开发
 - Workspace AI 成员 / 权限模型
