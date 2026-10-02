@@ -117,7 +117,7 @@ object CollaborationProtocol {
             Type.TASK -> State.WORKING
             Type.DECISION_REQUEST -> State.WAITING_DECISION
             Type.DECISION_RESPONSE -> State.WORKING
-            Type.PROGRESS, Type.COMMIT, Type.VERIFY -> {
+            Type.PROGRESS, Type.COMMIT, Type.VERIFY, Type.FILE_CHANGE_REQUEST -> {
                 if (message.type == Type.VERIFY &&
                     message.payload.optString("verdict") == "pass") State.WORKING
                 else current
