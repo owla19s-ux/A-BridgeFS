@@ -192,6 +192,7 @@ class V021Activity : Activity() {
         root.addView(workspaceCard())
         root.addView(collaborationCard())
         root.addView(collaborationTaskCard())
+        root.addView(workspaceDirectoryCard())
         root.addView(localFilePermissionCard())
         root.addView(sectionTitle("API"))
         val list = apis()
@@ -476,38 +477,53 @@ class V021Activity : Activity() {
         return box
     }
 
-    private fun localFilePermissionCard(): View {
+    private fun workspaceDirectoryCard(): View {
         val box = card()
-        val enabled = project?.localFileModifyEnabled ?: false
         val rootPath = project?.workspaceDirectory.orEmpty().trim()
 
         box.addView(TextView(this).apply {
-            text = "本地文件"
+            text = "工作目录"
             textSize = 16f
             typeface = Typeface.DEFAULT_BOLD
         })
+        box.addView(TextView(this).apply {
+            text = if (rootPath.isBlank()) "尚未选择。AI 本地执行需要先指定一个工作目录。" else rootPath
+            textSize = 13f
+            setTextColor(
+                if (rootPath.isBlank()) color(R.color.bridgefs_text_secondary)
+                else color(R.color.bridgefs_text_primary)
+            )
+            setPadding(0, dp(6), 0, dp(10))
+        })
+        box.addView(actionButton(if (rootPath.isBlank()) "选择工作目录" else "更换工作目录") {
+            openWorkspaceDirectoryPicker()
+        }, LinearLayout.LayoutParams(-1, dp(44)))
+        if (rootPath.isNotBlank()) {
+            box.addView(TextView(this).apply {
+                text = "AI 本地指令将使用当前工作区的这个目录。"
+                textSize = 12f
+                setTextColor(color(R.color.bridgefs_text_secondary))
+                setPadding(0, dp(7), 0, 0)
+            })
+        }
+        return box
+    }
+
+    private fun localFilePermissionCard(): View {
+        val box = card()
+        val enabled = project?.localFileModifyEnabled ?: false
 
         box.addView(TextView(this).apply {
-            text = if (rootPath.isBlank()) "工作目录：未设置" else "工作目录：$rootPath"
+            text = "本地执行权限"
+            textSize = 16f
+            typeface = Typeface.DEFAULT_BOLD
+        })
+        box.addView(TextView(this).apply {
+            text = "控制当前工作区的 AI 是否可以执行需要修改本地文件的指令。"
             textSize = 12f
             setTextColor(color(R.color.bridgefs_text_secondary))
             setPadding(0, dp(4), 0, dp(8))
         })
-
-        val directoryRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        directoryRow.addView(TextView(this@V021Activity).apply {
-            text = if (rootPath.isBlank()) "AI 本地执行需要先选择目录" else "AI 将在此目录执行本地指令"
-            textSize = 12f
-            setTextColor(color(R.color.bridgefs_text_secondary))
-        }, LinearLayout.LayoutParams(0, dp(42), 1f))
-        directoryRow.addView(textButton("选择目录") {
-            openWorkspaceDirectoryPicker()
-        }, LinearLayout.LayoutParams(dp(88), dp(42)))
-        box.addView(directoryRow)
-
         box.addView(CheckBox(this).apply {
             text = "允许当前工作区进行本地文件修改"
             isChecked = enabled
@@ -523,7 +539,6 @@ class V021Activity : Activity() {
         })
         return box
     }
-
     private fun migrateLegacyWorkspaceDirectory() {
         val legacyRoot = prefs.getString("root_path", "").orEmpty().trim()
         if (legacyRoot.isBlank() || projects.any { !it.workspaceDirectory.isNullOrBlank() }) return
