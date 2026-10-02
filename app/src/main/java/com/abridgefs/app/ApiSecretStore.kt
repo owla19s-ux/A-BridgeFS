@@ -16,6 +16,12 @@ class ApiSecretStore(private val context: Context) {
 
     fun get(apiId: String): String? = decrypt(prefs.getString(apiId, null))
 
+    fun getNamed(name: String): String? = get(name)
+
+    fun putNamed(name: String, secret: String) = put(name, secret)
+
+    fun removeNamed(name: String) = remove(name)
+
     fun put(apiId: String, secret: String) {
         if (secret.isBlank()) {
             prefs.edit().remove(apiId).apply()
