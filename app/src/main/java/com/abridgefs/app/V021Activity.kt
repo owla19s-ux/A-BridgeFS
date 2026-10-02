@@ -633,7 +633,13 @@ class V021Activity : Activity() {
                     current.messages += BridgeChatMessage("assistant",answer)
                     store.save(projects)
                     render()
-                    executeAiCommands(answer,current,limit)
+                    if (prefs.getBoolean("ai_auto_bridgefs_enabled", true)) {
+                        executeAiCommands(answer,current,limit)
+                    } else {
+                        current.messages += BridgeChatMessage("tool", "[BridgeFS 未执行]\\nAI 自动执行已关闭，本次回复中的指令未触发本地执行。")
+                        store.save(projects)
+                        render()
+                    }
                 }
             } catch(e:Exception) {
                 runOnUiThread {
