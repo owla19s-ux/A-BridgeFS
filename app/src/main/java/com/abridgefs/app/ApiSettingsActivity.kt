@@ -65,7 +65,7 @@ class ApiSettingsActivity : Activity() {
         root.addView(sectionLabel("API Key"))
         val key = EditText(this).apply {
             hint = "输入 API Key"
-            setText(prefs.getString("api_key", ""))
+            setText(secrets.getNamed("legacy") ?: prefs.getString("api_key", "").orEmpty())
             textSize = 14f
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
         }
@@ -119,9 +119,11 @@ class ApiSettingsActivity : Activity() {
             prefs.edit()
                 .putString("api_provider", provider.text.toString().trim())
                 .putString("api_base_url", baseUrl.text.toString().trim())
-                .putString("api_key", key.text.toString())
+                
                 .putString("api_model", model.text.toString().trim())
                 .apply()
+            secrets.putNamed("legacy", key.text.toString())
+            prefs.edit().remove("api_key").apply()
             Toast.makeText(this, "API 设置已保存", Toast.LENGTH_SHORT).show()
             finish()
         }, LinearLayout.LayoutParams(-1, dp(46)).apply { topMargin = dp(10) })
@@ -137,7 +139,7 @@ class ApiSettingsActivity : Activity() {
 
         val decisionKey = EditText(this).apply {
             hint = "Decision AI API Key"
-            setText(prefs.getString("collab_decision_api_key", ""))
+            setText(secrets.getNamed("collab_decision_api_key") ?: prefs.getString("collab_decision_api_key", "").orEmpty())
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
         }
         root.addView(decisionKey, fieldParams())
@@ -157,7 +159,7 @@ class ApiSettingsActivity : Activity() {
 
         val workerKey = EditText(this).apply {
             hint = "Worker API Key"
-            setText(prefs.getString("collab_worker_api_key", ""))
+            setText(secrets.getNamed("collab_worker_api_key") ?: prefs.getString("collab_worker_api_key", "").orEmpty())
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
         }
         root.addView(workerKey, fieldParams())
@@ -179,12 +181,13 @@ class ApiSettingsActivity : Activity() {
         root.addView(actionButton("保存协作 API 设置") {
             prefs.edit()
                 .putString("collab_decision_base_url", decisionUrl.text.toString().trim())
-                .putString("collab_decision_api_key", decisionKey.text.toString())
-                .putString("collab_decision_model", decisionModel.text.toString().trim())
+                                .putString("collab_decision_model", decisionModel.text.toString().trim())
                 .putString("collab_worker_base_url", workerUrl.text.toString().trim())
-                .putString("collab_worker_api_key", workerKey.text.toString())
-                .putString("collab_worker_model", workerModel.text.toString().trim())
+                                .putString("collab_worker_model", workerModel.text.toString().trim())
                 .apply()
+            secrets.putNamed("collab_decision_api_key", decisionKey.text.toString())
+            secrets.putNamed("collab_worker_api_key", workerKey.text.toString())
+            prefs.edit().remove("collab_decision_api_key").remove("collab_worker_api_key").apply()
             Toast.makeText(this, "协作 API 设置已保存", Toast.LENGTH_SHORT).show()
         })
 
