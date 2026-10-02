@@ -26,7 +26,7 @@ Decision AI / Worker AI 只作为任务阶段角色标签，不是固定身份�
 | GitHub 连接基础 | 已实现 / 待真机验证 | PAT、Keystore、账号、Repository、Branch 基础能力已落地 |
 | 工作区 | 开发中 | Workspace → Conversations 数据结构已落地；V021 已接入 Workspace 切换 / 新建 / 重命名，以及 Conversation 切换 / 新建的基础 UI；仍需真机验证与继续清理兼容 facade |
 | 双 AI 协作协议 | 已确认设计 / 尚未完整实现 | 共享读取、施工权独占且可转移 |
-| 协作消息 | 开发中 | 当前仍偏旧单轮协作链；聊天消息尚未保存并展示实际使用 API 的名称与头像 |
+| 协作消息 | 开发中 | 聊天消息已开始保存并展示实际使用 API 的名称与头像；仍待构建/真机验证，协作链仍偏旧单轮实现 |
 | 施工锁 | 已设计未实现 | Repository / Branch 级独占写权限 |
 | 协作回执 | 已设计未完全实现 | Receipt 与消息时间线仍需统一 |
 | 协作日志 | 已设计未完全实现 | 已有分类日志目录，产品级协作日志仍需补齐 |
@@ -73,7 +73,7 @@ Workspace + Repository + Branch
 
 ### 尚未完成
 
-- 本地文件修改开关尚未真正阻断 WRITE / EDIT。
+- 本地文件修改开关已接入 `PermissionPolicy`，并由 `FileBridgeService` 在真实执行入口再次判定；尚待 APK 真机验证。
 - Conversation 级本地文件权限覆盖尚未实现；目标是 `Conversation override ?: Workspace permission`。
 - GitHub 文件写入尚未连接 AI 施工流程、Commit / PR / Actions / Verify。
 - Workspace → Conversation 数据结构已落地，V021 对话切换/新建已开始使用工作区内 Conversation；仍保留兼容 facade，后续继续清理旧调用。
@@ -101,7 +101,7 @@ Workspace + Repository + Branch
 - V021 启动时尚未恢复 pending receipt。
 - Workspace 与 Conversation 的基础数据结构和当前 UI 已分离，但兼容 facade 仍存在，尚未完成彻底迁移。
 - 当前聊天页已有 Workspace / Conversation 操作入口，但尚未完成 APK 真机验证。
-- AI 消息目前未按消息保存实际使用的 API 名称与头像；该问题已建立 Issue #30。
+- AI 消息已按消息保存实际使用的 API ID、名称与头像；Issue #30 已进入实现后待构建/真机验证阶段。
 - 当前协作实现仍偏单轮协议链，尚未形成双 AI 连续协作循环。
 - GitHub 实际写入尚未形成完整 GitHub → Verify 链。
 
@@ -138,7 +138,7 @@ Workspace + Repository + Branch
 因此「AI 对话会触发 A-BridgeFS / BridgeFS 执行回执」属于**当前已存在的实现能力**，不是待设计功能。
 
 当前缺口不是是否执行，而是执行链与新双 AI 协作模型尚未统一：
-- Receipt 尚未统一进入对话消息时间线
-- pending receipt 启动恢复尚未完成
-- API Profile 的 write 开关尚未成为实际执行权限边界
+- Receipt 已进入当前 Conversation 的消息时间线；`pending_receipt` 仍未在 V021 启动时恢复。
+- API Profile 的 write 开关已不再作为实际权限来源；当前有效本地修改权限来自 Workspace / Conversation + `PermissionPolicy`。
+- 当前代码批次尚未通过 GitHub Actions 构建；最近一次 PR 构建因 V021 新建 Conversation lambda 的非法 `return` 失败，已修复，等待下一轮构建。
 - 双 AI 协作尚未接入同一套施工权 / Receipt / Verify 链
