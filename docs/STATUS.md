@@ -346,3 +346,13 @@ Workspace + Repository + Branch
 - 这使 lastCommitSha 可以继续作为历史审计字段保存，同时不再等同于“当前待验证 Commit”。
 - 本轮修改 Commit：20f72b9c018d0c818b81725a4e8ac0afcf41a061。
 - 仍未进行 Release 构建 / APK / 真机验证。
+
+
+## 2026-10-02 ConstructionLock 第十五轮检查
+
+- 发现任务记录中的 constructionHolderAiMemberId 与实际 ConstructionLock 存在短暂不一致风险：任务状态可能仍记录某 AI 为施工者，但真实 SharedPreferences 锁已经被清理或恢复失败。
+- 修复：每次 GitHub Contents updateFile 写入前，除了检查任务记录持有者，还必须调用 ConstructionLockStore.requireHolder(workspace, aiMemberId) 重新确认 Repository / Branch 的实时施工锁。
+- 因此“任务说我是施工者”不能单独获得 GitHub 写权限；只有“任务记录 + 实际 ConstructionLock”同时成立才可写入。
+- Verify 失败仍保留施工者信息，允许修复轮重新获取/确认同一施工权；Verify 成功后释放实际锁并清除任务持有者。
+- 本轮代码 Commit：01ae2970986e5b4bb4e3348002724d2659ad8eb6。
+- 仍未进行 Release 构建、APK 发布或真机验证。
