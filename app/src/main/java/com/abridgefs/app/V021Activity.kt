@@ -761,7 +761,7 @@ class V021Activity : Activity() {
                         content = "[协作 ${message.type.name}] ${message.from.name} → ${message.to.name}\n${message.toJson()}",
                         apiId = profile?.id,
                         apiName = profile?.name?.ifBlank { "未命名 API" },
-                        apiAvatar = profile?.avatar?.ifBlank { profile.name.trim().take(1).ifBlank { "AI" } }
+                        apiAvatar = profile?.let { it.avatar.ifBlank { it.name.trim().take(1).ifBlank { "AI" } } }
                     )
                 }
                 runOnUiThread {
