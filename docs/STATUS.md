@@ -4,76 +4,86 @@
 
 ## 项目定位
 
-A-BridgeFS 当前作为 AI 协作的移动端控制入口进行真实验证。
+A-BridgeFS 当前作为 **AI 协作移动端工作台 + 本地执行桥** 进行真实验证。
 
-当前第一实验：
+核心方向：
 
-**遥控器 + 仓库**
+**双 AI 协作 + 工作区 + GitHub + BridgeFS 本地执行**
 
-目标不是立即做成完整 AI 协作平台，而是验证：
+核心模型：
 
-人
-→ A-BridgeFS
-→ Decision AI / Worker
-→ GitHub 项目
-→ 施工 / Verify
-→ 回执
-→ 人
+**两个 AI 共享读取能力；施工权限独立管理，同一 Repository / Branch 同时最多一个 AI 持有修改权。**
+
+Decision AI / Worker AI 只作为任务阶段角色标签，不是固定身份。
 
 ## 当前状态
 
 | 部分 | 状态 | 说明 |
 | --- | --- | --- |
 | Android 基础工程 | 已实现 | 当前工程可继续施工 |
-| API / 对话 | 已实现 / 第一阶段待验证 | API 可配置、可聊天；Chat → API 持久绑定已实现；对话页使用明确的“当前 API / 选择”入口 |
-| 本地指令 / BridgeFS | 已实现 | 不因 GitHub 实验删除 |
+| API / 对话 | 已实现 / 待统一验证 | API 可配置、可聊天；Chat → API 持久绑定已实现 |
+| 本地指令 / BridgeFS | 已实现 | 保留真实本地执行能力 |
 | GitHub 连接基础 | 已实现 / 待真机验证 | PAT、Keystore、账号、Repository、Branch 基础能力已落地 |
-| A-177 Worker 协作 | 开发中 | 当前真实实验对象 |
-| 协作回执 | 已设计未完全实现 | 需要从真实使用中继续验证 |
-| 协作日志 | 已设计未实现 | 与运行日志、崩溃日志分离 |
-| Decision AI 自动对接 Worker | 已设计未实现 | 当前仍主要依赖人工转接；v0.1 协作协议已确认 |
-| Worker 连续施工 | 已验证问题、待完善 | 当前存在频繁暂停并要求“继续”的问题 |
-| 小问题自动处理 | 已验证问题、待完善 | Worker 仍会因非决策级问题暂停汇报 |
-| 复杂调度 / 多 Worker | 未开始 | 当前明确不做 |
+| 工作区 | 开发中 | 当前仍需从 BridgeProject 继续演化 |
+| 双 AI 协作协议 | 已确认设计 / 尚未完整实现 | 共享读取、施工权独占且可转移 |
+| 协作消息 | 开发中 | 当前实现仍偏旧单轮协作链 |
+| 施工锁 | 已设计未实现 | Repository / Branch 级独占写权限 |
+| 协作回执 | 已设计未完全实现 | Receipt 与消息时间线仍需统一 |
+| 协作日志 | 已设计未完全实现 | 已有分类日志目录，产品级协作日志仍需补齐 |
+| GitHub 实际写入链 | 开发中 | 当前已有权限边界，但尚未形成完整写入 → Verify 链 |
+| Verify 实链 | 开发中 | 需要 Commit → Run / Check Run → Job → Result |
+| 复杂调度 / 多 AI | 未开始 | 当前明确不做 |
 
-## 2026-10-02 核心协作施工批次
+## 当前设计基线
 
-已施工：
+### AI
 
-1. `BridgeProject` 增加 `apiId`，持久保存当前对话绑定的 API。
-2. 对话页 API 选择会保存到当前 Chat。
-3. 新建 Chat 默认绑定当前可用 API。
-4. 移除 API 时清理受影响 Chat 的绑定。
-5. API 编辑输入框与对话输入框显式设置文字 / Hint 颜色，修复主题继承导致的文字不可见问题。
-6. 129 APK 检查确认 API 选择逻辑已进入 APK，但系统 Spinner 在实际 UI 上不够明确；本次改为明确的“当前 API / 选择 ›”入口，并使用单选对话框切换 API。
+工作区包含两个协作 AI。
 
-当前状态：**施工批次已完成代码提交，等待统一 Actions / APK / 真机验证。**
+两者默认拥有工作区允许范围内的读取能力，可以同时读取同一项目，也可以同时分析、沟通和检查结果。
 
-## 2026-10-02 P0 施工批次
+不因 AI 身份天然获得修改权。
 
-已施工代码：
+### 施工权
 
-1. 聊天气泡宽度改为屏幕约 82%，避免消息内容被压成窄条。
-2. Receipt 进入当前对话时间线，不再只能通过“回执”按钮粘贴。
-3. BridgeFS Service 增加第二层权限 Gate，统一检查指令数量、禁止操作与需确认操作。
-4. PermissionPolicy 增加统一 `authorization(context)` 入口。
-5. 日志拆分为 `runtime / collaboration / execution / api / github`，Crash 独立保留。
-6. Decision AI / Worker API Key 迁移到 Android Keystore 加密存储，并保留旧配置自动迁移。
-7. 用户目标可在开启协作模式后进入 Decision AI → Worker → Decision AI 单轮协作链。
-8. GitHub 页面入口绑定当前工作区，不再固定使用第一个工作区。
-9. 工作区增加 AI 协作状态与启用开关。
-10. 新聊天改为独立创建页面，但不增加第四个底部一级导航。
+施工权属于具体：
 
-状态：**代码已施工，等待 Actions / APK / 真机统一验证。**
-## 当前核心问题
+Workspace + Repository + Branch
 
-1. Worker 需要用户反复输入“继续”，无法在一次明确授权后持续完成当前施工阶段。
-2. 小问题会频繁暂停并请求确认，Decision AI 与 Worker 尚未形成稳定的自动协作链。
-3. Decision AI 目前不能自动接收 Worker 的真正决策级问题并返回决策。
-4. Verify 等外部工序需要可靠确认，而不能只依据预期配置判断已经发生。
+同一 Repository / Branch：
 
-## 当前原则
+- 同时最多一个 AI 持有施工权
+- 施工权可以转移
+- 施工权不等于 API Profile
+- 施工权不等于 GitHub Token 本身权限
+- GitHub Token 真实权限仍需独立检查
 
-先让“Decision AI + Worker + GitHub + A-BridgeFS”真实运行。
+典型生命周期：
 
-运行一段时间后，再根据实际问题提炼任务协议、权限、调度、日志和平台能力。
+申请 → 授权 → 施工 → Commit → Verify → 释放 / 转移
+
+## 当前代码事实
+
+- V021Activity 是当前 Launcher。
+- MainActivity 仍存在，且包含尚未迁移的历史功能，暂不能直接删除。
+- BridgeFS 本地执行链真实存在。
+- GitHub Workspace 边界已有基础实现。
+- API Profile 的 write 字段目前尚未接入统一 PermissionPolicy。
+- Receipt 仍存在 executions / pending_receipt / messages / input 四处分散状态。
+- V021 启动时尚未恢复 pending receipt。
+- Workspace 与 Conversation 仍未完全分离。
+- 当前协作实现仍偏单轮协议链，尚未形成双 AI 连续协作循环。
+- GitHub 实际写入尚未形成完整 GitHub → Verify 链。
+
+此前关于“协作 API Key 明文写入 SharedPreferences”的判断已撤回；当前代码已有 SecretStore / Android Keystore 迁移逻辑。
+
+## 当前施工优先级
+
+1. 统一正式架构文档：双 AI、共享读取、Repository / Branch 施工权独占且可转移。
+2. 统一 Receipt 状态链。
+3. 把 API Profile 与实际权限边界分离清楚。
+4. 逐步拆分 Workspace / Conversation 数据模型。
+5. 实现 Repository / Branch 施工锁。
+6. 连接真实 GitHub 写入与 Verify。
+7. 实现双 AI 连续协作循环。
+8. 清理旧 MainActivity / 旧日志路径等历史实现。
