@@ -1159,13 +1159,12 @@ class V021Activity : Activity() {
     }
 
     private fun runCollaboration(current: BridgeProject, objective: String) {
+        val workspaceId = current.id
+        val conversationId = current.activeConversation().id
         executor.execute {
             runCatching {
                 val ids = collaborationProfileIds()
                 require(ids.first.isNotBlank() && ids.second.isNotBlank()) { "请先选择两个协作 AI" }
-                val conversation = current.activeConversation()
-                val conversationId = conversation.id
-                val workspaceId = current.id
                 val coordinator = CollaborationCoordinator(this, workspaceId, conversationId, ids.first, ids.second)
                 val messages = coordinator.runObjective(
                     objective = objective,
