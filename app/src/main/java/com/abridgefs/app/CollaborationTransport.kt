@@ -456,9 +456,15 @@ class CollaborationCoordinator(
                 it.status = when (decisionMessage.type) {
                     CollaborationProtocol.Type.BLOCKED,
                     CollaborationProtocol.Type.ESCALATE -> CollaborationTaskRecord.STATUS_WAITING_CONSTRUCTION
-                    CollaborationProtocol.Type.COMPLETE -> {
-                        if (it.lastCommitSha.isNullOrBlank()) CollaborationTaskRecord.STATUS_COMPLETE
-                        else CollaborationTaskRecord.STATUS_WAITING_VERIFY
+                    CollaborationProtocol.Type.COMPLETE -> when (it.status) {
+                        CollaborationTaskRecord.STATUS_FAILED -> CollaborationTaskRecord.STATUS_FAILED
+                        CollaborationTaskRecord.STATUS_WAITING_VERIFY -> CollaborationTaskRecord.STATUS_WAITING_VERIFY
+                        CollaborationTaskRecord.STATUS_COMPLETE -> CollaborationTaskRecord.STATUS_COMPLETE
+                        else -> if (it.lastCommitSha.isNullOrBlank()) {
+                            CollaborationTaskRecord.STATUS_COMPLETE
+                        } else {
+                            CollaborationTaskRecord.STATUS_WAITING_VERIFY
+                        }
                     }
                     else -> record.status
                 }
