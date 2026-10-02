@@ -3,6 +3,8 @@ package com.abridgefs.app
 import android.app.*
 import android.content.Intent
 import android.content.IntentFilter
+import android.net.Uri
+import android.provider.DocumentsContract
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
@@ -18,6 +20,9 @@ import java.util.UUID
 import java.util.concurrent.Executors
 
 class V021Activity : Activity() {
+    companion object {
+        private const val REQUEST_WORKSPACE_DIRECTORY = 2101
+    }
     private val prefs by lazy { getSharedPreferences("bridgefs", 0) }
     private val store by lazy { BridgeProjectStore(this) }
     private val apiProfiles by lazy { ApiProfileStore(this) }
@@ -473,11 +478,35 @@ class V021Activity : Activity() {
     private fun localFilePermissionCard(): View {
         val box = card()
         val enabled = project?.localFileModifyEnabled ?: false
+        val rootPath = prefs.getString("root_path", "").orEmpty().trim()
+
         box.addView(TextView(this).apply {
             text = "本地文件"
             textSize = 16f
             typeface = Typeface.DEFAULT_BOLD
         })
+
+        box.addView(TextView(this).apply {
+            text = if (rootPath.isBlank()) "工作目录：未设置" else "工作目录：$rootPath"
+            textSize = 12f
+            setTextColor(color(R.color.bridgefs_text_secondary))
+            setPadding(0, dp(4), 0, dp(8))
+        })
+
+        val directoryRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        directoryRow.addView(TextView(this@V021Activity).apply {
+            text = if (rootPath.isBlank()) "AI 本地执行需要先选择目录" else "AI 将在此目录执行本地指令"
+            textSize = 12f
+            setTextColor(color(R.color.bridgefs_text_secondary))
+        }, LinearLayout.LayoutParams(0, dp(42), 1f))
+        directoryRow.addView(textButton("选择目录") {
+            openWorkspaceDirectoryPicker()
+        }, LinearLayout.LayoutParams(dp(88), dp(42)))
+        box.addView(directoryRow)
+
         box.addView(CheckBox(this).apply {
             text = "允许当前工作区进行本地文件修改"
             isChecked = enabled
@@ -492,6 +521,58 @@ class V021Activity : Activity() {
             setTextColor(color(R.color.bridgefs_text_secondary))
         })
         return box
+    }
+
+    private fun openWorkspaceDirectoryPicker() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+            addFlags(
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
+                    Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+            )
+        }
+        startActivityForResult(intent, REQUEST_WORKSPACE_DIRECTORY)
+    }
+
+    @Suppress("DEPRECATION")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != REQUEST_WORKSPACE_DIRECTORY || resultCode != RESULT_OK) return
+
+        val uri = data?.data ?: return
+        val path = documentTreeUriToPath(uri)
+        if (path == null) {
+            Toast.makeText(this, "暂时只支持设备主存储目录，请重新选择。", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        runCatching {
+            contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            )
+        }
+
+        prefs.edit().putString("root_path", path).apply()
+        Toast.makeText(this, "工作目录已设置：$path", Toast.LENGTH_SHORT).show()
+        render()
+    }
+
+    private fun documentTreeUriToPath(uri: Uri): String? {
+        val documentId = DocumentsContract.getTreeDocumentId(uri)
+        val separator = documentId.indexOf(':')
+        if (separator <= 0) return null
+
+        val volume = documentId.substring(0, separator)
+        val relative = documentId.substring(separator + 1).trim('/')
+
+        return when {
+            volume.equals("primary", ignoreCase = true) -> {
+                if (relative.isBlank()) "/storage/emulated/0"
+                else "/storage/emulated/0/$relative"
+            }
+            else -> null
+        }
     }
 
     private fun renderChat() {
@@ -920,7 +1001,7 @@ class V021Activity : Activity() {
         items.forEach { (title,summary) ->
             root.addView(configCard(title,summary) {
                 when(title) {
-                    "AI 与 API" -> { page = Page.WORKSPACE; render() }
+                    "AI 与 API" -> startActivity(Intent(this, ApiSettingsActivity::class.java))
                     "连接与访问" -> startActivity(Intent(this, GlobalAccessActivity::class.java))
                     else -> startActivity(Intent(this, SettingsCategoryActivity::class.java).putExtra("category", title))
                 }
