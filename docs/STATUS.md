@@ -238,3 +238,15 @@ Workspace + Repository + Branch
 - 写入成功后保存 Commit SHA，并立即触发一次 Commit-scoped Verify 查询；Verify 仍以真实 Actions Run 为准。
 - Decision AI 的 `COMPLETE` 不再绕过已有 Commit 的 Verify；已有 Commit 的任务保持 `WAITING_VERIFY`，最终 COMPLETE 由 Verify 服务确认。
 - 本批次仍为开发中，未产生新的 Actions Run / APK / 真机证据前不标记已验证。
+
+
+## 2026-10-02 协作施工链第五轮代码检查
+
+- 修复 FILE_CHANGE_REQUEST 被协议 when 重复枚举导致的编译错误。
+- Worker 输出收紧为 DECISION_REQUEST / PROGRESS / BLOCKED / FILE_CHANGE_REQUEST；COMMIT / VERIFY / COMPLETE 不再由 Worker 直接声明，避免 AI 伪造施工完成状态。
+- Worker 协作轮现在按 TASK / DECISION_RESPONSE 继续，并受 TASK.autonomy.max_iterations（1–20）限制。
+- 每轮仍以真实任务状态为停止条件；产生 Commit 后进入 WAITING_VERIFY，不在同一轮继续写下一文件。
+- FILE_CHANGE_REQUEST 已接入 UI 展示，Worker 施工请求可被直接识别。
+- UI 中所有 CollaborationCoordinator 入口均绑定 Worker AI Member。
+- 当前仍未形成 Verify PASS 后自动继续下一施工轮的后台循环；这属于下一阶段，不在本轮伪装成已完成。
+- 本批次仍未合并、未发布 APK、未进行真机验证。
