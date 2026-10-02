@@ -54,8 +54,8 @@ GitHub 必须是真实模块，至少包含：
 - GitHub PAT / Android Keystore / Repository / Branch 基础能力
 
 ## C. 当前开发
-- Workspace AI 成员 / 权限模型
-- Repository / Branch 施工锁
+- Workspace AI 成员 / 权限模型（基础模型已落地，待完整验证）
+- Repository / Branch 施工锁（基础链已落地，待 AI 自主施工接线）
 - Chat 独立数据模型
 - CommandParser → PermissionPolicy → CommandExecutor → Receipt 主链统一
 - GitHub 实际文件修改 / Commit / Issue / PR / Actions / Release 能力
@@ -77,10 +77,11 @@ GitHub 必须是真实模块，至少包含：
 2. 两个 AI 可以互相发送协作消息。
 3. 同一 Repository / Branch 同时最多一个 AI 可以修改。
 4. 施工权可以转移。
-5. 持有施工权的 AI 可以在授权范围内连续施工。
+5. 持有施工权的 AI 可以在授权范围内连续施工；当前第一阶段仍需完成 Worker 文件修改结果 → `updateFile()` 的协议接线。
 6. 普通实现问题不要求用户逐次输入“继续”。
 7. 真正需要产品、架构或权限决策时才暂停协作。
 8. Verify 必须以真实外部工序结果为依据。
+9. 未产生新的 Actions Run / APK / 真机证据前，不将本批次标记为“已验证”。
 
 未完成真实验证，不标记为“已验证”。
 
