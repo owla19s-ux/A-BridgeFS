@@ -1301,7 +1301,8 @@ class V021Activity : Activity() {
             return
         }
 
-        val auth = PermissionPolicy.authorization(this, null, conversation)
+        val workspace = project
+        val auth = PermissionPolicy.authorization(this, workspace, conversation)
         val denied = commands.firstOrNull { PermissionPolicy.check(it, auth) == Decision.DENY }
         if (denied != null) {
             recordReceipt(conversation, "DENIED", denied.toString(), "当前独立对话权限设置禁止该操作")
@@ -1326,9 +1327,10 @@ class V021Activity : Activity() {
     }
 
     private fun dispatchToBridge(command: String, conversation: BridgeConversation) {
-        val root = prefs.getString("root_path", "").orEmpty().trim()
+        val workspace = project
+        val root = workspace?.workspaceDirectory.orEmpty().trim()
         if (root.isBlank()) {
-            recordReceipt(conversation, "FAILED", "AI command", "未设置 BridgeFS 工作目录，指令未执行。")
+            recordReceipt(conversation, "FAILED", "AI command", "当前工作区未设置 BridgeFS 工作目录，指令未执行。")
             return
         }
 
