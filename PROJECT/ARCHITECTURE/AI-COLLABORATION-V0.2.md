@@ -144,6 +144,8 @@ API Profile 是连接资源，不等于施工权。
 工作区已经开始承载本地文件修改权限：
 
 - `BridgeProject.localFileModifyEnabled`：工作区级开关，已持久化。
+- `BridgeProject.conversations`：工作区内独立 Conversation 列表，已持久化。
+- `activeConversationId`：当前对话指针已持久化；旧扁平消息数据可自动迁移到默认 Conversation。
 - V021 工作区页提供开关 UI。
 - 当前开关尚未进入 `PermissionPolicy`，因此不能把它描述为真实执行授权。
 
@@ -165,7 +167,7 @@ GitHub 写入采用两层边界：
 继续完成：
 - Chat 级本地文件权限覆盖
 - `PermissionPolicy` 实际执行拦截
-- Workspace / Conversation 数据拆分
+- Workspace / Conversation 数据拆分（第一阶段已落地，保留兼容 facade）
 - AI 成员与 API Profile 解耦
 - GitHub 写入 → Commit → Actions / Check Run → Verify
 - Receipt 与协作消息时间线统一
