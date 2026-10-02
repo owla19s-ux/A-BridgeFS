@@ -169,7 +169,13 @@ GitHub 写入采用分层边界：
 - transfer：转移
 - requireHolder：实际写入前检查
 
-尚未连接完整的 AI 施工流程、Commit → Verify 链。
+协作任务状态已开始持久化：
+- CollaborationTaskStore 保存 Workspace + Conversation + Task 状态。
+- 任务只有显式 requestConstruction() 才进入施工阶段，不会因普通协作分析自动抢占施工锁。
+- 施工任务通过 GitHubWorkspaceService.updateFile() 进入真实 Contents API 写入边界。
+- Contents API 返回的 Commit SHA 会保存到任务状态，并将任务推进到 WAITING_VERIFY。
+
+尚未连接 Actions / Check Run / Job → Verify 的真实结果链。
 
 ### 11.3 下一阶段
 
