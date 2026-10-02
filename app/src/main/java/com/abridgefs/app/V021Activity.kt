@@ -279,8 +279,8 @@ class V021Activity : Activity() {
 
     private fun collaborationCard(): View {
         val box = card()
-        val configured = CollaborationApiConfig.fromPreferences(this, CollaborationProtocol.Role.DECISION_AI).isConfigured() &&
-            CollaborationApiConfig.fromPreferences(this, CollaborationProtocol.Role.WORKER).isConfigured()
+        val collaborationProfiles = collaborationProfileIds()
+        val configured = collaborationProfiles.first.isNotBlank() && collaborationProfiles.second.isNotBlank()
         box.addView(TextView(this).apply { text = "AI 协作"; textSize = 16f; typeface = Typeface.DEFAULT_BOLD })
         box.addView(TextView(this).apply {
             text = "两个 AI 共享工作区资源；API 是连接资源，不再代表固定 Decision / Worker 身份。"
@@ -288,6 +288,18 @@ class V021Activity : Activity() {
             setTextColor(color(R.color.bridgefs_text_secondary))
             setPadding(0, dp(4), 0, dp(8))
         })
+        box.addView(TextView(this).apply {
+            text = if (configured) {
+                "参与 AI：" + (apis().firstOrNull { it.id == collaborationProfiles.first }?.name ?: "AI A") +
+                    " ↔ " + (apis().firstOrNull { it.id == collaborationProfiles.second }?.name ?: "AI B")
+            } else {
+                "请先选择两个不同的 API Profile 作为本轮协作参与者"
+            }
+            textSize = 13f
+            setTextColor(color(R.color.bridgefs_text_secondary))
+            setPadding(0, dp(2), 0, dp(8))
+        })
+        box.addView(actionButton("选择两个协作 AI") { selectCollaborationProfiles() })
         box.addView(Switch(this).apply {
             text = "启用 AI 协作"
             textSize = 13f
@@ -295,7 +307,6 @@ class V021Activity : Activity() {
             isEnabled = configured
             setOnCheckedChangeListener { _, value -> prefs.edit().putBoolean("collaboration_mode_enabled", value).apply() }
         })
-        box.addView(actionButton("配置 AI / API") { startActivity(Intent(this, ApiSettingsActivity::class.java)) })
         return box
     }
 
@@ -722,7 +733,9 @@ class V021Activity : Activity() {
     private fun runCollaboration(current: BridgeProject, objective: String) {
         executor.execute {
             runCatching {
-                val coordinator = CollaborationCoordinator(this)
+                val ids = collaborationProfileIds()
+                require(ids.first.isNotBlank() && ids.second.isNotBlank()) { "请先选择两个协作 AI" }
+                val coordinator = CollaborationCoordinator(this, ids.first, ids.second)
                 val messages = coordinator.runObjective(
                     objective = objective,
                     decisionSystemPrompt = "你是 A-BridgeFS Decision AI。将用户目标转成一个合法的 Decision AI → Worker v0.1 TASK JSON。不要执行本地文件或 GitHub 操作。",
@@ -736,6 +749,52 @@ class V021Activity : Activity() {
                 runOnUiThread { current.activeConversation().messages += BridgeChatMessage("tool", "[协作错误]\n" + reason); store.save(projects); render() }
             }
         }
+    }
+
+    private fun collaborationProfileIds(): Pair<String,String> =
+        prefs.getString("collaboration_first_api_id", "").orEmpty() to
+            prefs.getString("collaboration_second_api_id", "").orEmpty()
+
+    private fun selectCollaborationProfiles() {
+        val list = apis()
+        if (list.size < 2) {
+            Toast.makeText(this, "至少需要两个 API Profile", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val current = collaborationProfileIds()
+        var first = list.indexOfFirst { it.id == current.first }.takeIf { it >= 0 } ?: 0
+        var second = list.indexOfFirst { it.id == current.second }.takeIf { it >= 0 } ?: if (first == 0) 1 else 0
+        val labels = list.map { it.name.ifBlank { "未命名 API" } }.toTypedArray()
+        fun save() {
+            prefs.edit()
+                .putString("collaboration_first_api_id", list[first].id)
+                .putString("collaboration_second_api_id", list[second].id)
+                .apply()
+        }
+        AlertDialog.Builder(this)
+            .setTitle("先选择 AI A")
+            .setSingleChoiceItems(labels, first) { dialog, which ->
+                first = which
+                if (second == first) second = (first + 1) % list.size
+                save()
+                dialog.dismiss()
+                AlertDialog.Builder(this)
+                    .setTitle("再选择 AI B")
+                    .setSingleChoiceItems(labels, second) { dialog2, which2 ->
+                        if (which2 == first) {
+                            Toast.makeText(this, "AI A 与 AI B 必须使用不同的 API Profile", Toast.LENGTH_SHORT).show()
+                        } else {
+                            second = which2
+                            save()
+                            dialog2.dismiss()
+                            render()
+                        }
+                    }
+                    .setNegativeButton("取消", null)
+                    .show()
+            }
+            .setNegativeButton("取消", null)
+            .show()
     }
 
     private fun send(input:EditText,id:String) {
@@ -760,9 +819,8 @@ class V021Activity : Activity() {
         render()
 
         if (prefs.getBoolean("collaboration_mode_enabled", false)) {
-            val d = CollaborationApiConfig.fromPreferences(this, CollaborationProtocol.Role.DECISION_AI)
-            val w = CollaborationApiConfig.fromPreferences(this, CollaborationProtocol.Role.WORKER)
-            if (!d.isConfigured() || !w.isConfigured()) {
+            val collaborationIds = collaborationProfileIds()
+            if (collaborationIds.first.isBlank() || collaborationIds.second.isBlank() || collaborationIds.first == collaborationIds.second) {
                 conversation.messages += BridgeChatMessage("tool", "[协作未启动]\n当前协作 API 尚未完成正式双 AI 配置。")
                 store.save(projects); render(); return
             }
