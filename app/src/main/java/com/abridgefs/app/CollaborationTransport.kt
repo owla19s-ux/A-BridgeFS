@@ -134,7 +134,8 @@ class CollaborationCoordinator(
     private val workspaceId: String,
     private val conversationId: String,
     private val firstProfileId: String,
-    private val secondProfileId: String
+    private val secondProfileId: String,
+    private val workerAiMemberId: String? = null
 ) {
     private val transport = CollaborationTransport(context, workspaceId, conversationId)
 
@@ -312,9 +313,24 @@ class CollaborationCoordinator(
         validateResponse(workerMessage, CollaborationProtocol.Role.WORKER)
         transport.append(workerMessage)
         transport.markHandled(task.id)
-        if (workerMessage.to != CollaborationProtocol.Role.DECISION_AI) return listOf(workerMessage)
-        val decisionMessage = parseProtocolResponseWithRetry(callDecisionAi(workerMessage, decisionSystemPrompt)) {
-            callDecisionAi(workerMessage, decisionSystemPrompt + compactRetryPrompt(CollaborationProtocol.Role.DECISION_AI))
+
+        val messages = mutableListOf(workerMessage)
+        val decisionInput = if (workerMessage.type == CollaborationProtocol.Type.FILE_CHANGE_REQUEST) {
+            val commit = executeFileChangeRequest(task, workerMessage)
+            transport.append(commit)
+            messages += commit
+            commit
+        } else {
+            workerMessage
+        }
+        if (decisionInput.to != CollaborationProtocol.Role.DECISION_AI) return messages
+        val decisionPrompt = if (decisionInput.type == CollaborationProtocol.Type.COMMIT) {
+            decisionSystemPrompt + "\n现在进入施工结果审议阶段。你必须返回合法 JSON；from=decision_ai，to=worker，type 必须为 DECISION_RESPONSE 或 COMPLETE。若 Commit 已满足目标，可返回 COMPLETE；否则返回 DECISION_RESPONSE，并在 instruction 中给出下一步。"
+        } else {
+            decisionSystemPrompt
+        }
+        val decisionMessage = parseProtocolResponseWithRetry(callDecisionAi(decisionInput, decisionPrompt)) {
+            callDecisionAi(decisionInput, decisionPrompt + compactRetryPrompt(CollaborationProtocol.Role.DECISION_AI, false))
         }
         validateResponse(decisionMessage, CollaborationProtocol.Role.DECISION_AI)
         transport.append(decisionMessage)
@@ -329,7 +345,8 @@ class CollaborationCoordinator(
                 }
             }
         }
-        return listOf(workerMessage, decisionMessage)
+        messages += decisionMessage
+        return messages
     }
 
     fun pendingFor(role: CollaborationProtocol.Role): List<CollaborationProtocol.Message> = transport.pendingFor(role)
@@ -346,11 +363,53 @@ class CollaborationCoordinator(
         }
     }
 
-    private fun compactRetryPrompt(role: CollaborationProtocol.Role): String {
-        val route = if (role == CollaborationProtocol.Role.DECISION_AI)
-            "from=decision_ai,to=worker,type=TASK"
-        else "from=worker,to=decision_ai,type=DECISION_REQUEST|PROGRESS|BLOCKED|COMMIT|VERIFY|COMPLETE"
+    private fun compactRetryPrompt(role: CollaborationProtocol.Role, initialTask: Boolean = true): String {
+        val route = if (role == CollaborationProtocol.Role.DECISION_AI) {
+            if (initialTask) "from=decision_ai,to=worker,type=TASK" else "from=decision_ai,to=worker,type=DECISION_RESPONSE|COMPLETE"
+        } else "from=worker,to=decision_ai,type=DECISION_REQUEST|PROGRESS|BLOCKED|COMMIT|VERIFY|COMPLETE|FILE_CHANGE_REQUEST"
         return "\n上一轮输出无法被完整解析。请立即重新输出一个完整、紧凑、合法的 JSON 对象；不要 Markdown、不要解释、不要换行长文本；$route。避免冗长 scope、acceptance、autonomy 与 context_refs，只保留完成协议所需内容。确保最后一个字符为 }。"
+    }
+    private fun executeFileChangeRequest(
+        taskMessage: CollaborationProtocol.Message,
+        request: CollaborationProtocol.Message
+    ): CollaborationProtocol.Message {
+        require(request.type == CollaborationProtocol.Type.FILE_CHANGE_REQUEST)
+        require(request.taskId == taskMessage.taskId)
+        val memberId = workerAiMemberId?.takeIf { it.isNotBlank() }
+            ?: error("Worker AI Member 未绑定，不能进入自动施工")
+        val workspace = BridgeProjectStore(context).load().firstOrNull { it.id == workspaceId }
+            ?: error("工作区不存在：" + workspaceId)
+        require(workspace.github.writeEnabled) { "当前工作区未允许 GitHub 修改" }
+        val taskDefinition = transport.all().firstOrNull { it.taskId == taskMessage.taskId && it.type == CollaborationProtocol.Type.TASK }
+            ?: error("协作 TASK 不存在，无法校验施工范围")
+        val scope = taskDefinition.payload.optJSONObject("scope") ?: JSONObject()
+        val path = request.payload.optString("path").trim().trimStart('/')
+        val operation = request.payload.optString("operation", "write").trim().lowercase()
+        val content = request.payload.optString("content", "")
+        val commitMessage = request.payload.optString("commit_message", "")
+        require(path.isNotBlank()) { "施工文件路径为空" }
+        require(content.isNotEmpty()) { "施工文件内容为空" }
+        require(commitMessage.isNotBlank()) { "Commit message 为空" }
+        val allowPaths = scope.optJSONArray("allow_paths")?.let { a -> (0 until a.length()).map { a.optString(it).trim().trimStart('/') }.filter { it.isNotBlank() } } ?: emptyList()
+        val denyPaths = scope.optJSONArray("deny_paths")?.let { a -> (0 until a.length()).map { a.optString(it).trim().trimStart('/') }.filter { it.isNotBlank() } } ?: emptyList()
+        val allowOperations = scope.optJSONArray("allow_operations")?.let { a -> (0 until a.length()).map { a.optString(it).trim().lowercase() }.filter { it.isNotBlank() } } ?: emptyList()
+        fun matches(root: String, candidate: String): Boolean = candidate == root || candidate.startsWith(root.trimEnd('/') + "/")
+        require(denyPaths.none { matches(it, path) }) { "施工路径被 deny_paths 禁止：" + path }
+        require(allowPaths.any { matches(it, path) }) { "施工路径不在 allow_paths：" + path }
+        require(allowOperations.contains(operation)) { "施工操作不在 allow_operations：" + operation }
+        val current = CollaborationTaskStore(context).get(taskMessage.taskId) ?: error("协作任务不存在")
+        if (current.status != CollaborationTaskRecord.STATUS_CONSTRUCTING) {
+            requestConstruction(taskMessage.taskId, memberId)
+        } else {
+            require(current.constructionHolderAiMemberId == memberId) { "当前 Worker 未持有施工锁" }
+        }
+        val token = GitHubTokenStore(context).state().accessToken?.takeIf { it.isNotBlank() } ?: error("GitHub 尚未授权")
+        val service = GitHubWorkspaceService(context, GitHubApiClient(context, token), workspace.github, workspace)
+        val file = service.file(path)
+        val sha = file.optString("sha").takeIf { it.isNotBlank() } ?: error("无法取得文件 SHA：" + path)
+        val result = updateFile(taskMessage.taskId, memberId, path, content, commitMessage, sha)
+        val commitSha = result.optJSONObject("commit")?.optString("sha").orEmpty()
+        return CollaborationProtocol.commit(taskMessage.taskId, commitSha, commitMessage, listOf(path), "1 file changed")
     }
     private fun parseProtocolResponse(raw: String): CollaborationProtocol.Message {
         val text = raw.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
