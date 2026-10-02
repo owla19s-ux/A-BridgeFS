@@ -250,3 +250,12 @@ Workspace + Repository + Branch
 - UI 中所有 CollaborationCoordinator 入口均绑定 Worker AI Member。
 - 当前仍未形成 Verify PASS 后自动继续下一施工轮的后台循环；这属于下一阶段，不在本轮伪装成已完成。
 - 本批次仍未合并、未发布 APK、未进行真机验证。
+
+## 2026-10-02 构建 / 签名链第六轮检查
+
+- 当前正式 APK 仍只有 `.github/workflows/android-build.yml` 这一条 Release 构建链：main push / 手动触发 → 固定触发 Commit → Release assemble → 官方 Keystore → `apksigner verify` → 统一 `A-BridgeFS.apk`。
+- Workflow 会先校验 `git rev-parse HEAD == GITHUB_SHA`，因此不会因为 checkout 到错误 Commit 而静默构建旧代码。
+- 当前签名配置同时区分 `storePassword` / `keyPassword` 两个 Gradle 字段，但 Workflow 实际把两者都设置为 `KEYSTORE_PASSWORD`。这在“Keystore 密码与 Key 密码相同”的现有设置下可以工作，但比 Android 官方示例的独立配置更窄；暂不改动，先确认现有正式 Keystore 的真实密码关系。
+- 当前 Workflow 只执行 `apksigner verify --verbose`，尚未将“期望证书 SHA-256 指纹”作为硬性构建门槛。因此“APK 可验证签名”与“APK 一定由我们指定的正式证书签名”仍应区分记录。
+- GitHub 官方建议敏感签名材料使用 Secrets；当前 Keystore Base64、Keystore 密码、Alias 均通过 GitHub Secrets 注入，符合这一基本方向。
+- 当前 PR #36 仍为开发中，未合并、未发布新的 APK；本轮检查结果不作为真机验证证据。
