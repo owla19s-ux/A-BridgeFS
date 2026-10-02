@@ -190,14 +190,9 @@ class GitHubActivity : android.app.Activity() {
                     AlertDialog.Builder(this)
                         .setTitle("连接 GitHub")
                         .setMessage(
-                            "请在浏览器打开：
-" + code.verificationUri +
-                                "
-
-验证码：" + code.userCode +
-                                "
-
-授权后返回 App，系统会自动完成连接。"
+                            "请在浏览器打开：\n" + code.verificationUri +
+                                "\n\n验证码：" + code.userCode +
+                                "\n\n授权后返回 App，系统会自动完成连接。"
                         )
                         .setPositiveButton("打开 GitHub") { _, _ ->
                             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(code.verificationUri)))
