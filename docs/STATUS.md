@@ -316,4 +316,5 @@ Workspace + Repository + Branch
 - 修复：Verify 成功后的锁释放改为幂等处理。锁存在且由原施工者持有时正常释放；锁已不存在或已提前释放时记录诊断日志，不阻止任务进入 COMPLETE；异常释放失败同样记录日志。
 - UI 状态入口复核：WAITING_CONSTRUCTION 仅提供 Worker 申请施工锁；WAITING_VERIFY 提供 Verify/继续协作；FAILED 且仍有施工者时提供 Verify 失败修复轮；与当前任务状态机保持一致。
 - 本轮仍未构建、未安装 APK、未真机验证。
+- 协作恢复再加一层保护：Transport 中未标记 handled 的旧 TASK/DECISION_RESPONSE 可能跨进程保留；现在只有任务仍处于 RUNNING/CONSTRUCTING 时才允许 Worker round 消费，WAITING_VERIFY/COMPLETE/FAILED 等状态不会重放旧消息，避免 Commit 后因进程重启再次施工。
 
