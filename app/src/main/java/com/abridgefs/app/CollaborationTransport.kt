@@ -249,6 +249,52 @@ class CollaborationCoordinator(
         CollaborationVerifyService(context).verify(taskId)
 
     /**
+     * Verifies the current Commit and, when it passes, starts one bounded
+     * Decision AI -> Worker continuation round. The next Worker file change,
+     * if any, must reacquire the ConstructionLock through the normal path.
+     */
+    fun verifyAndContinue(taskId: String, decisionSystemPrompt: String, workerSystemPrompt: String): GitHubVerifyResult {
+        val result = verifyTask(taskId)
+        if (result.state != GitHubVerifyState.PASSED) return result
+
+        val task = CollaborationTaskStore(context).get(taskId) ?: return result
+        CollaborationTaskStore(context).update(taskId) {
+            it.status = CollaborationTaskRecord.STATUS_RUNNING
+            it.constructionHolderAiMemberId = null
+        }
+
+        val commitMessage = CollaborationProtocol.commit(
+            taskId,
+            result.commitSha,
+            "Verified Commit",
+            listOfNotNull(task.lastChangedPath),
+            "GitHub Actions Verify passed"
+        )
+        transport.append(commitMessage)
+
+        val decisionPrompt = decisionSystemPrompt +
+            "\n这是系统确认通过的 Commit。请决定任务是否完成；若未完成，必须返回合法 JSON，from=decision_ai,to=worker,type=DECISION_RESPONSE，并给出下一步施工指令。"
+        val decision = parseProtocolResponseWithRetry(callDecisionAi(commitMessage, decisionPrompt)) {
+            callDecisionAi(commitMessage, decisionPrompt + compactRetryPrompt(CollaborationProtocol.Role.DECISION_AI, false))
+        }
+        validateResponse(decision, CollaborationProtocol.Role.DECISION_AI)
+        transport.append(decision)
+
+        if (decision.type == CollaborationProtocol.Type.COMPLETE) {
+            CollaborationTaskStore(context).update(taskId) {
+                it.status = CollaborationTaskRecord.STATUS_COMPLETE
+            }
+            return result
+        }
+
+        require(decision.type == CollaborationProtocol.Type.DECISION_RESPONSE) {
+            "Verify 通过后的 Decision AI 必须返回 DECISION_RESPONSE 或 COMPLETE"
+        }
+        dispatchOneWorkerRound(workerSystemPrompt, decisionSystemPrompt)
+        return result
+    }
+
+    /**
      * Returns the current persisted task for this Workspace + Conversation.
      */
     fun currentTask(): CollaborationTaskRecord? =
