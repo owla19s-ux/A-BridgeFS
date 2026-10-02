@@ -10,8 +10,10 @@ import org.json.JSONObject
  * permissions instead of constructing repository/branch access rules itself.
  */
 class GitHubWorkspaceService(
+    private val context: android.content.Context,
     private val client: GitHubApiClient,
-    private val workspace: GitHubWorkspace
+    private val workspace: GitHubWorkspace,
+    private val project: BridgeProject? = null
 ) {
     fun currentAccount(): JSONObject {
         requireRead()
@@ -47,6 +49,13 @@ class GitHubWorkspaceService(
         return client.listWorkflowRuns(owner, name, perPage)
     }
 
+    fun workflowRunsForCommit(commitSha: String, perPage: Int = 20): JSONObject {
+        requireRead()
+        require(commitSha.isNotBlank()) { "Commit SHA 不能为空" }
+        val (owner, name) = repositoryParts()
+        return client.listWorkflowRunsForCommit(owner, name, commitSha, perPage)
+    }
+
     fun workflowRun(runId: Long): JSONObject {
         requireRead()
         val (owner, name) = repositoryParts()
@@ -59,9 +68,37 @@ class GitHubWorkspaceService(
      * This method only checks permission; it does not claim that a write
      * operation is currently implemented.
      */
+    /**
+     * Workspace-scoped GitHub file update boundary.
+     *
+     * Callers use this service so the workspace read/write boundary is checked
+     * before a repository write reaches the low-level GitHub client.
+     */
+    fun updateFile(
+        path: String,
+        content: String,
+        message: String,
+        sha: String,
+        aiMemberId: String
+    ): JSONObject {
+        requireWritePermission(aiMemberId)
+        val (owner, name) = repositoryParts()
+        return client.updateFile(owner, name, path, content, message, workspace.branch, sha)
+    }
+
+    /**
+     * Backward-compatible guard for callers that only need to inspect whether
+     * the workspace permits GitHub writes. Actual file writes require an
+     * AI Member construction lock through the overload above.
+     */
     fun requireWritePermission() {
         requireRead()
         check(workspace.writeEnabled) { "当前工作区未允许 GitHub 修改" }
+    }
+
+    fun requireWritePermission(aiMemberId: String) {
+        requireWritePermission()
+        ConstructionLockStore(context).requireHolder(project ?: error("GitHub 写入必须绑定工作区"), aiMemberId)
     }
 
     private fun requireRead() {

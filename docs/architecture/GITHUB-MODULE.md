@@ -1,6 +1,8 @@
 # GitHub 模块架构
 
-状态：正式架构候选，施工基线（2026-10-02）
+状态：专项架构施工基线（2026-10-02）
+
+> 本文是 GitHub 模块专项设计，不取代 `PROJECT/ARCHITECTURE/AI-COLLABORATION-V0.2.md` 的正式协作架构。
 
 ## 1. 定位
 
@@ -193,7 +195,7 @@ GitHub 页面必须区分：
 ## 11. 与 A-BridgeFS 协作闭环的关系
 
 ```
-对话 / Decision AI
+对话 / 协作 AI
         ↓
 A-BridgeFS
         ↓
@@ -230,3 +232,18 @@ GitHub 是真实执行资源之一，不是 UI 装饰。
 - GitHub 全部 API
 - 完整 Git 客户端
 - 自动调度器
+
+
+## 13. 与双 AI 施工权模型的关系
+
+GitHub 模块不决定哪个 AI 是“Decision AI”或“Worker AI”。
+
+当前正式模型为：
+
+- 两个 AI 可以共享工作区允许范围内的读取能力。
+- GitHub Repository / Branch 的施工权由 Workspace 权限与施工锁管理。
+- 同一 Repository / Branch 同时最多一个 AI 持有施工权。
+- API Profile 与 GitHub Token 都是连接 / 授权资源，不直接等于 A-BridgeFS 施工权。
+- GitHub Token 的真实权限仍是最终外部能力边界。
+
+因此 GitHub 模块负责“能访问什么”，Workspace / ConstructionLock 负责“当前哪个 AI 可以在这个资源上施工”。

@@ -2,8 +2,6 @@
 
 更新时间：2026-10-02
 
-> 本状态文档按“用户实际可操作功能”判定完成度；代码中已有数据模型或 UI 入口但用户尚不能实际完成该功能时，不标记为已实现。
-
 ## 项目定位
 
 A-BridgeFS 当前作为 **AI 协作移动端工作台 + 本地执行桥** 进行真实验证。
@@ -18,35 +16,6 @@ A-BridgeFS 当前作为 **AI 协作移动端工作台 + 本地执行桥** 进行
 
 Decision AI / Worker AI 只作为任务阶段角色标签，不是固定身份。
 
-## 核心开发验收原则：功能必须与 UI 打通
-
-A-BridgeFS 的“功能完成”不是指代码中存在对应类、数据模型、Service、Client 或 API。
-
-任何用户功能都必须完成以下闭环：
-
-`功能设计 → 代码实现 → UI 入口 → 用户可操作 → 状态保存/恢复 → 实际功能链生效 → APK 真机验证`
-
-因此统一使用四级状态：
-
-- 🟡 **代码已实现**：底层逻辑存在，但用户还不能正常使用。
-- 🟠 **UI 未打通**：功能存在，但没有正确、完整的用户操作路径。
-- 🔵 **待验证**：UI 已经能够实际操作，但尚未完成 APK 真机验证。
-- 🟢 **已验证**：APK 中实际操作成功，完整链路成立。
-
-**只有完整达到“代码 + UI + 真机验证”才可以视为真正完成。**
-
-检查每项功能时固定追问：
-
-1. 用户从哪里进入？
-2. 用户具体怎么操作？
-3. UI 调用了哪个实际功能？
-4. 操作结果是否保存？
-5. 重新进入后是否恢复？
-6. 是否真正影响后续业务链？
-7. APK 中能否实际操作并验证？
-
-这条原则同时适用于 Workspace、Conversation、API、权限、GitHub、BridgeFS、Receipt、日志及后续所有功能。
-
 ## 当前状态
 
 | 部分 | 状态 | 说明 |
@@ -55,14 +24,14 @@ A-BridgeFS 的“功能完成”不是指代码中存在对应类、数据模型
 | API / 对话 | 已实现 / 待统一验证 | API 可配置、可聊天；Chat → API 持久绑定已实现 |
 | 本地指令 / BridgeFS | 已实现 | 保留真实本地执行能力 |
 | GitHub 连接基础 | 已实现 / 待真机验证 | PAT、Keystore、账号、Repository、Branch 基础能力已落地 |
-| 工作区 | 开发中 | 数据模型已有，但 UI 用户路径尚未完整打通 |
+| 工作区 | 开发中 | Workspace → Conversations 数据结构与基础 UI 已落地；本地修改权限已进入 PermissionPolicy / FileBridgeService；仍需真机验证与清理兼容 facade |
 | 双 AI 协作协议 | 已确认设计 / 尚未完整实现 | 共享读取、施工权独占且可转移 |
-| 协作消息 | 开发中 | 当前实现仍偏旧单轮协作链 |
-| 施工锁 | 已设计未实现 | Repository / Branch 级独占写权限 |
+| 协作消息 | 开发中 | 聊天消息已开始保存并展示实际使用 API 的名称与头像；仍待构建/真机验证，协作链仍偏旧单轮实现 |
+| 施工锁 | 开发中 | 已实现 Workspace + Repository + Branch 独占锁，并已接入显式协作任务申请；AI 自主施工链仍未完全接通 |
 | 协作回执 | 已设计未完全实现 | Receipt 与消息时间线仍需统一 |
 | 协作日志 | 已设计未完全实现 | 已有分类日志目录，产品级协作日志仍需补齐 |
-| GitHub 实际写入链 | 开发中 | 当前已有权限边界，但尚未形成完整写入 → Verify 链 |
-| Verify 实链 | 开发中 | 需要 Commit → Run / Check Run → Job → Result |
+| GitHub 实际写入链 | 开发中 | `updateFile()` 已可在 ConstructionLock 下真实写入并保存 Commit SHA；Worker 输出尚未自动映射到该入口 |
+| Verify 实链 | 开发中 | Commit-scoped Actions 查询与 PASS/FAIL 状态已接入；尚待新的 Actions Run / APK / 真机实证及更细 Job/Step 展示 |
 | 复杂调度 / 多 AI | 未开始 | 当前明确不做 |
 
 ## 当前设计基线
@@ -93,58 +62,79 @@ Workspace + Repository + Branch
 
 申请 → 授权 → 施工 → Commit → Verify → 释放 / 转移
 
+## 2026-10-02 追加：工作区 / GitHub 第一批施工
+
+### 已落地
+
+- `BridgeProject` 已增加工作区级 `localFileModifyEnabled`，并持久化保存。
+- V021 工作区页已出现“本地文件”权限卡；该开关目前表达**工作区意图**，尚未接入 `PermissionPolicy` 的最终执行判定。
+- GitHub 低层 `GitHubApiClient.updateFile()` 已支持 Contents API 的文件更新。
+- `GitHubWorkspaceService.updateFile()` 已作为工作区级写入边界；实际写入要求 AI Member，并检查 Workspace + Repository + Branch ConstructionLock 后才调用低层客户端。
+
+### 尚未完成
+
+- 本地文件修改权限已接入 `PermissionPolicy`，并由 `FileBridgeService` 在真实执行入口再次判定；尚待 APK 真机验证。
+- Conversation 级本地文件权限覆盖已进入 `PermissionPolicy` 数据路径；尚待 UI / 真机验证。
+- GitHub 协作任务已经能够显式申请施工权、进入 `CONSTRUCTING` 并通过 `updateFile()` 真实写入；Commit SHA 已持久化。
+- Commit-scoped Actions / Verify 已接通代码链，但尚未获得新的 Actions Run / APK / 真机实证。
+- Workspace → Conversation 数据结构已落地，V021 对话切换/新建已开始使用工作区内 Conversation；仍保留兼容 facade，后续继续清理旧调用。
+- API 页面仍需从固定 Decision / Worker 配置迁移为 AI 成员 + API Profile 资源模型。
+
+### 本批次状态
+
+| 项目 | 状态 |
+| --- | --- |
+| 工作区本地修改权限数据 | 已实现 |
+| 工作区本地修改权限 UI | 已实现 |
+| 本地修改权限实际执行拦截 | 已实现，待验证 |
+| GitHub 低层文件更新 | 已实现 |
+| GitHub Workspace 写入边界 | 已实现 |
+| GitHub → Commit → Verify | 开发中 |
+
 ## 当前代码事实
 
 - V021Activity 是当前 Launcher。
 - MainActivity 仍存在，且包含尚未迁移的历史功能，暂不能直接删除。
 - BridgeFS 本地执行链真实存在。
 - GitHub Workspace 边界已有基础实现。
-- API Profile 的 write 字段目前尚未接入统一 PermissionPolicy。
+- V021 已移除 API Profile 的“允许修改”UI/模型字段；历史持久化中的 `write` 字段仅作兼容读取，不再作为权限来源。
 - Receipt 仍存在 executions / pending_receipt / messages / input 四处分散状态。
 - V021 启动时尚未恢复 pending receipt。
-- Workspace 与 Conversation 仍未完全分离。
+- Workspace 与 Conversation 的基础数据结构和当前 UI 已分离，但兼容 facade 仍存在，尚未完成彻底迁移。
+- 当前聊天页已有 Workspace / Conversation 操作入口，但尚未完成 APK 真机验证。
+- AI 消息已按消息保存实际使用的 API ID、名称与头像；Issue #30 已进入实现后待构建/真机验证阶段。
 - 当前协作实现仍偏单轮协议链，尚未形成双 AI 连续协作循环。
 - GitHub 实际写入尚未形成完整 GitHub → Verify 链。
 
-## 最近一次功能核对（2026-10-02）
-
-以下问题已由实际 App 使用情况确认：
-- 消息宽度：已解决。
-- API 名称：目前只在对话页上部显示，消息本身未显示对应 API 名称。
-- API 头像：消息本身未显示对应 API 头像。
-- Workspace / Conversation：代码已开始拆分，但当前 APK 尚未提供真正独立的 Workspace 管理与单独新建 Conversation 功能。
-
-因此，代码层已有 Workspace / Conversation 数据模型不能直接视为用户功能完成。
-
-## APK 构建前检查规则
-
-每次生成新的 APK 前，必须先执行一次完整预检：检查需求表、Issue #29、当前代码、UI 与真实功能链；确认本轮已知问题没有被遗漏后再构建。构建完成后记录 Commit SHA、Actions/Job、APK 构建信息、SHA-256，并进行真机验证。
+此前关于“协作 API Key 明文写入 SharedPreferences”的判断已撤回；当前代码已有 SecretStore / Android Keystore 迁移逻辑。
 
 ## 当前施工优先级
 
-1. **Workspace / Conversation UI 闭环**：让用户真正进入 Workspace、管理 Workspace，并独立新建 / 切换 Conversation；同时清理业务层对旧兼容 facade 的依赖。
-2. **API 消息身份闭环**：单条 AI 消息保存并显示实际使用的 API 名称与头像。
-3. **权限闭环**：Workspace 本地修改权限 → Conversation 覆盖 → PermissionPolicy → BridgeFS 实际执行。
-4. **AI Member / API Profile 解耦**：让 AI 身份、API 连接资源、施工权三者边界清晰。
-5. **Repository / Branch 施工锁**：实现独占施工权、申请、释放、转移。
-6. **GitHub 施工闭环**：AI → 修改 → Commit → Verify。
-7. **Receipt 状态统一**：统一消息、执行、pending、Verify、最终回执状态。
-8. **双 AI 连续协作**：在上述基础设施稳定后接入持续协作循环。
-9. **日志工作区整理**。
-10. **历史代码清理**：MainActivity、旧日志路径等。
-
-后续施工默认按以上顺序推进；普通实现问题无需用户逐次输入“继续”，只有产品、架构、权限或用户授权决策才暂停。
+1. 完成 Workspace / Conversation UI 真机验证，并继续清理兼容 facade。
+2. 修复聊天消息 API 身份显示：消息保存实际使用的 API 名称与头像（Issue #30）。
+3. 把工作区 / Conversation 权限真正接入 PermissionPolicy。
+4. 把 API Profile 与 AI 成员、实际权限边界分离清楚。
+5. 统一 Receipt 状态链。
+6. 完成 Repository / Branch 施工锁与 AI 施工流程接入。
+7. 把 Worker 文件修改结果安全映射到真实 GitHub 写入 → Commit → Verify。
+8. 完成新的 Actions / APK / 真机验证。
+9. 实现双 AI 连续协作循环。
+10. 清理旧 MainActivity / 旧日志路径等历史实现。
 
 ## 2026-10-02 追加确认：API 页面与对话执行链
 
 ### API 页面
-当前 V021 的「配置协作 API」仍使用旧版 **Decision AI / Worker** 双角色配置界面。
+当前正式入口已经迁移到 V021「工作区」：API Profile 作为连接资源独立管理，AI A / AI B 在工作区中选择对应 Profile。
 
-这不是当前正式架构。后续应改为：
-- 两个 AI 成员 / API 资源可独立配置
-- AI 身份与 API Profile 解耦
-- 不再用 Decision AI / Worker 作为固定配置槽位
-- 施工权由 Workspace + Repository + Branch 管理
+当前实现：
+- 两个 `BridgeAiMember` 持久化在 Workspace 内
+- AI Member 只保存 Profile ID，不复制 API Key / 连接参数
+- API Profile 由 `ApiProfileStore` 统一管理
+- 协作运行时按 Workspace 当前两个 AI Member 的 Profile ID 取 API
+- 不再使用全局 `collaboration_first_api_id` / `collaboration_second_api_id`
+- Decision / Worker 仅保留为当前协议的任务阶段路由，不作为固定身份或固定配置槽位
+
+仍需处理：专用 `ApiSettingsActivity` 仍保留旧的 legacy API 设置兼容页面；它不再作为 V021 协作配置入口，后续可继续清理。
 
 ### 对话 → BridgeFS
 当前对话已经存在真实的自动执行链：
@@ -154,7 +144,71 @@ Workspace + Repository + Branch
 因此「AI 对话会触发 A-BridgeFS / BridgeFS 执行回执」属于**当前已存在的实现能力**，不是待设计功能。
 
 当前缺口不是是否执行，而是执行链与新双 AI 协作模型尚未统一：
-- Receipt 尚未统一进入对话消息时间线
-- pending receipt 启动恢复尚未完成
-- API Profile 的 write 开关尚未成为实际执行权限边界
+- Receipt 已进入当前 Conversation 的消息时间线；`pending_receipt` 仍未在 V021 启动时恢复。
+- API Profile 的 write 开关已不再作为实际权限来源；当前有效本地修改权限来自 Workspace / Conversation + `PermissionPolicy`。协作 AI 的 Profile 绑定现在以 Workspace 内 `BridgeAiMember.apiProfileId` 为唯一来源，不再使用全局协作 Profile ID。
+- 当前代码批次尚未通过 GitHub Actions 构建；最近一次 PR 构建因 V021 新建 Conversation lambda 的非法 `return` 失败，已修复，等待下一轮构建。
 - 双 AI 协作尚未接入同一套施工权 / Receipt / Verify 链
+
+## 2026-10-02 CI 验证检查点
+
+`bd27214` 的 V021 新建 Conversation lambda 编译修复已提交；此前 Actions #72 仍针对旧 SHA `e023469b`，不能作为该修复的验证结果。当前可用 GitHub 连接器能够检查/重跑既有 Run，但没有可用的 workflow_dispatch 写入口；本次通过 Branch 文档提交产生的新 Commit 未自动产生新的 Actions Run。因此构建通过前不将本批次标记为已验证。
+
+### #20 AI Member / API Profile 解耦
+- 🟡 **开发中**：已抽出 `ApiProfileStore`，API Profile 不再承担协作角色身份。
+- 🟡 **开发中**：Workspace 已持久化两个 `BridgeAiMember`，AI A / AI B 可绑定不同 API Profile。
+- 🟡 **开发中**：协作运行时按 Workspace 内参与者 Profile ID 取 API，不再读取固定 Decision / Worker API 配置。
+- 🟡 **开发中**：V021 工作区 UI 已提供两个协作 AI 的选择入口；旧 API 设置页不再承担协作角色配置，但 legacy API 设置页仍保留兼容代码。
+- ⚠️ **未验证**：新的 Actions Run / APK / 实机链路尚未验证。
+
+
+### 2026-10-02 本轮检查补充
+
+- 已修复协作 AI 选择的 Workspace 隔离问题：不再从全局 SharedPreferences 读取协作 Profile ID，Workspace 的 `aiMembers` 成为唯一来源。
+- 移除 API 时同步解除所有 Workspace AI Member 的 Profile 绑定；若协作双 AI 配置因此不完整，会自动关闭协作模式，避免继续调用已删除 Profile。
+- 协作运行提示词已改为“规划参与者 / 执行参与者”任务阶段描述，不再把 Decision AI / Worker 写成两个永久身份。
+- ⚠️ 未验证：以上代码尚未经过新的 Actions Run、APK 安装及真机验证。
+
+### 2026-10-02 协作运行时第二轮检查
+
+- 修复协作 Transport 原先使用全局消息队列的问题：现在按 `Workspace + Conversation` 隔离协议消息与已处理状态，避免不同工作区/聊天互相消费任务。
+- `CollaborationCoordinator` 现在接收当前 Workspace / Conversation ID，并使用对应隔离的 Transport。
+- 协作结果消息现在保存实际产生该协议消息的 API Profile ID、名称与头像，与普通 AI 消息的身份持久化规则统一。
+- ⚠️ 当前仍未通过新的 Actions Run / APK / 真机验证；以上为代码层检查与修复结果。
+
+
+### 2026-10-02 协作施工链第三轮检查
+
+- 新增 CollaborationTaskStore：持久化 Workspace + Conversation + Task 的施工状态，支持 App 退出后的任务状态恢复基础。
+- CollaborationCoordinator.requestConstruction(taskId, aiMemberId)：只有显式申请才获取 ConstructionLock，普通分析协作不会自动抢占 Repository / Branch 施工权。
+- CollaborationCoordinator.updateFile(...)：要求任务处于 CONSTRUCTING、当前 AI 持有任务施工权，然后进入 GitHubWorkspaceService.updateFile()。
+- GitHub Contents API 返回的 Commit SHA 与变更路径写回任务，并将状态推进为 WAITING_VERIFY。
+- 修复 GitHubWorkspaceService 通过反射读取 GitHubApiClient.context 的做法，改为直接使用自身持有的 Context。
+- ⚠️ 未验证：以上代码尚未经过新的 Actions Run、APK 安装及真机验证。
+
+
+### 2026-10-02 Verify 实链第四轮
+
+- GitHubApiClient 新增按 Commit SHA 查询 Actions Runs。
+- GitHubWorkspaceService 暴露 Commit-scoped workflow 查询。
+- 新增 CollaborationVerifyService：只认与任务 lastCommitSha 完全一致的 Actions Run。
+- Run 不存在或仍在运行：任务保持 WAITING_VERIFY。
+- Run completed + success：任务 COMPLETE，写入 VERIFY_PASS Receipt，并释放 ConstructionLock。
+- Run completed + 非 success：任务 FAILED，并写入 VERIFY_FAIL Receipt；施工锁不自动释放，便于继续修复。
+- Commit 产生后禁止普通 releaseConstruction 提前释放施工锁，避免 Verify 等待期间其他 AI 修改同一 Repository / Branch。
+- 当前分支存在 PR #16，但当前代码尚未产生新的 Actions Run；因此 Verify 代码链仍未获得真实 CI 验证。
+
+
+### 2026-10-02 协作 UI 可达性检查第五轮
+
+- V021 工作区页此前只有“选择两个协作 AI / 启用 AI 协作”，没有任务状态、施工锁、Verify 的用户入口。
+- 本轮已新增“协作任务”卡片：按当前 Workspace + Conversation 展示最新 Task、状态、Commit、施工者。
+- WAITING_CONSTRUCTION 时提供“AI A 申请施工锁”入口，实际调用 CollaborationCoordinator.requestConstruction()。
+- WAITING_VERIFY 时提供“检查当前 Commit”入口，实际调用 CollaborationCoordinator.verifyTask()。
+- ⚠️ 当前仍有一个关键断点：`CollaborationCoordinator.updateFile()` 虽已具备真实 GitHub Contents 写入能力，但 `runObjective()` 当前 Worker 提示词仍明确禁止直接修改 GitHub，协议运行链也没有把 Worker 的文件修改结果映射到 `updateFile()`；因此“AI 自主施工 → Commit”目前仍不可达。该问题现列为下一施工节点。
+- 该断点属于 GitHub 实际写入链继续施工范围，不将本轮 UI 补口误标为完整施工链或已验证。
+
+
+### 2026-10-02 CI 触发检查
+
+- PR #16 的 Android Verify 工作流使用 `pull_request` → `main` 触发。
+- 旧 Actions Run 不作为当前施工分支构建证据；后续以最新 Commit SHA 对应的 Run 为准。

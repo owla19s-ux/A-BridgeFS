@@ -1,24 +1,32 @@
 # Repository Inventory
 
+> 文档性质：**仓库审计快照**，不是实时 Git 状态。
+>
+> 本文件记录某次审计时观察到的 main、Branch、PR 状态。判断当前代码时，必须重新读取 GitHub 当前 `main`、Commit 和 PR 状态。
+
 更新时间：2026-10-02
 
-## 当前正式基线
+## 审计基线
 
-`main`：
+本次快照记录的正式基线：
+
+`main`
 
 ```
 ba72337485372ea7cd5ebb1d85f36819811359f6
 ```
 
-当前原则：**main 是唯一正式代码基线。**
+当时的原则：**main 是唯一正式代码基线。**
+
+> 注意：上面的 SHA 只代表本次快照时的 main，不应作为后续施工的永久当前 SHA。
 
 ---
 
-## 当前 Branch
+## 当时的 Branch 快照
 
-以下 Branch 都明显落后于 main，且多数与 main 已发生分叉。
+以下 Branch 在 2026-10-02 审计时明显落后于当时的 main，且多数与 main 已发生分叉。
 
-| Branch | 相对 main | 当前处理 |
+| Branch | 相对当时 main | 当时处理 |
 |---|---:|---|
 | `feat/collaboration-observability` | +10 / -36 | 待审计 |
 | `feature/github-module-v021` | +14 / -28 | 待审计 |
@@ -35,15 +43,15 @@ ba72337485372ea7cd5ebb1d85f36819811359f6
 | `fix/github-activity-syntax` | +1 / -25 | 待审计 |
 | `fix/v021-intent-import` | +0 / -31 | 可视为历史分支 |
 
-格式“+A / -B”表示相对 main 的 ahead / behind。
+格式“+A / -B”表示相对当时 main 的 ahead / behind。
 
-### 处理规则
+### 后续处理规则
 
-暂不因为落后就直接删除。
+不要因为 Branch 落后就直接删除。
 
-每个分支需要先确认：
+每个历史分支需要先确认：
 
-1. 是否存在 main 尚未吸收的独立功能。
+1. 是否存在当时 main 尚未吸收的独立功能。
 2. 独立功能是否仍符合当前架构。
 3. 是否已经被其他 Commit 以不同实现方式吸收。
 4. 是否只是旧版本实现。
@@ -53,7 +61,7 @@ ba72337485372ea7cd5ebb1d85f36819811359f6
 
 ---
 
-## 当前开放 PR
+## 当时的开放 PR
 
 ### PR #1
 
@@ -63,7 +71,7 @@ ba72337485372ea7cd5ebb1d85f36819811359f6
 
 `feature/0.2.1-two-ai-collaboration`
 
-当前判断：
+当时判断：
 
 - main 已经包含双 AI 协作的主要实现。
 - PR 分支与 main 已明显分叉。
@@ -79,17 +87,17 @@ ba72337485372ea7cd5ebb1d85f36819811359f6
 
 `feature/workspace-github-model`
 
-当前判断：
+当时判断：
 
 - main 已有 GitHub Workspace 相关 UI / 存储能力。
-- 但搜索 main 未发现 `GitHubWorkspace` 独立模型类。
+- 搜索 main 未发现 `GitHubWorkspace` 独立模型类。
 - PR 仍可能包含尚未吸收的架构内容。
 - **不能直接关闭或合并。**
 - 后续单独检查其模型设计是否值得吸收。
 
 ---
 
-## 当前整理原则
+## 审计原则
 
 ### 不做
 
@@ -118,7 +126,25 @@ Identify unique changes
 清理旧 Branch
 ```
 
-### 最终目标
+### 当前真源
+
+本文件只负责保存审计历史。
+
+判断现在的仓库状态时，以：
+
+```
+GitHub 当前 main
+ ↓
+当前 Commit
+ ↓
+当前 PR / Actions / Check Runs
+```
+
+为准。
+
+---
+
+## 最终整理目标
 
 仓库最终应该形成：
 
@@ -129,7 +155,7 @@ main
  ├── AI_WORKSPACE/     AI 施工区
  ├── app/              正式代码
  ├── .github/          CI/CD
- └── docs/             过渡/历史资料
+ └── docs/             过渡 / 历史 / 专项资料
 ```
 
-完成资料迁移后，再进一步收缩 `docs/`，而不是现在直接大规模移动文件。
+资料迁移完成后，再进一步收缩 `docs/`，而不是现在直接大规模移动文件。

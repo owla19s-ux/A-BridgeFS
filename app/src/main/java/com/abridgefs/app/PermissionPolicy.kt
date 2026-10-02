@@ -21,7 +21,7 @@ data class Authorization(
 }
 
 object PermissionPolicy {
-    fun authorization(context: android.content.Context): Authorization {
+    fun authorization(context: android.content.Context, workspace: BridgeProject? = null, conversation: BridgeConversation? = null): Authorization {
         val prefs = context.getSharedPreferences("bridgefs", android.content.Context.MODE_PRIVATE)
         val allowed = mutableSetOf<FileAction>()
         val confirm = mutableSetOf<FileAction>()
@@ -36,6 +36,13 @@ object PermissionPolicy {
                     confirm += action
                 }
             }
+        }
+        val modifyAllowed = conversation?.localFileModifyOverride ?: workspace?.localFileModifyEnabled
+        if (modifyAllowed == false) {
+            allowed.remove(FileAction.WRITE)
+            allowed.remove(FileAction.EDIT)
+            confirm.remove(FileAction.WRITE)
+            confirm.remove(FileAction.EDIT)
         }
         return Authorization(prefs.getString("root_path", "").orEmpty(), allowed, confirm)
     }
