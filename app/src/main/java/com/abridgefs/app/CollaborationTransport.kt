@@ -338,9 +338,12 @@ class CollaborationCoordinator(
         CollaborationTaskStore(context).get(taskId)?.let { record ->
             CollaborationTaskStore(context).update(taskId) {
                 it.status = when (decisionMessage.type) {
-                    CollaborationProtocol.Type.COMPLETE -> CollaborationTaskRecord.STATUS_COMPLETE
                     CollaborationProtocol.Type.BLOCKED,
                     CollaborationProtocol.Type.ESCALATE -> CollaborationTaskRecord.STATUS_WAITING_CONSTRUCTION
+                    CollaborationProtocol.Type.COMPLETE -> {
+                        if (it.lastCommitSha.isNullOrBlank()) CollaborationTaskRecord.STATUS_COMPLETE
+                        else CollaborationTaskRecord.STATUS_WAITING_VERIFY
+                    }
                     else -> record.status
                 }
             }
@@ -409,6 +412,8 @@ class CollaborationCoordinator(
         val sha = file.optString("sha").takeIf { it.isNotBlank() } ?: error("无法取得文件 SHA：" + path)
         val result = updateFile(taskMessage.taskId, memberId, path, content, commitMessage, sha)
         val commitSha = result.optJSONObject("commit")?.optString("sha").orEmpty()
+        runCatching { verifyTask(taskMessage.taskId) }
+            .onFailure { AppLogger.log(context, AppLogger.Category.COLLABORATION, "VERIFY_TRIGGER_FAILED", it.message ?: "verify trigger failed") }
         return CollaborationProtocol.commit(taskMessage.taskId, commitSha, commitMessage, listOf(path), "1 file changed")
     }
     private fun parseProtocolResponse(raw: String): CollaborationProtocol.Message {
