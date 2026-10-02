@@ -458,13 +458,13 @@ class V021Activity : Activity() {
             text = list.firstOrNull()?.name?.ifBlank { "未命名 API" } ?: "未选择 API"
             textSize = 15f; gravity = Gravity.CENTER_VERTICAL; setTextColor(color(R.color.bridgefs_text_primary));
             background = colorDrawable(R.color.bridgefs_input_surface, 14); setPadding(dp(14), 0, dp(14), 0)
-            setOnClickListener {
-                if (list.isEmpty()) { Toast.makeText(this@V021Activity, "请先在工作区添加 API", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
-                AlertDialog.Builder(this@V021Activity).setTitle("选择初始 API")
-                    .setSingleChoiceItems(list.map { it.name.ifBlank { "未命名 API" } }.toTypedArray(), list.indexOfFirst { it.id == selectedId }.coerceAtLeast(0)) { dialog, which ->
-                        selectedId = list[which].id; apiLabel.text = list[which].name.ifBlank { "未命名 API" }; dialog.dismiss()
-                    }.setNegativeButton("取消", null).show()
-            }
+        }
+        apiLabel.setOnClickListener {
+            if (list.isEmpty()) { Toast.makeText(this@V021Activity, "请先在工作区添加 API", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
+            AlertDialog.Builder(this@V021Activity).setTitle("选择初始 API")
+                .setSingleChoiceItems(list.map { it.name.ifBlank { "未命名 API" } }.toTypedArray(), list.indexOfFirst { it.id == selectedId }.coerceAtLeast(0)) { dialog, which ->
+                    selectedId = list[which].id; apiLabel.text = list[which].name.ifBlank { "未命名 API" }; dialog.dismiss()
+                }.setNegativeButton("取消", null).show()
         }
         root.addView(apiLabel, LinearLayout.LayoutParams(-1, dp(52)))
         root.addView(actionButton("创建并进入对话") {
