@@ -59,12 +59,14 @@ class CollaborationTransport(context: Context) {
 }
 
 /**
- * Role-specific API configuration.
+ * Runtime API connection for one AI participant.
  *
- * The existing single-API settings remain untouched. These keys are reserved
- * for the collaboration layer so the UI can add role configuration later.
+ * API profiles are reusable connection resources. The collaboration stage
+ * chooses which two profiles participate; there is no persistent Decision/Worker
+ * API configuration.
  */
 data class CollaborationApiConfig(
+    val profileId: String,
     val baseUrl: String,
     val apiKey: String,
     val model: String
@@ -73,28 +75,14 @@ data class CollaborationApiConfig(
         baseUrl.isNotBlank() && model.isNotBlank()
 
     companion object {
-        fun fromPreferences(
-            context: Context,
-            role: CollaborationProtocol.Role
-        ): CollaborationApiConfig {
-            val prefs = context.getSharedPreferences("bridgefs", 0)
-            val secrets = ApiSecretStore(context)
-            val prefix = when (role) {
-                CollaborationProtocol.Role.DECISION_AI -> "collab_decision_"
-                CollaborationProtocol.Role.WORKER -> "collab_worker_"
-                CollaborationProtocol.Role.HUMAN -> return CollaborationApiConfig("", "", "")
-            }
-            val secretKey = prefix + "api_key"
-            val encrypted = secrets.getNamed(secretKey)
-            val legacy = prefs.getString(secretKey, "").orEmpty()
-            if (encrypted.isNullOrBlank() && legacy.isNotBlank()) {
-                secrets.putNamed(secretKey, legacy)
-                prefs.edit().remove(secretKey).apply()
-            }
+        fun fromProfile(context: Context, profileId: String): CollaborationApiConfig {
+            val profile = ApiProfileStore(context).find(profileId)
+                ?: return CollaborationApiConfig(profileId, "", "", "")
             return CollaborationApiConfig(
-                baseUrl = prefs.getString(prefix + "base_url", "").orEmpty().trim(),
-                apiKey = encrypted ?: legacy,
-                model = prefs.getString(prefix + "model", "").orEmpty().trim()
+                profileId = profile.id,
+                baseUrl = profile.baseUrl.trim(),
+                apiKey = profile.key,
+                model = profile.model.trim()
             )
         }
     }
@@ -134,7 +122,7 @@ class CollaborationApiClient(private val config: CollaborationApiConfig) {
  * Decision AI API → protocol transport → Worker API.
  * It deliberately does not execute GitHub work yet.
  */
-class CollaborationCoordinator(private val context: Context) {
+class CollaborationCoordinator(\n    private val context: Context,\n    private val firstProfileId: String,\n    private val secondProfileId: String\n) {
     private val transport = CollaborationTransport(context)
 
     fun submitTask(task: CollaborationProtocol.Message) {
@@ -147,12 +135,12 @@ class CollaborationCoordinator(private val context: Context) {
 
     fun callDecisionAi(message: CollaborationProtocol.Message, systemPrompt: String): String {
         require(message.to == CollaborationProtocol.Role.DECISION_AI)
-        return CollaborationApiClient(CollaborationApiConfig.fromPreferences(context, CollaborationProtocol.Role.DECISION_AI)).invoke(message, systemPrompt)
+        return CollaborationApiClient(CollaborationApiConfig.fromProfile(context, firstProfileId)).invoke(message, systemPrompt)
     }
 
     fun callWorker(message: CollaborationProtocol.Message, systemPrompt: String): String {
         require(message.to == CollaborationProtocol.Role.WORKER)
-        return CollaborationApiClient(CollaborationApiConfig.fromPreferences(context, CollaborationProtocol.Role.WORKER)).invoke(message, systemPrompt)
+        return CollaborationApiClient(CollaborationApiConfig.fromProfile(context, secondProfileId)).invoke(message, systemPrompt)
     }
 
     fun runObjective(
