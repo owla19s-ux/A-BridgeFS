@@ -586,7 +586,10 @@ class V021Activity : Activity() {
         }
         root.addView(apiLabel, LinearLayout.LayoutParams(-1, dp(52)))
         root.addView(actionButton("创建并进入对话") {
-            val workspace = project ?: return@setOnClickListener
+            val workspace = project ?: run {
+                Toast.makeText(this@V021Activity, "当前没有可用工作区", Toast.LENGTH_SHORT).show()
+                return@actionButton
+            }
             val chat = BridgeConversation(
                 id = UUID.randomUUID().toString(),
                 name = name.text.toString().trim().ifBlank { "新聊天 " + (workspace.conversations.size + 1) },
