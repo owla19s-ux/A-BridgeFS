@@ -245,16 +245,7 @@ class V021Activity : Activity() {
         root.addView(collaborationTaskCard())
         root.addView(workspaceDirectoryCard())
         root.addView(localFilePermissionCard())
-        root.addView(sectionTitle("API"))
-        val list = apis()
-        if (list.isEmpty()) {
-            root.addView(emptyCard("还没有 API", "添加一个 API 后即可进入对话。"))
-        } else {
-            list.forEach { root.addView(apiCard(it)) }
-        }
-        root.addView(actionButton("＋ 添加 API") { editApi(null) }, LinearLayout.LayoutParams(-1, dp(46)).apply {
-            topMargin = dp(8)
-        })
+        root.addView(apiSummaryCard())
 
         val scroll = ScrollView(this)
         scroll.addView(root)
@@ -537,6 +528,30 @@ class V021Activity : Activity() {
             setTextColor(color(R.color.bridgefs_text_secondary))
             setPadding(0, dp(4), 0, 0)
         })
+        return box
+    }
+
+    private fun apiSummaryCard(): View {
+        val box = card()
+        val list = apis()
+        box.addView(TextView(this).apply {
+            text = "AI 与 API"
+            textSize = 16f
+            typeface = Typeface.DEFAULT_BOLD
+        })
+        box.addView(TextView(this).apply {
+            text = if (list.isEmpty()) {
+                "尚未配置 API。普通对话和 AI 协作都需要至少一个可用 API。"
+            } else {
+                "已配置 ${list.size} 个 API；当前工作区的协作 AI 从这里选择。"
+            }
+            textSize = 12f
+            setTextColor(color(R.color.bridgefs_text_secondary))
+            setPadding(0, dp(4), 0, dp(8))
+        })
+        box.addView(actionButton("管理 API") {
+            startActivity(Intent(this, ApiSettingsActivity::class.java))
+        }, LinearLayout.LayoutParams(-1, dp(42)))
         return box
     }
 
