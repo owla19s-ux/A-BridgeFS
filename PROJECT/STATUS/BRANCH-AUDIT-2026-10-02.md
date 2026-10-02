@@ -85,3 +85,31 @@ PR 提出的：
 3. 历史 PR 不通过“整分支合并”回收。
 4. 有价值的旧实现必须以当前 main 为基底重新提取。
 5. PROJECT 记录正式架构与状态；AI_WORKSPACE 记录施工任务；旧 docs 逐步迁移，不机械复制。
+
+
+## 协作可观测性复查结果
+
+`feat/collaboration-observability` 已完成复查。
+
+当前 main 已经具备：
+
+- Runtime / Collaboration / Execution / API / GitHub 五类日志目录
+- API 与协作运行日志记录
+- 日志查看与复制入口
+- Crash 日志
+
+该分支额外提供的 JSONL 协作事件、task/message/reply/duration 字段具有诊断价值，但它依赖该分支的旧协作传输实现。当前不直接合并；如果后续需要更细的 AI 协作可观测性，应在当前 `CollaborationTransport` / `CollaborationCoordinator` 上重新实现事件字段。
+
+## 当前审计结论
+
+本轮没有把任何历史 feature branch 整体合并进 main。
+
+已经完成的实际整理：
+
+- PR #1 已关闭并明确标记为历史实现。
+- 分支审计记录已进入 PROJECT/STATUS。
+- PR #6 保留为 GitHub Workspace 架构参考。
+- 协作可观测性分支确认不直接合并。
+- 当前 main 继续保持唯一正式代码基线。
+
+下一阶段最值得施工的不是继续合并旧分支，而是基于当前 main 单独提取 GitHub Workspace 边界，并随后再做一次运行链路审计。
