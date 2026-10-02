@@ -206,3 +206,9 @@ Workspace + Repository + Branch
 - WAITING_VERIFY 时提供“检查当前 Commit”入口，实际调用 CollaborationCoordinator.verifyTask()。
 - ⚠️ 当前仍有一个关键断点：`CollaborationCoordinator.updateFile()` 虽已具备真实 GitHub Contents 写入能力，但 `runObjective()` 当前 Worker 提示词仍明确禁止直接修改 GitHub，协议运行链也没有把 Worker 的文件修改结果映射到 `updateFile()`；因此“AI 自主施工 → Commit”目前仍不可达。该问题现列为下一施工节点。
 - 该断点属于 GitHub 实际写入链继续施工范围，不将本轮 UI 补口误标为完整施工链或已验证。
+
+
+### 2026-10-02 CI 触发检查
+
+- PR #16 的 Android Verify 工作流使用 `pull_request` → `main` 触发。
+- 旧 Actions Run 不作为当前施工分支构建证据；后续以最新 Commit SHA 对应的 Run 为准。
