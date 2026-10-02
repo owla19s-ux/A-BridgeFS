@@ -722,7 +722,7 @@ class V021Activity : Activity() {
             val d = CollaborationApiConfig.fromPreferences(this, CollaborationProtocol.Role.DECISION_AI)
             val w = CollaborationApiConfig.fromPreferences(this, CollaborationProtocol.Role.WORKER)
             if (!d.isConfigured() || !w.isConfigured()) {
-                current.messages += BridgeChatMessage("tool", "[协作未启动]\n请先配置 Decision AI 与 Worker。")
+                conversation.messages += BridgeChatMessage("tool", "[协作未启动]\n当前协作 API 尚未完成正式双 AI 配置。")
                 store.save(projects); render(); return
             }
             runCollaboration(current, text)
@@ -742,14 +742,14 @@ class V021Activity : Activity() {
                     if (prefs.getBoolean("ai_auto_bridgefs_enabled", true)) {
                         executeAiCommands(answer,current,limit)
                     } else {
-                        current.messages += BridgeChatMessage("tool", "[BridgeFS 未执行]\\nAI 自动执行已关闭，本次回复中的指令未触发本地执行。")
+                        conversation.messages += BridgeChatMessage("tool", "[BridgeFS 未执行]\\nAI 自动执行已关闭，本次回复中的指令未触发本地执行。")
                         store.save(projects)
                         render()
                     }
                 }
             } catch(e:Exception) {
                 runOnUiThread {
-                    current.messages += BridgeChatMessage("tool","[API 错误]\n"+(e.message ?: "未知错误"))
+                    conversation.messages += BridgeChatMessage("tool","[API 错误]\n"+(e.message ?: "未知错误"))
                     store.save(projects)
                     render()
                 }
@@ -826,9 +826,10 @@ class V021Activity : Activity() {
     }
 
     private fun recordReceipt(current:BridgeProject,status:String,command:String,message:String) {
+        val conversation = current.activeConversation()
         val receipt=BridgeReceiptRecord(status,command,message)
-        current.executions += receipt
-        current.messages += BridgeChatMessage("receipt", formatReceipt(receipt))
+        conversation.executions += receipt
+        conversation.messages += BridgeChatMessage("receipt", formatReceipt(receipt))
         pendingReceipt=formatReceipt(receipt)
         store.save(projects)
         if(page==Page.CHAT) render()
