@@ -8,15 +8,62 @@ import java.util.UUID
 data class BridgeChatMessage(val role: String, val content: String, val time: Long = System.currentTimeMillis())
 data class BridgeReceiptRecord(val status: String, val command: String, val message: String, val time: Long = System.currentTimeMillis())
 
-data class BridgeProject(
+/**
+ * A conversation belongs to a workspace.
+ *
+ * API selection, chat history and execution receipts are conversation state.
+ * Workspace-level resources (GitHub, local permission) stay on BridgeProject.
+ */
+data class BridgeConversation(
     val id: String,
     var name: String,
     var apiId: String? = null,
-    var localFileModifyEnabled: Boolean = false,
-    var github: GitHubWorkspace = GitHubWorkspace(),
+    var localFileModifyOverride: Boolean? = null,
     val messages: MutableList<BridgeChatMessage> = mutableListOf(),
     val executions: MutableList<BridgeReceiptRecord> = mutableListOf()
+)
+
+/**
+ * Workspace root.
+ *
+ * Kept under the historical BridgeProject type name for source compatibility with
+ * MainActivity/GitHubActivity while the storage model is migrated to the explicit
+ * Workspace -> Conversations structure.
+ */
+data class BridgeProject(
+    val id: String,
+    var name: String,
+    var localFileModifyEnabled: Boolean = false,
+    var github: GitHubWorkspace = GitHubWorkspace(),
+    val conversations: MutableList<BridgeConversation> = mutableListOf(),
+    var activeConversationId: String? = null
 ) {
+    fun activeConversation(): BridgeConversation {
+        val current = activeConversationId?.let { id -> conversations.firstOrNull { it.id == id } }
+        if (current != null) return current
+        val created = BridgeConversation(UUID.randomUUID().toString(), "默认对话")
+        conversations += created
+        activeConversationId = created.id
+        return created
+    }
+
+    /**
+     * Compatibility facade for the current UI. New code should address the
+     * workspace and conversation separately.
+     */
+    @Deprecated("Use activeConversation().apiId")
+    var apiId: String?
+        get() = activeConversation().apiId
+        set(value) { activeConversation().apiId = value }
+
+    @Deprecated("Use activeConversation().messages")
+    val messages: MutableList<BridgeChatMessage>
+        get() = activeConversation().messages
+
+    @Deprecated("Use activeConversation().executions")
+    val executions: MutableList<BridgeReceiptRecord>
+        get() = activeConversation().executions
+
     @Deprecated("Use github.accountLogin")
     var githubAccountLogin: String?
         get() = github.accountLogin
@@ -56,7 +103,6 @@ class BridgeProjectStore(private val context: Context) {
             val project = BridgeProject(
                 id = obj.getString("id"),
                 name = obj.getString("name"),
-                apiId = obj.optString("apiId", "").ifBlank { null },
                 localFileModifyEnabled = obj.optBoolean("localFileModifyEnabled", false),
                 github = GitHubWorkspace(
                     accountLogin = obj.optString("githubAccount", "").ifBlank {
@@ -67,29 +113,33 @@ class BridgeProjectStore(private val context: Context) {
                     branch = obj.optString("githubBranch", "").ifBlank { null },
                     readEnabled = obj.optBoolean("githubReadEnabled", true),
                     writeEnabled = obj.optBoolean("githubWriteEnabled", false)
-                )
+                ),
+                activeConversationId = obj.optString("activeConversationId", "").ifBlank { null }
             )
 
-            val messages = obj.optJSONArray("messages") ?: JSONArray()
-            for (j in 0 until messages.length()) {
-                val item = messages.getJSONObject(j)
-                project.messages += BridgeChatMessage(
-                    item.getString("role"),
-                    item.getString("content"),
-                    item.optLong("time", System.currentTimeMillis())
-                )
+            // New format: conversations live inside the workspace.
+            val conversations = obj.optJSONArray("conversations")
+            if (conversations != null) {
+                for (j in 0 until conversations.length()) {
+                    project.conversations += readConversation(conversations.getJSONObject(j))
+                }
             }
 
-            val executions = obj.optJSONArray("executions") ?: JSONArray()
-            for (j in 0 until executions.length()) {
-                val item = executions.getJSONObject(j)
-                project.executions += BridgeReceiptRecord(
-                    item.getString("status"),
-                    item.getString("command"),
-                    item.getString("message"),
-                    item.optLong("time", System.currentTimeMillis())
+            // One-time compatibility migration from the previous flat project format.
+            if (project.conversations.isEmpty()) {
+                val legacy = BridgeConversation(
+                    id = UUID.randomUUID().toString(),
+                    name = "默认对话",
+                    apiId = obj.optString("apiId", "").ifBlank { null },
+                    localFileModifyOverride = null
                 )
+                readMessages(obj.optJSONArray("messages"), legacy.messages)
+                readExecutions(obj.optJSONArray("executions"), legacy.executions)
+                project.conversations += legacy
+                project.activeConversationId = legacy.id
             }
+
+            project.activeConversation()
             result += project
         }
         return result
@@ -98,11 +148,12 @@ class BridgeProjectStore(private val context: Context) {
     fun save(projects: List<BridgeProject>) {
         val array = JSONArray()
         projects.forEach { project ->
+            project.activeConversation()
             val obj = JSONObject()
                 .put("id", project.id)
                 .put("name", project.name)
-                .put("apiId", project.apiId.orEmpty())
                 .put("localFileModifyEnabled", project.localFileModifyEnabled)
+                .put("activeConversationId", project.activeConversationId.orEmpty())
                 .put("githubAccount", project.github.accountLogin.orEmpty())
                 .put("githubRepositoryId", project.github.repositoryId?.toString().orEmpty())
                 .put("githubRepository", project.github.repository.orEmpty())
@@ -110,14 +161,24 @@ class BridgeProjectStore(private val context: Context) {
                 .put("githubReadEnabled", project.github.readEnabled)
                 .put("githubWriteEnabled", project.github.writeEnabled)
 
-            obj.put("messages", JSONArray().apply {
-                project.messages.forEach {
-                    put(JSONObject().put("role", it.role).put("content", it.content).put("time", it.time))
-                }
-            })
-            obj.put("executions", JSONArray().apply {
-                project.executions.forEach {
-                    put(JSONObject().put("status", it.status).put("command", it.command).put("message", it.message).put("time", it.time))
+            obj.put("conversations", JSONArray().apply {
+                project.conversations.forEach { conversation ->
+                    put(JSONObject()
+                        .put("id", conversation.id)
+                        .put("name", conversation.name)
+                        .put("apiId", conversation.apiId.orEmpty())
+                        .put("localFileModifyOverride", conversation.localFileModifyOverride)
+                        .put("messages", JSONArray().apply {
+                            conversation.messages.forEach {
+                                put(JSONObject().put("role", it.role).put("content", it.content).put("time", it.time))
+                            }
+                        })
+                        .put("executions", JSONArray().apply {
+                            conversation.executions.forEach {
+                                put(JSONObject().put("status", it.status).put("command", it.command).put("message", it.message).put("time", it.time))
+                            }
+                        })
+                    )
                 }
             })
             array.put(obj)
@@ -125,5 +186,52 @@ class BridgeProjectStore(private val context: Context) {
         prefs.edit().putString(key, array.toString()).apply()
     }
 
-    fun newProject(name: String): BridgeProject = BridgeProject(UUID.randomUUID().toString(), name)
+    fun newProject(name: String): BridgeProject {
+        val workspace = BridgeProject(UUID.randomUUID().toString(), name)
+        val conversation = BridgeConversation(UUID.randomUUID().toString(), "默认对话")
+        workspace.conversations += conversation
+        workspace.activeConversationId = conversation.id
+        return workspace
+    }
+
+    private fun readConversation(obj: JSONObject): BridgeConversation {
+        val conversation = BridgeConversation(
+            id = obj.getString("id"),
+            name = obj.optString("name", "未命名对话"),
+            apiId = obj.optString("apiId", "").ifBlank { null },
+            localFileModifyOverride = if (obj.has("localFileModifyOverride") && !obj.isNull("localFileModifyOverride")) {
+                obj.optBoolean("localFileModifyOverride")
+            } else {
+                null
+            }
+        )
+        readMessages(obj.optJSONArray("messages"), conversation.messages)
+        readExecutions(obj.optJSONArray("executions"), conversation.executions)
+        return conversation
+    }
+
+    private fun readMessages(array: JSONArray?, target: MutableList<BridgeChatMessage>) {
+        if (array == null) return
+        for (j in 0 until array.length()) {
+            val item = array.getJSONObject(j)
+            target += BridgeChatMessage(
+                item.getString("role"),
+                item.getString("content"),
+                item.optLong("time", System.currentTimeMillis())
+            )
+        }
+    }
+
+    private fun readExecutions(array: JSONArray?, target: MutableList<BridgeReceiptRecord>) {
+        if (array == null) return
+        for (j in 0 until array.length()) {
+            val item = array.getJSONObject(j)
+            target += BridgeReceiptRecord(
+                item.getString("status"),
+                item.getString("command"),
+                item.getString("message"),
+                item.optLong("time", System.currentTimeMillis())
+            )
+        }
+    }
 }
