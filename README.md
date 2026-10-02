@@ -1,19 +1,21 @@
 # A-BridgeFS
 
-A-BridgeFS 是面向 AI 协作与真实执行环境的基础项目。
+A-BridgeFS 是面向 **AI 协作与真实执行环境** 的 Android 工作台。
 
-当前阶段先验证最小闭环：
+当前阶段重点验证：
 
 ```
-AI
+双 AI 协作
  ↓
-A-BridgeFS
+Workspace
  ↓
-授权
+授权 / 权限边界
  ↓
-真实执行
+BridgeFS / GitHub 真实执行
  ↓
-结果返回
+Commit / Verify
+ ↓
+Receipt
 ```
 
 ## 最新 APK
@@ -66,34 +68,57 @@ releases/latest/download/A-BridgeFS.apk
 
 Android `applicationId`、源码目录和 Release APK 文件名彼此独立。
 
-
 ## 项目资料
 
 当前协作资料入口：
 
 - `AGENTS.md`：施工、验证与 AI 协作规则
-- `docs/STATUS.md`：当前项目状态与阶段边界
-- `docs/REQUIREMENTS.md`：当前需求板
+- `PROJECT/ARCHITECTURE/`：当前正式架构
+- `PROJECT/SPEC/`：正式项目规格入口
+- `PROJECT/UI/`：正式 UI 资料入口
+- `PROJECT/STATUS/`：当前状态与审计快照
+- `docs/STATUS.md`：当前实现状态
+- `docs/REQUIREMENTS.md`：当前需求与验收
 - `docs/A-BRIDGEFS-STAGE-WORKLOG.md`：阶段施工与验证记录
-- `docs/architecture/`：架构设计资料
-- `docs/V0.1.1-PLAN.md`：早期 v0.1.1 范围计划，作为历史设计资料保留
+- `docs/architecture/`：当前专项架构与历史架构资料
+- `docs/V0.1.1-PLAN.md`：早期版本计划，作为历史资料保留
 
-当前第一阶段实验：
+## 当前协作模型
+
+A-BridgeFS 当前采用**双 AI 协作模型**。
+
+两个 AI：
+
+- 可以共享工作区允许范围内的读取能力；
+- 可以分别分析、沟通、检查结果；
+- 不因 AI 身份天然获得修改权。
+
+施工权限独立属于：
 
 ```
-人
- ↓
-A-BridgeFS
- ↓
-Decision AI / Worker
- ↓
-GitHub 项目
- ↓
-Commit / Verify
- ↓
-回执
- ↓
-人
+Workspace + Repository + Branch
 ```
 
-当前重点是验证 **Decision AI + Worker** 的连续协作，而不是提前建设完整 Agent 平台。
+同一 Repository / Branch 同时最多一个 AI 持有施工权；施工权可以授予、释放、转移。
+
+Decision AI / Worker AI 仅作为任务阶段角色标签，不是固定 AI 身份，也不是固定配置槽位。
+
+## 当前工程闭环
+
+```
+需求
+ ↓
+AI 分析 / 协作
+ ↓
+Workspace 权限判断
+ ↓
+施工
+ ↓
+Commit
+ ↓
+Verify
+ ↓
+Receipt
+```
+
+当前重点不是提前建设完整 Agent 平台，而是把 **双 AI 协作、工作区、真实执行、GitHub 施工与验证** 逐步连接成可以实际使用和验证的闭环。
