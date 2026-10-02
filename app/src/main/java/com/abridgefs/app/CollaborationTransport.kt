@@ -295,6 +295,52 @@ class CollaborationCoordinator(
     }
 
     /**
+     * Reopens a Verify-failed task for a bounded repair round. The existing
+     * construction holder is intentionally retained so another AI cannot
+     * modify the same Repository/Branch while the failure is being repaired.
+     */
+    fun retryAfterVerifyFailure(taskId: String, decisionSystemPrompt: String, workerSystemPrompt: String): GitHubVerifyResult {
+        val task = CollaborationTaskStore(context).get(taskId) ?: error("协作任务不存在：$taskId")
+        require(task.workspaceId == workspaceId && task.conversationId == conversationId) {
+            "协作任务不属于当前工作区 / 对话"
+        }
+        require(task.status == CollaborationTaskRecord.STATUS_FAILED) {
+            "只有 Verify 失败的任务可以进入修复轮"
+        }
+        require(!task.constructionHolderAiMemberId.isNullOrBlank()) {
+            "当前任务没有施工者，无法自动进入修复轮"
+        }
+
+        CollaborationTaskStore(context).update(taskId) {
+            it.status = CollaborationTaskRecord.STATUS_RUNNING
+        }
+
+        val failureNotice = CollaborationProtocol.Message(
+            from = CollaborationProtocol.Role.HUMAN,
+            to = CollaborationProtocol.Role.DECISION_AI,
+            taskId = taskId,
+            type = CollaborationProtocol.Type.PROGRESS,
+            payload = JSONObject()
+                .put("objective", task.objective)
+                .put("instruction", "上一 Commit 的 GitHub Actions Verify 失败，请分析失败结果并决定下一步修复；不得直接宣布任务完成。")
+        )
+        val decision = parseProtocolResponseWithRetry(callDecisionAi(failureNotice, decisionSystemPrompt)) {
+            callDecisionAi(failureNotice, decisionSystemPrompt + compactRetryPrompt(CollaborationProtocol.Role.DECISION_AI, false))
+        }
+        validateResponse(decision, CollaborationProtocol.Role.DECISION_AI)
+        require(decision.type == CollaborationProtocol.Type.DECISION_RESPONSE) {
+            "Verify 失败后的 Decision AI 必须返回 DECISION_RESPONSE"
+        }
+        transport.append(decision)
+        dispatchOneWorkerRound(workerSystemPrompt, decisionSystemPrompt)
+        return GitHubVerifyResult(
+            GitHubVerifyState.FAILED,
+            task.lastCommitSha.orEmpty(),
+            message = "Verify 失败，已进入修复轮"
+        )
+    }
+
+    /**
      * Returns the current persisted task for this Workspace + Conversation.
      */
     fun currentTask(): CollaborationTaskRecord? =
