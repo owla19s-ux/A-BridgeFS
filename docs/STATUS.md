@@ -334,3 +334,15 @@ Workspace + Repository + Branch
 - 新门槛同时保留 apksigner verify --verbose：一层确认 APK 签名结构有效，一层确认签名者就是当前正式 Keystore 的证书。
 - 本次修改 Commit：68101b58eb79c5b79fdf32c1f2ed534039ce038a，目前仍在 PR #36 开发分支；该 Commit 尚无新的 Actions Run，因此不能标记为已验证。
 - 结论：签名链从“签名有效”提升为“签名有效 + 签名身份与正式 Keystore 一致”；但尚未获得 CI 实际执行证据。
+
+
+## 2026-10-02 Verify 状态机第十四轮检查
+
+- 发现状态回退漏洞：任务进入 COMPLETE 或 FAILED 后，仍可通过旧的 lastCommitSha 再次调用 Verify；这可能重复写 VERIFY_PASS / VERIFY_FAIL Receipt，甚至让历史 Commit 的 CI 结果重新参与当前任务状态判断。
+- 修复：CollaborationVerifyService 现在只允许 STATUS_WAITING_VERIFY 进入真实 Commit-scoped Verify。
+- COMPLETE：重复检查直接返回 PASSED，但不再次查询/修改任务状态，也不新增 Receipt。
+- FAILED：重复检查直接返回 FAILED，提示必须进入修复轮并产生新的 Commit。
+- CREATED / RUNNING / CONSTRUCTING / WAITING_CONSTRUCTION 等状态不会拿历史 Commit 直接进入 Verify，而是返回 WAITING。
+- 这使 lastCommitSha 可以继续作为历史审计字段保存，同时不再等同于“当前待验证 Commit”。
+- 本轮修改 Commit：20f72b9c018d0c818b81725a4e8ac0afcf41a061。
+- 仍未进行 Release 构建 / APK / 真机验证。
