@@ -27,6 +27,35 @@ class CollaborationVerifyService(private val context: Context) {
         val commitSha = task.lastCommitSha?.takeIf { it.isNotBlank() }
             ?: error("协作任务尚未产生 Commit SHA")
 
+        // A Commit is only an active Verify target while the task is waiting
+        // for that Commit's CI result. Once the task is COMPLETE or FAILED,
+        // re-checking the same historical SHA must not mutate the task back
+        // into a different state or create duplicate terminal receipts.
+        when (task.status) {
+            CollaborationTaskRecord.STATUS_COMPLETE -> {
+                return GitHubVerifyResult(
+                    GitHubVerifyState.PASSED,
+                    commitSha,
+                    message = "该 Commit 已经 Verify 通过，任务已完成；不重复执行 Verify"
+                )
+            }
+            CollaborationTaskRecord.STATUS_FAILED -> {
+                return GitHubVerifyResult(
+                    GitHubVerifyState.FAILED,
+                    commitSha,
+                    message = "该 Commit 已经 Verify 失败，请进入修复轮后再产生新的 Commit"
+                )
+            }
+            CollaborationTaskRecord.STATUS_WAITING_VERIFY -> Unit
+            else -> {
+                return GitHubVerifyResult(
+                    GitHubVerifyState.WAITING,
+                    commitSha,
+                    message = "当前任务尚未进入该 Commit 的 Verify 阶段"
+                )
+            }
+        }
+
         val workspace = BridgeProjectStore(context).load()
             .firstOrNull { it.id == task.workspaceId }
             ?: error("工作区不存在：${task.workspaceId}")
