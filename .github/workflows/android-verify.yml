@@ -28,13 +28,13 @@ jobs:
         with:
           gradle-version: '8.10.2'
 
-      - name: Compile and package Debug APK
+      - name: Compile and package Debug APK (CI verification only)
         run: gradle :app:assembleDebug --stacktrace
 
-      - name: Upload Debug APK
+      - name: Upload Debug APK (not the install/release APK)
         uses: actions/upload-artifact@v4
         with:
-          name: A-BridgeFS-0.2.1-debug-${{ github.run_number }}
+          name: A-BridgeFS-CI-debug-${{ github.run_number }}
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
