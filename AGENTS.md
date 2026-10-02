@@ -1,15 +1,43 @@
 # Repository Guide
 
-A-BridgeFS 是 AI 协作与真实执行环境的 Android 落点。代码是实现事实，docs 是当前设计、状态、需求与施工记录的正式资料。
+A-BridgeFS 是 AI 协作与真实执行环境的 Android 落点。
+
+**代码是实现事实；PROJECT 是正式项目资料；AI_WORKSPACE 是施工现场；GitHub 的 Commit / PR / Verify / Release 负责追踪工程事实。**
+
+## 资料分层
+
+### PROJECT/
+
+正式项目资料：
+
+- `ARCHITECTURE/`：架构
+- `UI/`：UI 与交互规范
+- `SPEC/`：需求、行为、接口规范
+- `STATUS/`：当前状态
+- `HISTORY/`：历史与迁移资料
+
+### AI_WORKSPACE/
+
+AI 施工区：
+
+- `TASK/`：任务
+- `WORKING/`：施工材料
+- `RESULT/`：检查与验证结果
+- `LOG/`：施工日志
+
+### docs/
+
+当前仍保留的历史/过渡资料区。整理期间不得与 PROJECT 产生矛盾；完成迁移后再清理。
 
 ## 工作方式
 
-- 修改功能前先读取相关 docs 与当前代码，确认实际实现后再施工。
+- 修改功能前先读取相关 PROJECT、docs 与当前代码。
+- 先确认实际实现，再施工。
 - 不把历史计划、候选设计或讨论内容当成当前实现事实。
 - 用户负责方向、重大决策与验收；AI 负责技术分析、施工、自检与验证。
-- 建议不等于决定；施工不等于完成；Verify 通过才可进入已验证状态。
+- 建议不等于决定；施工不等于完成；Verify 通过才可进入“已验证”。
 - Worker 在明确授权和边界内连续施工；普通实现问题自行处理，不因小问题频繁暂停。
-- 遇到架构冲突、需求歧义、超出授权边界或需要改变既定行为的问题，应暂停并请求决策 AI / 人确认。
+- 遇到架构冲突、需求歧义、超出授权边界或需要改变既定行为的问题，应暂停并请求 Decision AI / 人确认。
 - 不修改与当前任务无关的代码、配置或文档。
 
 ## 施工 → Commit → Verify
@@ -19,15 +47,13 @@ A-BridgeFS 是 AI 协作与真实执行环境的 Android 落点。代码是实�
 1. 记录实际 Commit SHA。
 2. 按该 SHA 检查 Verify 是否真正触发。
 3. 使用 Check Runs / Workflow Runs 确认实际工序。
-4. 继续读取对应 Job 的真实结果。
+4. 读取对应 Job 的真实结果。
 5. 区分 success、failure、cancelled、skipped、in_progress。
 6. 没有对应 Run / Check Run 时不得猜测验证结果。
 
 Commit Status 为空不能解释为“没有 Verify”。
 
 ## AI 协作边界
-
-目标方向：
 
 Decision AI
 → 给出目标、方案、边界与决策
@@ -52,7 +78,7 @@ Decision AI
 
 ## 日志边界
 
-- 协作日志：记录人、AI、项目之间的工作过程，面向人和 AI 共同读取。
+- 协作日志：记录人、AI、项目之间的工作过程。
 - 运行日志：A-BridgeFS 自身运行诊断。
 - 崩溃日志：Crash / Exception / Stack trace 等工程诊断。
 
@@ -63,6 +89,7 @@ Decision AI
 移动端优先，简洁、明确、低负担。
 
 UI 应让人知道：
+
 - 当前项目
 - 当前 AI / Worker 状态
 - 当前工作进展
@@ -71,8 +98,6 @@ UI 应让人知道：
 不把内部实现细节直接堆给用户。
 
 ## 当前实验边界
-
-当前核心实验为：
 
 A-BridgeFS
 → 控制 / 对话
