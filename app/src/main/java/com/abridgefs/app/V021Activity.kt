@@ -17,7 +17,7 @@ import org.json.JSONObject
 import java.util.UUID
 import java.util.concurrent.Executors
 
-data class ApiProfile(val id:String,val name:String,val baseUrl:String,val key:String,val model:String)
+data class ApiProfile(val id:String,val name:String,val baseUrl:String,val key:String,val model:String,val avatar:String="")
 
 class V021Activity : Activity() {
     private val prefs by lazy { getSharedPreferences("bridgefs", 0) }
@@ -476,6 +476,27 @@ class V021Activity : Activity() {
                     14
                 )
             }
+            if (m.role == "assistant" && (!m.apiName.isNullOrBlank() || !m.apiAvatar.isNullOrBlank())) {
+                val identity = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    addView(TextView(this@V021Activity).apply {
+                        text = m.apiAvatar?.ifBlank { "AI" } ?: "AI"
+                        gravity = Gravity.CENTER
+                        textSize = 11f
+                        setTextColor(color(R.color.bridgefs_text_primary))
+                        background = colorDrawable(R.color.bridgefs_selected_surface, 20)
+                    }, LinearLayout.LayoutParams(dp(32), dp(32)).apply { marginStart = dp(4) })
+                    addView(TextView(this@V021Activity).apply {
+                        text = m.apiName?.ifBlank { "AI" } ?: "AI"
+                        textSize = 12f
+                        typeface = Typeface.DEFAULT_BOLD
+                        setTextColor(color(R.color.bridgefs_text_secondary))
+                        setPadding(dp(7), 0, 0, 0)
+                    })
+                }
+                bubbleBox.addView(identity)
+            }
             val bubble = TextView(this).apply {
                 text = m.content
                 textSize = 14f
@@ -740,7 +761,7 @@ class V021Activity : Activity() {
                     BridgeApiConfig(normalizeBaseUrl(a.baseUrl),a.key,a.model)
                 ).chat(conversation.messages,BridgeCommandSpec.aiSystemPrompt(limit))
                 runOnUiThread {
-                    conversation.messages += BridgeChatMessage("assistant",answer)
+                    conversation.messages += BridgeChatMessage("assistant", answer, apiId = a.id, apiName = a.name.ifBlank { "未命名 API" }, apiAvatar = a.avatar.ifBlank { a.name.trim().take(1).ifBlank { "AI" } })
                     store.save(projects)
                     render()
                     if (prefs.getBoolean("ai_auto_bridgefs_enabled", true)) {
