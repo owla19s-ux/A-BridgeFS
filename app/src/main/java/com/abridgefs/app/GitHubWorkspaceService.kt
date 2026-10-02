@@ -48,6 +48,13 @@ class GitHubWorkspaceService(
         return client.listWorkflowRuns(owner, name, perPage)
     }
 
+    fun workflowRunsForCommit(commitSha: String, perPage: Int = 20): JSONObject {
+        requireRead()
+        require(commitSha.isNotBlank()) { "Commit SHA 不能为空" }
+        val (owner, name) = repositoryParts()
+        return client.listWorkflowRunsForCommit(owner, name, commitSha, perPage)
+    }
+
     fun workflowRun(runId: Long): JSONObject {
         requireRead()
         val (owner, name) = repositoryParts()
