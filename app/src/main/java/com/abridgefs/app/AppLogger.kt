@@ -11,11 +11,22 @@ import java.util.Locale
 /** Local diagnostics: one runtime log file per calendar day. */
 object AppLogger {
     private const val DIR = "logs"
+
+    enum class Category(val dir: String) {
+        RUNTIME("runtime"),
+        COLLABORATION("collaboration"),
+        EXECUTION("execution"),
+        API("api"),
+        GITHUB("github")
+    }
     private const val CRASH_DIR = "crash"
 
-    fun log(context: Context, event: String, detail: String = "") {
+    fun log(context: Context, event: String, detail: String = "") =
+        log(context, Category.RUNTIME, event, detail)
+
+    fun log(context: Context, category: Category, event: String, detail: String = "") {
         runCatching {
-            val dir = File(context.filesDir, DIR).apply { mkdirs() }
+            val dir = File(context.filesDir, DIR + File.separator + category.dir).apply { mkdirs() }
             val day = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
             val time = SimpleDateFormat("HH:mm:ss.SSS", Locale.US).format(Date())
             val suffix = if (detail.isBlank()) "" else " | $detail"
