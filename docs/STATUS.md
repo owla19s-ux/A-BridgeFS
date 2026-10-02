@@ -301,3 +301,12 @@ Workspace + Repository + Branch
 - FileBridgeService 现在按 `workspaceId` 恢复 Workspace，再与独立 Conversation 一起进入 `PermissionPolicy.authorization()`。
 - 本轮仍未构建、未安装 APK、未真机验证。
 
+## 2026-10-02 Receipt 持久化队列检查
+
+- 发现：`FileBridgeService` 原先只有单个 `pending_receipt` 槽位；Activity 不在前台时，如果连续产生多个执行回执，后一个回执可能覆盖前一个。
+- 修复：改为 `pending_receipts` JSON 队列，每条回执增加唯一 `receiptId`；广播同时携带该 ID。
+- Activity 前台收到回执时按 `receiptId` 从队列中删除对应项，不再清空整个队列。
+- Activity 启动恢复时会按队列顺序恢复全部可路由回执；目标 Conversation 暂时不存在的回执保留在队列中等待后续恢复。
+- 保留旧 `pending_receipt` 的兼容读取，迁移后删除旧槽位。
+- 本轮未构建、未安装 APK、未真机验证。
+
