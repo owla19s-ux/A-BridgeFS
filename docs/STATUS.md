@@ -182,3 +182,15 @@ Workspace + Repository + Branch
 - GitHub Contents API 返回的 Commit SHA 与变更路径写回任务，并将状态推进为 WAITING_VERIFY。
 - 修复 GitHubWorkspaceService 通过反射读取 GitHubApiClient.context 的做法，改为直接使用自身持有的 Context。
 - ⚠️ 未验证：以上代码尚未经过新的 Actions Run、APK 安装及真机验证；Verify 实链仍未完成。
+
+
+### 2026-10-02 Verify 实链第四轮
+
+- GitHubApiClient 新增按 Commit SHA 查询 Actions Runs。
+- GitHubWorkspaceService 暴露 Commit-scoped workflow 查询。
+- 新增 CollaborationVerifyService：只认与任务 lastCommitSha 完全一致的 Actions Run。
+- Run 不存在或仍在运行：任务保持 WAITING_VERIFY。
+- Run completed + success：任务 COMPLETE，写入 VERIFY_PASS Receipt，并释放 ConstructionLock。
+- Run completed + 非 success：任务 FAILED，并写入 VERIFY_FAIL Receipt；施工锁不自动释放，便于继续修复。
+- Commit 产生后禁止普通 releaseConstruction 提前释放施工锁，避免 Verify 等待期间其他 AI 修改同一 Repository / Branch。
+- 当前分支存在 PR #16，但当前代码尚未产生新的 Actions Run；因此 Verify 代码链仍未获得真实 CI 验证。
