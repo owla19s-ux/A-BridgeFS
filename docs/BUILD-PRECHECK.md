@@ -75,6 +75,8 @@
 - 独立新建 Conversation：当前 App 尚未真正完成。
 
 ## 三、构建后验证
+> **APK 来源规则：** `android-verify.yml` 生成的 Debug APK 仅用于 CI 编译/打包验证，不作为设备安装测试包。设备安装测试必须使用 `android-build.yml` 生成的 `release/A-BridgeFS.apk`，该 APK 使用仓库固定的官方签名密钥。不要混用两种签名 APK。
+
 
 Actions 构建完成后必须记录：
 - 构建 Commit SHA。
