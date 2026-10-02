@@ -102,6 +102,7 @@ object CollaborationProtocol {
             Type.DECISION_REQUEST -> if (message.from != Role.WORKER || message.to != Role.DECISION_AI) "DECISION_REQUEST route must be Worker → Decision AI" else null
             Type.DECISION_RESPONSE -> if (message.from != Role.DECISION_AI || message.to != Role.WORKER) "DECISION_RESPONSE route must be Decision AI → Worker" else null
             Type.ESCALATE -> if (message.to != Role.HUMAN) "ESCALATE must target human" else null
+            Type.FILE_CHANGE_REQUEST -> if (message.from != Role.WORKER || message.to != Role.DECISION_AI) "FILE_CHANGE_REQUEST route must be Worker → Decision AI" else null
             Type.PROGRESS, Type.BLOCKED, Type.COMMIT, Type.VERIFY, Type.COMPLETE, Type.FILE_CHANGE_REQUEST -> null
         }
         return if (routeError == null) ValidationResult(true) else ValidationResult(false, routeError)
