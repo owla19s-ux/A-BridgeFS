@@ -202,6 +202,11 @@ class CollaborationCoordinator(
 
         val workspace = BridgeProjectStore(context).load().firstOrNull { it.id == workspaceId }
             ?: error("工作区不存在：$workspaceId")
+        // Persisted task ownership is not sufficient: the actual
+        // Repository/Branch lock must still be held by this AI immediately
+        // before every GitHub write.
+        ConstructionLockStore(context).requireHolder(workspace, aiMemberId)
+
         val auth = GitHubTokenStore(context).state()
         val token = auth.accessToken?.takeIf { it.isNotBlank() }
             ?: error("GitHub 尚未授权")
