@@ -24,14 +24,14 @@ Decision AI / Worker AI 只作为任务阶段角色标签，不是固定身份�
 | API / 对话 | 已实现 / 待统一验证 | API 可配置、可聊天；Chat → API 持久绑定已实现 |
 | 本地指令 / BridgeFS | 已实现 | 保留真实本地执行能力 |
 | GitHub 连接基础 | 已实现 / 待真机验证 | PAT、Keystore、账号、Repository、Branch 基础能力已落地 |
-| 工作区 | 开发中 | Workspace → Conversations 数据结构已落地；V021 已接入 Workspace 切换 / 新建 / 重命名，以及 Conversation 切换 / 新建的基础 UI；仍需真机验证与继续清理兼容 facade |
+| 工作区 | 开发中 | Workspace → Conversations 数据结构与基础 UI 已落地；本地修改权限已进入 PermissionPolicy / FileBridgeService；仍需真机验证与清理兼容 facade |
 | 双 AI 协作协议 | 已确认设计 / 尚未完整实现 | 共享读取、施工权独占且可转移 |
 | 协作消息 | 开发中 | 聊天消息已开始保存并展示实际使用 API 的名称与头像；仍待构建/真机验证，协作链仍偏旧单轮实现 |
-| 施工锁 | 开发中 | 已实现 Workspace + Repository + Branch 独占锁基础层；尚未接入完整 AI 施工流程 |
+| 施工锁 | 开发中 | 已实现 Workspace + Repository + Branch 独占锁，并已接入显式协作任务申请；AI 自主施工链仍未完全接通 |
 | 协作回执 | 已设计未完全实现 | Receipt 与消息时间线仍需统一 |
 | 协作日志 | 已设计未完全实现 | 已有分类日志目录，产品级协作日志仍需补齐 |
-| GitHub 实际写入链 | 开发中 | Workspace 写入边界已要求 AI Member 持有 ConstructionLock；尚未形成完整写入 → Commit → Verify 链 |
-| Verify 实链 | 开发中 | 需要 Commit → Run / Check Run → Job → Result |
+| GitHub 实际写入链 | 开发中 | `updateFile()` 已可在 ConstructionLock 下真实写入并保存 Commit SHA；Worker 输出尚未自动映射到该入口 |
+| Verify 实链 | 开发中 | Commit-scoped Actions 查询与 PASS/FAIL 状态已接入；尚待新的 Actions Run / APK / 真机实证及更细 Job/Step 展示 |
 | 复杂调度 / 多 AI | 未开始 | 当前明确不做 |
 
 ## 当前设计基线
@@ -73,9 +73,10 @@ Workspace + Repository + Branch
 
 ### 尚未完成
 
-- 本地文件修改开关已接入 `PermissionPolicy`，并由 `FileBridgeService` 在真实执行入口再次判定；尚待 APK 真机验证。
-- Conversation 级本地文件权限覆盖尚未实现；目标是 `Conversation override ?: Workspace permission`。
-- GitHub 文件写入现在已经具备 ConstructionLock 基础门槛；协作任务已经能够显式申请施工权并进入真实 Contents API 写入，Contents API 返回的 Commit SHA 已持久化；Actions / Verify 尚未接通。
+- 本地文件修改权限已接入 `PermissionPolicy`，并由 `FileBridgeService` 在真实执行入口再次判定；尚待 APK 真机验证。
+- Conversation 级本地文件权限覆盖已进入 `PermissionPolicy` 数据路径；尚待 UI / 真机验证。
+- GitHub 协作任务已经能够显式申请施工权、进入 `CONSTRUCTING` 并通过 `updateFile()` 真实写入；Commit SHA 已持久化。
+- Commit-scoped Actions / Verify 已接通代码链，但尚未获得新的 Actions Run / APK / 真机实证。
 - Workspace → Conversation 数据结构已落地，V021 对话切换/新建已开始使用工作区内 Conversation；仍保留兼容 facade，后续继续清理旧调用。
 - API 页面仍需从固定 Decision / Worker 配置迁移为 AI 成员 + API Profile 资源模型。
 
@@ -115,9 +116,10 @@ Workspace + Repository + Branch
 4. 把 API Profile 与 AI 成员、实际权限边界分离清楚。
 5. 统一 Receipt 状态链。
 6. 完成 Repository / Branch 施工锁与 AI 施工流程接入。
-7. 连接真实 GitHub 写入与 Verify。
-8. 实现双 AI 连续协作循环。
-9. 清理旧 MainActivity / 旧日志路径等历史实现。
+7. 把 Worker 文件修改结果安全映射到真实 GitHub 写入 → Commit → Verify。
+8. 完成新的 Actions / APK / 真机验证。
+9. 实现双 AI 连续协作循环。
+10. 清理旧 MainActivity / 旧日志路径等历史实现。
 
 ## 2026-10-02 追加确认：API 页面与对话执行链
 
@@ -181,7 +183,7 @@ Workspace + Repository + Branch
 - CollaborationCoordinator.updateFile(...)：要求任务处于 CONSTRUCTING、当前 AI 持有任务施工权，然后进入 GitHubWorkspaceService.updateFile()。
 - GitHub Contents API 返回的 Commit SHA 与变更路径写回任务，并将状态推进为 WAITING_VERIFY。
 - 修复 GitHubWorkspaceService 通过反射读取 GitHubApiClient.context 的做法，改为直接使用自身持有的 Context。
-- ⚠️ 未验证：以上代码尚未经过新的 Actions Run、APK 安装及真机验证；Verify 实链仍未完成。
+- ⚠️ 未验证：以上代码尚未经过新的 Actions Run、APK 安装及真机验证。
 
 
 ### 2026-10-02 Verify 实链第四轮
@@ -202,5 +204,5 @@ Workspace + Repository + Branch
 - 本轮已新增“协作任务”卡片：按当前 Workspace + Conversation 展示最新 Task、状态、Commit、施工者。
 - WAITING_CONSTRUCTION 时提供“AI A 申请施工锁”入口，实际调用 CollaborationCoordinator.requestConstruction()。
 - WAITING_VERIFY 时提供“检查当前 Commit”入口，实际调用 CollaborationCoordinator.verifyTask()。
-- ⚠️ 当前仍有一个关键断点：CollaborationCoordinator.updateFile() 虽已具备真实 GitHub Contents 写入能力，但 runObjective() 当前 Worker 提示词仍明确禁止直接修改 GitHub，协议运行链也没有把 Worker 的文件修改结果映射到 updateFile()；因此“AI 自主施工 → Commit”目前仍不可达。
+- ⚠️ 当前仍有一个关键断点：`CollaborationCoordinator.updateFile()` 虽已具备真实 GitHub Contents 写入能力，但 `runObjective()` 当前 Worker 提示词仍明确禁止直接修改 GitHub，协议运行链也没有把 Worker 的文件修改结果映射到 `updateFile()`；因此“AI 自主施工 → Commit”目前仍不可达。该问题现列为下一施工节点。
 - 该断点属于 GitHub 实际写入链继续施工范围，不将本轮 UI 补口误标为完整施工链或已验证。
