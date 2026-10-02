@@ -141,7 +141,17 @@ class CollaborationVerifyService(private val context: Context) {
     ) {
         val holder = task.constructionHolderAiMemberId
         if (!holder.isNullOrBlank()) {
-            ConstructionLockStore(context).release(workspace, holder)
+            runCatching {
+                val lockStore = ConstructionLockStore(context)
+                val lock = lockStore.get(workspace)
+                if (lock?.heldBy(holder) == true) {
+                    lockStore.release(workspace, holder)
+                } else {
+                    AppLogger.log(context, AppLogger.Category.COLLABORATION, "VERIFY_LOCK_ALREADY_RELEASED", "taskId=" + task.taskId + " holder=" + holder)
+                }
+            }.onFailure {
+                AppLogger.log(context, AppLogger.Category.COLLABORATION, "VERIFY_LOCK_RELEASE_FAILED", "taskId=" + task.taskId + " holder=" + holder + " error=" + (it.message ?: "unknown"))
+            }
         }
         taskStore.update(task.taskId) {
             it.status = CollaborationTaskRecord.STATUS_COMPLETE
