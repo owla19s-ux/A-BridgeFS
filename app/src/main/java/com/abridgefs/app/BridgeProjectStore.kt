@@ -60,6 +60,7 @@ class BridgeProjectStore(private val context: Context) {
                     accountLogin = obj.optString("githubAccount", "").ifBlank {
                         obj.optString("githubAccountLogin", "").ifBlank { null }
                     },
+                    repositoryId = obj.optString("githubRepositoryId", "").toLongOrNull(),
                     repository = obj.optString("githubRepository", "").ifBlank { null },
                     branch = obj.optString("githubBranch", "").ifBlank { null },
                     readEnabled = obj.optBoolean("githubReadEnabled", true),
@@ -100,6 +101,7 @@ class BridgeProjectStore(private val context: Context) {
                 .put("name", project.name)
                 .put("apiId", project.apiId.orEmpty())
                 .put("githubAccount", project.github.accountLogin.orEmpty())
+                .put("githubRepositoryId", project.github.repositoryId?.toString().orEmpty())
                 .put("githubRepository", project.github.repository.orEmpty())
                 .put("githubBranch", project.github.branch.orEmpty())
                 .put("githubReadEnabled", project.github.readEnabled)
