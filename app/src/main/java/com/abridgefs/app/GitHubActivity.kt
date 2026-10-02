@@ -302,7 +302,7 @@ class GitHubActivity : android.app.Activity() {
             Toast.makeText(this, "GitHub 尚未连接", Toast.LENGTH_SHORT).show()
             return null
         }
-        return GitHubWorkspaceService(GitHubApiClient(this, token), project.github)
+        return GitHubWorkspaceService(this, GitHubApiClient(this, token), project.github)
     }
 
     private fun save() { projectStore.save(projects) }
