@@ -63,7 +63,7 @@ class V021Activity : Activity() {
         projects = store.load()
         if (projects.isEmpty()) projects += store.newProject("默认工作区")
         project = projects.first()
-        apiId = project?.apiId ?: apis().firstOrNull()?.id.orEmpty()
+        apiId = project?.activeConversation()?.apiId ?: apis().firstOrNull()?.id.orEmpty()
         registerReceiver(receiver, IntentFilter("com.bridgefs.RESULT"), Context.RECEIVER_NOT_EXPORTED)
         buildShell()
     }
@@ -147,6 +147,7 @@ class V021Activity : Activity() {
         }
 
         root.addView(header("工作区", "管理协作资源与权限"))
+        root.addView(workspaceSelectorCard())
         root.addView(workspaceCard())
         root.addView(collaborationCard())
         root.addView(localFilePermissionCard())
@@ -164,6 +165,74 @@ class V021Activity : Activity() {
         val scroll = ScrollView(this)
         scroll.addView(root)
         content.addView(scroll)
+    }
+
+    private fun workspaceSelectorCard(): View {
+        val box = card()
+        val current = project ?: return box
+        val workspaces = projects
+        box.addView(TextView(this).apply {
+            text = "当前工作区"
+            textSize = 12f
+            setTextColor(color(R.color.bridgefs_text_secondary))
+        })
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        row.addView(TextView(this).apply {
+            text = current.name.ifBlank { "未命名工作区" }
+            textSize = 17f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(color(R.color.bridgefs_text_primary))
+        }, LinearLayout.LayoutParams(0, dp(44), 1f))
+        row.addView(textButton("切换") {
+            val labels = workspaces.map { it.name.ifBlank { "未命名工作区" } }.toTypedArray()
+            val index = workspaces.indexOfFirst { it.id == current.id }.coerceAtLeast(0)
+            AlertDialog.Builder(this@V021Activity)
+                .setTitle("切换工作区")
+                .setSingleChoiceItems(labels, index) { dialog, which ->
+                    project = workspaces[which]
+                    apiId = project?.activeConversation()?.apiId ?: apis().firstOrNull()?.id.orEmpty()
+                    store.save(projects)
+                    dialog.dismiss()
+                    render()
+                }
+                .setNegativeButton("取消", null)
+                .show()
+        }, LinearLayout.LayoutParams(dp(64), dp(40)))
+        row.addView(textButton("重命名") {
+            val input = field("工作区名称", current.name)
+            AlertDialog.Builder(this@V021Activity)
+                .setTitle("重命名工作区")
+                .setView(input)
+                .setPositiveButton("保存") { _, _ ->
+                    current.name = input.text.toString().trim().ifBlank { "未命名工作区" }
+                    store.save(projects)
+                    render()
+                }
+                .setNegativeButton("取消", null)
+                .show()
+        }, LinearLayout.LayoutParams(dp(76), dp(40)))
+        box.addView(row)
+        box.addView(actionButton("＋ 新建工作区") {
+            val input = field("工作区名称", "新工作区 ${workspaces.size + 1}")
+            AlertDialog.Builder(this@V021Activity)
+                .setTitle("新建工作区")
+                .setView(input)
+                .setPositiveButton("创建") { _, _ ->
+                    val name = input.text.toString().trim().ifBlank { "新工作区 ${projects.size + 1}" }
+                    val created = store.newProject(name)
+                    projects += created
+                    project = created
+                    apiId = created.activeConversation().apiId ?: apis().firstOrNull()?.id.orEmpty()
+                    store.save(projects)
+                    render()
+                }
+                .setNegativeButton("取消", null)
+                .show()
+        }, LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(6) })
+        return box
     }
 
     private fun workspaceCard(): View {
@@ -390,7 +459,7 @@ class V021Activity : Activity() {
             orientation = LinearLayout.VERTICAL
             setPadding(0, dp(8), 0, dp(8))
         }
-        project?.messages?.forEach { m ->
+        conversation.messages.forEach { m ->
             val bubbleBox = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(dp(4), dp(4), dp(4), dp(2))
@@ -598,7 +667,11 @@ class V021Activity : Activity() {
     private fun removeApi(a:ApiProfile) {
         AlertDialog.Builder(this).setTitle("移除 API").setMessage("确定移除「"+a.name+"」？")
             .setPositiveButton("移除"){_,_->
-                projects.forEach { if (it.apiId == a.id) it.apiId = null }
+                projects.forEach { workspace ->
+            workspace.conversations.forEach { conversation ->
+                if (conversation.apiId == a.id) conversation.apiId = null
+            }
+        }
                 apiSecrets.remove(a.id)
                 saveApis(apis().filterNot{it.id==a.id})
             }
@@ -615,11 +688,11 @@ class V021Activity : Activity() {
                     workerSystemPrompt = "你是 A-BridgeFS Worker。严格返回合法的 Decision AI ↔ Worker v0.1 协议 JSON。本轮不要直接修改 GitHub 或本地文件，遇到需要决策的问题返回 DECISION_REQUEST。"
                 )
                 val summary = messages.joinToString("\n\n") { "[协作 ${it.type.name}] ${it.from.name} → ${it.to.name}\n${it.toJson()}" }
-                runOnUiThread { current.messages += BridgeChatMessage("assistant", summary); store.save(projects); render() }
+                runOnUiThread { current.activeConversation().messages += BridgeChatMessage("assistant", summary); store.save(projects); render() }
             }.onFailure { e ->
                 val reason = e.message ?: e::class.simpleName ?: "未知错误"
                 AppLogger.log(this, AppLogger.Category.COLLABORATION, "ROUND_FAILED", reason)
-                runOnUiThread { current.messages += BridgeChatMessage("tool", "[协作错误]\n" + reason); store.save(projects); render() }
+                runOnUiThread { current.activeConversation().messages += BridgeChatMessage("tool", "[协作错误]\n" + reason); store.save(projects); render() }
             }
         }
     }
@@ -628,7 +701,8 @@ class V021Activity : Activity() {
         val text=input.text.toString().trim()
         if(text.isBlank()) return
         val current=project ?: return
-        val selectedId=current.apiId ?: id
+        val conversation=current.activeConversation()
+        val selectedId=conversation.apiId ?: id
         val a=apis().firstOrNull{it.id==selectedId} ?: run {
             Toast.makeText(this,"请先选择 API",Toast.LENGTH_SHORT).show()
             return
@@ -638,9 +712,9 @@ class V021Activity : Activity() {
             return
         }
 
-        current.apiId=a.id
+        conversation.apiId=a.id
         apiId=a.id
-        current.messages += BridgeChatMessage("user",text)
+        conversation.messages += BridgeChatMessage("user",text)
         store.save(projects)
         render()
 
@@ -660,9 +734,9 @@ class V021Activity : Activity() {
                 val limit=prefs.getInt("command_limit",3).coerceIn(1,20)
                 val answer=BridgeApiClient(
                     BridgeApiConfig(normalizeBaseUrl(a.baseUrl),a.key,a.model)
-                ).chat(current.messages,BridgeCommandSpec.aiSystemPrompt(limit))
+                ).chat(conversation.messages,BridgeCommandSpec.aiSystemPrompt(limit))
                 runOnUiThread {
-                    current.messages += BridgeChatMessage("assistant",answer)
+                    conversation.messages += BridgeChatMessage("assistant",answer)
                     store.save(projects)
                     render()
                     if (prefs.getBoolean("ai_auto_bridgefs_enabled", true)) {
@@ -786,11 +860,11 @@ class V021Activity : Activity() {
                     )
             }
         }.toString()).apply()
-        val current = project?.apiId
+        val current = project?.activeConversation()?.apiId
         if (current != null && list.none { it.id == current }) {
-            project?.apiId = list.firstOrNull()?.id
+            project?.activeConversation()?.apiId = list.firstOrNull()?.id
         }
-        apiId = project?.apiId ?: list.firstOrNull()?.id.orEmpty()
+        apiId = project?.activeConversation()?.apiId ?: list.firstOrNull()?.id.orEmpty()
         store.save(projects)
         render()
     }
