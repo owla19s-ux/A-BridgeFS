@@ -749,8 +749,26 @@ class V021Activity : Activity() {
                     decisionSystemPrompt = "你是本轮协作的规划参与者。将用户目标转成一个合法的协作 TASK JSON。当前阶段只负责分析、拆解与提出任务，不执行本地文件或 GitHub 操作。",
                     workerSystemPrompt = "你是本轮协作的执行参与者。严格返回合法的协作协议 JSON。当前阶段只负责分析任务并返回执行结果或 DECISION_REQUEST，不直接修改 GitHub 或本地文件。"
                 )
-                val summary = messages.joinToString("\n\n") { "[协作 ${it.type.name}] ${it.from.name} → ${it.to.name}\n${it.toJson()}" }
-                runOnUiThread { current.activeConversation().messages += BridgeChatMessage("assistant", summary); store.save(projects); render() }
+                val profileStore = ApiProfileStore(this)
+                val profileByRole = mapOf(
+                    CollaborationProtocol.Role.DECISION_AI to profileStore.find(ids.first),
+                    CollaborationProtocol.Role.WORKER to profileStore.find(ids.second)
+                )
+                val collaborationMessages = messages.map { message ->
+                    val profile = profileByRole[message.from]
+                    BridgeChatMessage(
+                        role = "assistant",
+                        content = "[协作 ${message.type.name}] ${message.from.name} → ${message.to.name}\n${message.toJson()}",
+                        apiId = profile?.id,
+                        apiName = profile?.name?.ifBlank { "未命名 API" },
+                        apiAvatar = profile?.avatar?.ifBlank { profile.name.trim().take(1).ifBlank { "AI" } }
+                    )
+                }
+                runOnUiThread {
+                    current.activeConversation().messages += collaborationMessages
+                    store.save(projects)
+                    render()
+                }
             }.onFailure { e ->
                 val reason = e.message ?: e::class.simpleName ?: "未知错误"
                 AppLogger.log(this, AppLogger.Category.COLLABORATION, "ROUND_FAILED", reason)
