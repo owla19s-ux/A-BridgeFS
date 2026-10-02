@@ -293,3 +293,11 @@ Workspace + Repository + Branch
 - 当前实际历史 Commit 查询显示，现有正式构建 Commit 各只有一个对应 Run；本轮修复主要针对未来增加其他 Workflow、同 SHA 手动触发等情况。
 - 本轮仍仅修改开发分支，未合并、未构建、未真机验证。
 
+## 2026-10-02 执行权限边界第十轮检查
+
+- 发现并修复：独立对话触发 BridgeFS 时，原执行 Intent 为了区分独立对话回执而将 `projectId` 设为 null；FileBridgeService 因此无法恢复当前 Workspace，只能按全局权限重新计算。
+- UI 发送前虽然已经按 `Workspace + 独立 Conversation` 检查权限，但 Service 作为最终执行入口必须再次拥有同一 Workspace 身份，否则存在“UI 判定禁止 / Service 重新判定为允许”的权限边界不一致。
+- 现在独立执行 Intent 额外携带 `workspaceId`；`projectId` 继续保持 null，仅用于维持独立 Conversation 回执路由。
+- FileBridgeService 现在按 `workspaceId` 恢复 Workspace，再与独立 Conversation 一起进入 `PermissionPolicy.authorization()`。
+- 本轮仍未构建、未安装 APK、未真机验证。
+
