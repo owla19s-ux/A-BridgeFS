@@ -40,11 +40,13 @@ class V021Activity : Activity() {
             val command = intent.getStringExtra("command") ?: ""
             val message = intent.getStringExtra("message") ?: ""
             val projectId = intent.getStringExtra("projectId")
+            val conversationId = intent.getStringExtra("conversationId")
             val target = projects.firstOrNull { it.id == projectId } ?: project
-            if (target != null) {
+            val conversation = target?.let { ws -> conversationId?.let { id -> ws.conversations.firstOrNull { it.id == id } } ?: ws.activeConversation() }
+            if (conversation != null) {
                 val receipt = BridgeReceiptRecord(status, command, message)
-                target.executions += receipt
-                pendingReceipt = formatReceipt(receipt)
+                conversation.executions += receipt
+                conversation.messages += BridgeChatMessage("receipt", formatReceipt(receipt))                pendingReceipt = formatReceipt(receipt)
                 store.save(projects)
                 if (page == Page.CHAT) render()
                 else Toast.makeText(this@V021Activity, "收到执行回执：$status", Toast.LENGTH_SHORT).show()
