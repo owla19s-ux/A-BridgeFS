@@ -847,7 +847,14 @@ class V021Activity : Activity() {
                 (apis().firstOrNull { it.id == profiles.second }?.name ?: "AI B")
             textSize = 13f
             setTextColor(color(R.color.bridgefs_text_secondary))
-            setPadding(dp(4), dp(2), dp(4), dp(6))
+            setPadding(dp(4), dp(2), dp(4), dp(2))
+        })
+        root.addView(TextView(this).apply {
+            val directory = workspace.workspaceDirectory.orEmpty().ifBlank { "未设置" }
+            text = "工作目录：$directory"
+            textSize = 12f
+            setTextColor(if (workspace.workspaceDirectory.isNullOrBlank()) color(R.color.bridgefs_text_secondary) else color(R.color.bridgefs_text_primary))
+            setPadding(dp(4), 0, dp(4), dp(6))
         })
 
         root.addView(textButton("＋ 新建协作对话") {
@@ -1180,7 +1187,13 @@ class V021Activity : Activity() {
                 }
                 runOnUiThread {
                     collaborationRunningConversationId = null
-                    current.activeConversation().messages += collaborationMessages
+                    val target = current.activeConversation()
+                    val progressIndex = target.messages.indexOfLast { it.role == "tool" && it.content.startsWith("[协作进行中]") }
+                    if (progressIndex >= 0) {
+                        target.messages.removeAt(progressIndex)
+                        target.messages.add(progressIndex, BridgeChatMessage("tool", "[协作完成]\nDecision AI 与 Worker 已完成本轮协议交互。"))
+                    }
+                    target.messages += collaborationMessages
                     store.save(projects)
                     render()
                 }
@@ -1189,7 +1202,14 @@ class V021Activity : Activity() {
                 AppLogger.log(this, AppLogger.Category.COLLABORATION, "ROUND_FAILED", reason)
                 runOnUiThread {
                     collaborationRunningConversationId = null
-                    current.activeConversation().messages += BridgeChatMessage("tool", "[协作错误]\n" + reason)
+                    val target = current.activeConversation()
+                    val progressIndex = target.messages.indexOfLast { it.role == "tool" && it.content.startsWith("[协作进行中]") }
+                    if (progressIndex >= 0) {
+                        target.messages.removeAt(progressIndex)
+                        target.messages.add(progressIndex, BridgeChatMessage("tool", "[协作失败]\n" + reason))
+                    } else {
+                        target.messages += BridgeChatMessage("tool", "[协作失败]\n" + reason)
+                    }
                     store.save(projects)
                     render()
                 }
