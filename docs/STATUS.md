@@ -24,9 +24,9 @@ Decision AI / Worker AI 只作为任务阶段角色标签，不是固定身份�
 | API / 对话 | 已实现 / 待统一验证 | API 可配置、可聊天；Chat → API 持久绑定已实现 |
 | 本地指令 / BridgeFS | 已实现 | 保留真实本地执行能力 |
 | GitHub 连接基础 | 已实现 / 待真机验证 | PAT、Keystore、账号、Repository、Branch 基础能力已落地 |
-| 工作区 | 开发中 | 已开始采用 Workspace → Conversations 数据结构；仍需完成 UI 与权限链迁移 |
+| 工作区 | 开发中 | Workspace → Conversations 数据结构已落地；V021 已接入 Workspace 切换 / 新建 / 重命名，以及 Conversation 切换 / 新建的基础 UI；仍需真机验证与继续清理兼容 facade |
 | 双 AI 协作协议 | 已确认设计 / 尚未完整实现 | 共享读取、施工权独占且可转移 |
-| 协作消息 | 开发中 | 当前实现仍偏旧单轮协作链 |
+| 协作消息 | 开发中 | 当前仍偏旧单轮协作链；聊天消息尚未保存并展示实际使用 API 的名称与头像 |
 | 施工锁 | 已设计未实现 | Repository / Branch 级独占写权限 |
 | 协作回执 | 已设计未完全实现 | Receipt 与消息时间线仍需统一 |
 | 协作日志 | 已设计未完全实现 | 已有分类日志目录，产品级协作日志仍需补齐 |
@@ -99,7 +99,9 @@ Workspace + Repository + Branch
 - V021 已移除 API Profile 的“允许修改”UI/模型字段；历史持久化中的 `write` 字段仅作兼容读取，不再作为权限来源。
 - Receipt 仍存在 executions / pending_receipt / messages / input 四处分散状态。
 - V021 启动时尚未恢复 pending receipt。
-- Workspace 与 Conversation 仍未完全分离。
+- Workspace 与 Conversation 的基础数据结构和当前 UI 已分离，但兼容 facade 仍存在，尚未完成彻底迁移。
+- 当前聊天页已有 Workspace / Conversation 操作入口，但尚未完成 APK 真机验证。
+- AI 消息目前未按消息保存实际使用的 API 名称与头像；该问题已建立 Issue #30。
 - 当前协作实现仍偏单轮协议链，尚未形成双 AI 连续协作循环。
 - GitHub 实际写入尚未形成完整 GitHub → Verify 链。
 
@@ -107,14 +109,16 @@ Workspace + Repository + Branch
 
 ## 当前施工优先级
 
-1. 统一正式架构文档：双 AI、共享读取、Repository / Branch 施工权独占且可转移。
-2. 统一 Receipt 状态链。
-3. 把 API Profile 与实际权限边界分离清楚。
-4. 完成 Workspace / Conversation 迁移，清理兼容 facade。
+1. 完成 Workspace / Conversation UI 真机验证，并继续清理兼容 facade。
+2. 修复聊天消息 API 身份显示：消息保存实际使用的 API 名称与头像（Issue #30）。
+3. 把工作区 / Conversation 权限真正接入 PermissionPolicy。
+4. 把 API Profile 与 AI 成员、实际权限边界分离清楚。
+5. 统一 Receipt 状态链。
 5. 实现 Repository / Branch 施工锁。
-6. 连接真实 GitHub 写入与 Verify。
-7. 实现双 AI 连续协作循环。
-8. 清理旧 MainActivity / 旧日志路径等历史实现。
+6. 实现 Repository / Branch 施工锁。
+7. 连接真实 GitHub 写入与 Verify。
+8. 实现双 AI 连续协作循环。
+9. 清理旧 MainActivity / 旧日志路径等历史实现。
 
 ## 2026-10-02 追加确认：API 页面与对话执行链
 
