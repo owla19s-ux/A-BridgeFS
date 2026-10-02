@@ -146,6 +146,61 @@ class CollaborationCoordinator(
         transport.append(task)
     }
 
+    /**
+     * Explicitly enters the construction stage for a persisted task.
+     *
+     * Analysis-only collaboration never acquires a Repository/Branch lock.
+     * The caller must explicitly request construction with an AI Member id.
+     */
+    fun requestConstruction(taskId: String, aiMemberId: String): CollaborationTaskRecord {
+        val taskStore = CollaborationTaskStore(context)
+        val task = taskStore.get(taskId) ?: error("协作任务不存在：$taskId")
+        require(task.workspaceId == workspaceId && task.conversationId == conversationId) {
+            "协作任务不属于当前工作区 / 对话"
+        }
+
+        val workspace = BridgeProjectStore(context).load().firstOrNull { it.id == workspaceId }
+            ?: error("工作区不存在：$workspaceId")
+        require(workspace.aiMembers.any { it.id == aiMemberId }) {
+            "AI Member 不属于当前工作区"
+        }
+
+        val lock = ConstructionLockStore(context).acquire(workspace, aiMemberId)
+        taskStore.update(taskId) {
+            it.status = CollaborationTaskRecord.STATUS_CONSTRUCTING
+            it.constructionRequestedByAiMemberId = aiMemberId
+            it.constructionHolderAiMemberId = lock.holderAiMemberId
+        }
+        AppLogger.log(context, AppLogger.Category.COLLABORATION, "CONSTRUCTION_ACQUIRED", "taskId=$taskId")
+        return taskStore.get(taskId) ?: error("协作任务状态保存失败")
+    }
+
+    /**
+     * Releases construction authority after the task reaches a safe boundary.
+     * It does not silently release another AI's lock.
+     */
+    fun releaseConstruction(taskId: String, aiMemberId: String) {
+        val taskStore = CollaborationTaskStore(context)
+        val task = taskStore.get(taskId) ?: error("协作任务不存在：$taskId")
+        require(task.workspaceId == workspaceId && task.conversationId == conversationId) {
+            "协作任务不属于当前工作区 / 对话"
+        }
+        val workspace = BridgeProjectStore(context).load().firstOrNull { it.id == workspaceId }
+            ?: error("工作区不存在：$workspaceId")
+        ConstructionLockStore(context).release(workspace, aiMemberId)
+        taskStore.update(taskId) {
+            it.status = CollaborationTaskRecord.STATUS_COMPLETE
+            it.constructionHolderAiMemberId = null
+        }
+        AppLogger.log(context, AppLogger.Category.COLLABORATION, "CONSTRUCTION_RELEASED", "taskId=$taskId")
+    }
+
+    /**
+     * Returns the current persisted task for this Workspace + Conversation.
+     */
+    fun currentTask(): CollaborationTaskRecord? =
+        CollaborationTaskStore(context).latest(workspaceId, conversationId)
+
     fun callDecisionAi(message: CollaborationProtocol.Message, systemPrompt: String): String {
         require(message.to == CollaborationProtocol.Role.DECISION_AI)
         return CollaborationApiClient(CollaborationApiConfig.fromProfile(context, firstProfileId)).invoke(message, systemPrompt)
@@ -162,7 +217,15 @@ class CollaborationCoordinator(
         workerSystemPrompt: String
     ): List<CollaborationProtocol.Message> {
         require(objective.isNotBlank()) { "objective is blank" }
-        val taskId = CollaborationProtocol.newTaskId()
+        val taskRecord = CollaborationTaskStore(context).create(
+            workspaceId = workspaceId,
+            conversationId = conversationId,
+            objective = objective
+        )
+        val taskId = taskRecord.taskId
+        CollaborationTaskStore(context).update(taskId) {
+            it.status = CollaborationTaskRecord.STATUS_RUNNING
+        }
         val humanMessage = CollaborationProtocol.Message(
             from = CollaborationProtocol.Role.HUMAN,
             to = CollaborationProtocol.Role.DECISION_AI,
@@ -178,6 +241,9 @@ class CollaborationCoordinator(
             "Decision AI TASK route is invalid"
         }
         submitTask(task)
+        CollaborationTaskStore(context).update(taskId) {
+            it.status = CollaborationTaskRecord.STATUS_RUNNING
+        }
         AppLogger.log(context, AppLogger.Category.COLLABORATION, "TASK_SUBMITTED", "taskId=" + taskId)
         return dispatchOneWorkerRound(workerSystemPrompt, decisionSystemPrompt)
     }
@@ -193,6 +259,17 @@ class CollaborationCoordinator(
         val decisionMessage = parseProtocolResponse(callDecisionAi(workerMessage, decisionSystemPrompt))
         validateResponse(decisionMessage, CollaborationProtocol.Role.DECISION_AI)
         transport.append(decisionMessage)
+        val taskId = task.taskId
+        CollaborationTaskStore(context).get(taskId)?.let { record ->
+            CollaborationTaskStore(context).update(taskId) {
+                it.status = when (decisionMessage.type) {
+                    CollaborationProtocol.Type.COMPLETE -> CollaborationTaskRecord.STATUS_COMPLETE
+                    CollaborationProtocol.Type.BLOCKED,
+                    CollaborationProtocol.Type.ESCALATE -> CollaborationTaskRecord.STATUS_WAITING_CONSTRUCTION
+                    else -> record.status
+                }
+            }
+        }
         return listOf(workerMessage, decisionMessage)
     }
 
