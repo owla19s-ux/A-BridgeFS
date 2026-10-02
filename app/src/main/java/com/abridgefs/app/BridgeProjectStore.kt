@@ -12,6 +12,7 @@ data class BridgeProject(
     val id: String,
     var name: String,
     var apiId: String? = null,
+    var localFileModifyEnabled: Boolean = false,
     var github: GitHubWorkspace = GitHubWorkspace(),
     val messages: MutableList<BridgeChatMessage> = mutableListOf(),
     val executions: MutableList<BridgeReceiptRecord> = mutableListOf()
@@ -56,6 +57,7 @@ class BridgeProjectStore(private val context: Context) {
                 id = obj.getString("id"),
                 name = obj.getString("name"),
                 apiId = obj.optString("apiId", "").ifBlank { null },
+                localFileModifyEnabled = obj.optBoolean("localFileModifyEnabled", false),
                 github = GitHubWorkspace(
                     accountLogin = obj.optString("githubAccount", "").ifBlank {
                         obj.optString("githubAccountLogin", "").ifBlank { null }
@@ -100,6 +102,7 @@ class BridgeProjectStore(private val context: Context) {
                 .put("id", project.id)
                 .put("name", project.name)
                 .put("apiId", project.apiId.orEmpty())
+                .put("localFileModifyEnabled", project.localFileModifyEnabled)
                 .put("githubAccount", project.github.accountLogin.orEmpty())
                 .put("githubRepositoryId", project.github.repositoryId?.toString().orEmpty())
                 .put("githubRepository", project.github.repository.orEmpty())
