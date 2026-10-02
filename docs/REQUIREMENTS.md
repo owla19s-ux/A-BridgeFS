@@ -87,3 +87,19 @@ GitHub 必须是真实模块，至少包含：
 
 ## F. 状态定义
 待讨论 / 候选 / 已确认 / 开发中 / 已实现 / 已验证 / 阻塞 / 废弃
+
+
+## 2026-10-02 UI 结构修正：Workspace 协作对话 / 独立对话分离
+
+正式区分两种 Conversation：
+
+- **Workspace 协作对话**：属于 Workspace，用于双 AI 协作、任务、施工锁、Commit / Verify 等工作区业务。
+- **独立对话**：属于全局对话页，只与用户和一个指定 API 直接交流，不继承 Workspace 的双 AI 协作状态。
+
+因此：
+
+- 底部「对话」页不得读取或写入当前 Workspace 的 activeConversation。
+- 「对话」页不得因为 Workspace 的协作配置而自动进入双 AI 协作。
+- Workspace 必须提供明确的「进入协作对话」入口。
+- Workspace 内仍可新建 / 切换多个协作 Conversation。
+- 独立对话拥有自己的 API 选择、消息历史、回执和本地文件修改权限。
