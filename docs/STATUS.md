@@ -122,13 +122,17 @@ Workspace + Repository + Branch
 ## 2026-10-02 追加确认：API 页面与对话执行链
 
 ### API 页面
-当前 V021 的「配置协作 API」仍使用旧版 **Decision AI / Worker** 双角色配置界面。
+当前正式入口已经迁移到 V021「工作区」：API Profile 作为连接资源独立管理，AI A / AI B 在工作区中选择对应 Profile。
 
-这不是当前正式架构。后续应改为：
-- 两个 AI 成员 / API 资源可独立配置
-- AI 身份与 API Profile 解耦
-- 不再用 Decision AI / Worker 作为固定配置槽位
-- 施工权由 Workspace + Repository + Branch 管理
+当前实现：
+- 两个 `BridgeAiMember` 持久化在 Workspace 内
+- AI Member 只保存 Profile ID，不复制 API Key / 连接参数
+- API Profile 由 `ApiProfileStore` 统一管理
+- 协作运行时按 Workspace 当前两个 AI Member 的 Profile ID 取 API
+- 不再使用全局 `collaboration_first_api_id` / `collaboration_second_api_id`
+- Decision / Worker 仅保留为当前协议的任务阶段路由，不作为固定身份或固定配置槽位
+
+仍需处理：专用 `ApiSettingsActivity` 仍保留旧的 legacy API 设置兼容页面；它不再作为 V021 协作配置入口，后续可继续清理。
 
 ### 对话 → BridgeFS
 当前对话已经存在真实的自动执行链：
@@ -139,7 +143,7 @@ Workspace + Repository + Branch
 
 当前缺口不是是否执行，而是执行链与新双 AI 协作模型尚未统一：
 - Receipt 已进入当前 Conversation 的消息时间线；`pending_receipt` 仍未在 V021 启动时恢复。
-- API Profile 的 write 开关已不再作为实际权限来源；当前有效本地修改权限来自 Workspace / Conversation + `PermissionPolicy`。
+- API Profile 的 write 开关已不再作为实际权限来源；当前有效本地修改权限来自 Workspace / Conversation + `PermissionPolicy`。协作 AI 的 Profile 绑定现在以 Workspace 内 `BridgeAiMember.apiProfileId` 为唯一来源，不再使用全局协作 Profile ID。
 - 当前代码批次尚未通过 GitHub Actions 构建；最近一次 PR 构建因 V021 新建 Conversation lambda 的非法 `return` 失败，已修复，等待下一轮构建。
 - 双 AI 协作尚未接入同一套施工权 / Receipt / Verify 链
 
@@ -150,7 +154,14 @@ Workspace + Repository + Branch
 ### #20 AI Member / API Profile 解耦
 - 🟡 **开发中**：已抽出 `ApiProfileStore`，API Profile 不再承担协作角色身份。
 - 🟡 **开发中**：Workspace 已持久化两个 `BridgeAiMember`，AI A / AI B 可绑定不同 API Profile。
-- 🟡 **开发中**：协作运行时按参与者 Profile ID 取 API，不再读取固定 Decision / Worker API 配置。
-- 🟡 **开发中**：V021 工作区 UI 已提供两个协作 AI 的选择入口；旧 API 设置页已移除固定 Decision / Worker 配置。
+- 🟡 **开发中**：协作运行时按 Workspace 内参与者 Profile ID 取 API，不再读取固定 Decision / Worker API 配置。
+- 🟡 **开发中**：V021 工作区 UI 已提供两个协作 AI 的选择入口；旧 API 设置页不再承担协作角色配置，但 legacy API 设置页仍保留兼容代码。
 - ⚠️ **未验证**：新的 Actions Run / APK / 实机链路尚未验证。
 
+
+### 2026-10-02 本轮检查补充
+
+- 已修复协作 AI 选择的 Workspace 隔离问题：不再从全局 SharedPreferences 读取协作 Profile ID，Workspace 的 `aiMembers` 成为唯一来源。
+- 移除 API 时同步解除所有 Workspace AI Member 的 Profile 绑定；若协作双 AI 配置因此不完整，会自动关闭协作模式，避免继续调用已删除 Profile。
+- 协作运行提示词已改为“规划参与者 / 执行参与者”任务阶段描述，不再把 Decision AI / Worker 写成两个永久身份。
+- ⚠️ 未验证：以上代码尚未经过新的 Actions Run、APK 安装及真机验证。
