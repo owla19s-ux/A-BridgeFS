@@ -142,3 +142,7 @@ Workspace + Repository + Branch
 - API Profile 的 write 开关已不再作为实际权限来源；当前有效本地修改权限来自 Workspace / Conversation + `PermissionPolicy`。
 - 当前代码批次尚未通过 GitHub Actions 构建；最近一次 PR 构建因 V021 新建 Conversation lambda 的非法 `return` 失败，已修复，等待下一轮构建。
 - 双 AI 协作尚未接入同一套施工权 / Receipt / Verify 链
+
+## 2026-10-02 CI 验证检查点
+
+`bd27214` 的 V021 新建 Conversation lambda 编译修复已提交；此前 Actions #72 仍针对旧 SHA `e023469b`，不能作为该修复的验证结果。本检查点用于触发并追踪最新 Branch 代码的 PR 构建，构建通过前不将本批次标记为已验证。
