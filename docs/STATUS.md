@@ -259,3 +259,12 @@ Workspace + Repository + Branch
 - 当前 Workflow 只执行 `apksigner verify --verbose`，尚未将“期望证书 SHA-256 指纹”作为硬性构建门槛。因此“APK 可验证签名”与“APK 一定由我们指定的正式证书签名”仍应区分记录。
 - GitHub 官方建议敏感签名材料使用 Secrets；当前 Keystore Base64、Keystore 密码、Alias 均通过 GitHub Secrets 注入，符合这一基本方向。
 - 当前 PR #36 仍为开发中，未合并、未发布新的 APK；本轮检查结果不作为真机验证证据。
+
+## 2026-10-02 协作状态机第六轮
+
+- Verify PASS 后新增**有界继续轮**：系统先确认真实 Commit-scoped Verify 通过，再恢复任务为 RUNNING，交给 Decision AI 判断 COMPLETE 或下一步 DECISION_RESPONSE。
+- 下一轮 Worker 仍通过既有 `dispatchOneWorkerRound()`，若需要文件修改，必须重新经过 `FILE_CHANGE_REQUEST`、施工范围校验与 ConstructionLock。
+- Verify FAIL 后新增“修复轮”入口：保留原施工锁，由 Decision AI 根据失败状态生成 DECISION_RESPONSE，再进入一次 Worker 轮；不得直接把 Verify FAIL 任务标记为完成。
+- 这不是无限后台循环：每次 Verify 后最多继续一轮，后续 Commit 必须再次经过真实 Verify。
+- Workspace UI 已提供 Verify 失败后的“根据 Verify 失败结果继续修复”入口；Verify 等待入口改为执行“Verify + 有界继续”。
+- 本轮仍未合并、未构建、未真机验证；状态机代码需要下一轮 Release 构建确认编译与运行行为。
