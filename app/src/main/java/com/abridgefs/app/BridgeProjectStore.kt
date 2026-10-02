@@ -5,7 +5,14 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
 
-data class BridgeChatMessage(val role: String, val content: String, val time: Long = System.currentTimeMillis())
+data class BridgeChatMessage(
+    val role: String,
+    val content: String,
+    val time: Long = System.currentTimeMillis(),
+    val apiId: String? = null,
+    val apiName: String? = null,
+    val apiAvatar: String? = null
+)
 data class BridgeReceiptRecord(val status: String, val command: String, val message: String, val time: Long = System.currentTimeMillis())
 
 /**
@@ -170,7 +177,8 @@ class BridgeProjectStore(private val context: Context) {
                         .put("localFileModifyOverride", conversation.localFileModifyOverride)
                         .put("messages", JSONArray().apply {
                             conversation.messages.forEach {
-                                put(JSONObject().put("role", it.role).put("content", it.content).put("time", it.time))
+                                put(JSONObject().put("role", it.role).put("content", it.content).put("time", it.time)
+                                .put("apiId", it.apiId.orEmpty()).put("apiName", it.apiName.orEmpty()).put("apiAvatar", it.apiAvatar.orEmpty()))
                             }
                         })
                         .put("executions", JSONArray().apply {
@@ -217,7 +225,10 @@ class BridgeProjectStore(private val context: Context) {
             target += BridgeChatMessage(
                 item.getString("role"),
                 item.getString("content"),
-                item.optLong("time", System.currentTimeMillis())
+                item.optLong("time", System.currentTimeMillis()),
+                item.optString("apiId", "").ifBlank { null },
+                item.optString("apiName", "").ifBlank { null },
+                item.optString("apiAvatar", "").ifBlank { null }
             )
         }
     }
