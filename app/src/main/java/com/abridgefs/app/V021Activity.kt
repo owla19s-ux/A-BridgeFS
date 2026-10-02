@@ -105,7 +105,54 @@ class V021Activity : Activity() {
         prefs.edit().putString("active_workspace_id", project?.id).apply()
         apiId = project?.activeConversation()?.apiId ?: apis().firstOrNull()?.id.orEmpty()
         registerReceiver(receiver, IntentFilter("com.bridgefs.RESULT"), Context.RECEIVER_NOT_EXPORTED)
+        recoverPendingReceipt()
         buildShell()
+    }
+
+    /**
+     * Recover a receipt written by FileBridgeService before this Activity was alive.
+     * The receipt keeps its original workspace/standalone destination.
+     */
+    private fun recoverPendingReceipt() {
+        val prefsStore = getSharedPreferences("bridgefs", Context.MODE_PRIVATE)
+        val raw = prefsStore.getString("pending_receipt", "").orEmpty()
+        if (raw.isBlank()) return
+        runCatching {
+            val obj = org.json.JSONObject(raw)
+            val status = obj.optString("status", "UNKNOWN")
+            val command = obj.optString("command", "")
+            val message = obj.optString("message", "")
+            val projectId = obj.optString("projectId", "").ifBlank { null }
+            val conversationId = obj.optString("conversationId", "").ifBlank { null }
+            val standaloneConversationId = obj.optString("standaloneConversationId", "").ifBlank { null }
+            val receipt = BridgeReceiptRecord(status, command, message)
+            if (!standaloneConversationId.isNullOrBlank()) {
+                val conversation = standaloneConversations.firstOrNull { it.id == standaloneConversationId }
+                if (conversation != null) {
+                    conversation.executions += receipt
+                    conversation.messages += BridgeChatMessage("receipt", formatReceipt(receipt))
+                    conversationStore.save(standaloneConversations)
+                    pendingReceipt = formatReceipt(receipt)
+                    prefsStore.edit().remove("pending_receipt").apply()
+                    return@runCatching
+                }
+            } else {
+                val target = projects.firstOrNull { it.id == projectId }
+                val conversation = target?.let { ws ->
+                    conversationId?.let { id -> ws.conversations.firstOrNull { it.id == id } }
+                }
+                if (conversation != null) {
+                    conversation.executions += receipt
+                    conversation.messages += BridgeChatMessage("receipt", formatReceipt(receipt))
+                    store.save(projects)
+                    pendingReceipt = formatReceipt(receipt)
+                    prefsStore.edit().remove("pending_receipt").apply()
+                    return@runCatching
+                }
+            }
+        }.onFailure {
+            AppLogger.log(this, AppLogger.Category.EXECUTION, "PENDING_RECEIPT_RECOVERY_FAILED", it.message ?: "invalid pending receipt")
+        }
     }
 
     private fun buildShell() {
@@ -369,7 +416,7 @@ class V021Activity : Activity() {
         })
         if (task == null) {
             box.addView(TextView(this).apply {
-                text = "当前对话还没有协作任务。发送消息并启用 AI 协作后，这里会显示任务状态。"
+                text = "当前协作对话还没有任务。发送协作目标后，这里会显示分析、施工与 Verify 状态。"
                 textSize = 13f
                 setTextColor(color(R.color.bridgefs_text_secondary))
                 setPadding(0, dp(5), 0, dp(8))
@@ -383,7 +430,7 @@ class V021Activity : Activity() {
             workspace?.aiMembers?.firstOrNull { it.id == id }?.name
         }
         box.addView(TextView(this).apply {
-            text = "状态：${task.status}"
+            text = "状态：${collaborationTaskStatusLabel(task.status)}"
             textSize = 14f
             typeface = Typeface.DEFAULT_BOLD
             setPadding(0, dp(5), 0, dp(2))
@@ -451,6 +498,18 @@ class V021Activity : Activity() {
         }
 
         return box
+    }
+
+    private fun collaborationTaskStatusLabel(status: String): String = when (status) {
+        CollaborationTaskRecord.STATUS_CREATED -> "已创建"
+        CollaborationTaskRecord.STATUS_RUNNING -> "协作处理中"
+        CollaborationTaskRecord.STATUS_WAITING_CONSTRUCTION -> "等待进入施工"
+        CollaborationTaskRecord.STATUS_CONSTRUCTING -> "施工中"
+        CollaborationTaskRecord.STATUS_WAITING_VERIFY -> "等待 Verify"
+        CollaborationTaskRecord.STATUS_COMPLETE -> "已完成"
+        CollaborationTaskRecord.STATUS_FAILED -> "失败"
+        CollaborationTaskRecord.STATUS_CANCELLED -> "已取消"
+        else -> status
     }
 
     private fun apiCard(a:ApiProfile): View {
