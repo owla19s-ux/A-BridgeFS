@@ -155,12 +155,21 @@ API Profile 是连接资源，不等于施工权。
 
 ### 11.2 GitHub 写入边界
 
-GitHub 写入采用两层边界：
+GitHub 写入采用分层边界：
 
-1. `GitHubWorkspaceService`：业务级 Workspace 权限边界。
-2. `GitHubApiClient`：GitHub HTTP / Contents API 实现。
+1. `GitHubWorkspaceService`：Workspace 级 GitHub 访问与写入边界。
+2. `ConstructionLockStore`：Workspace + Repository + Branch 的独占施工权。
+3. `GitHubApiClient`：GitHub HTTP / Contents API 实现。
 
-当前已支持 Workspace-scoped `updateFile()`，但尚未连接完整施工流程。
+当前已经具备 Workspace-scoped `updateFile()`，实际写入入口要求调用者提供 AI Member，并通过 ConstructionLock 检查该 AI 是否持有当前 Repository / Branch 的施工权。
+
+当前 ConstructionLock 已具备：
+- acquire：申请 / 持有
+- release：释放
+- transfer：转移
+- requireHolder：实际写入前检查
+
+尚未连接完整的 AI 施工流程、Commit → Verify 链。
 
 ### 11.3 下一阶段
 
