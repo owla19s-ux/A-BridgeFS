@@ -90,14 +90,8 @@ class GitHubWorkspaceService(
 
     fun requireWritePermission(aiMemberId: String) {
         requireWritePermission()
-        ConstructionLockStore(clientContext()).requireHolder(workspace, aiMemberId)
+        ConstructionLockStore(context).requireHolder(workspace, aiMemberId)
     }
-
-    private fun clientContext(): android.content.Context =
-        client.javaClass.getDeclaredField("context").let { field ->
-            field.isAccessible = true
-            field.get(client) as android.content.Context
-        }
 
     private fun requireRead() {
         check(workspace.readEnabled) { "当前工作区未允许 GitHub 读取" }
