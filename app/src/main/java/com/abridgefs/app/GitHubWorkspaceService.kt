@@ -10,6 +10,7 @@ import org.json.JSONObject
  * permissions instead of constructing repository/branch access rules itself.
  */
 class GitHubWorkspaceService(
+    private val context: android.content.Context,
     private val client: GitHubApiClient,
     private val workspace: GitHubWorkspace
 ) {
