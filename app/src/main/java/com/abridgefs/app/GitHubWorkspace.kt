@@ -8,6 +8,7 @@ package com.abridgefs.app
  */
 data class GitHubWorkspace(
     var accountLogin: String? = null,
+    var repositoryId: Long? = null,
     var repository: String? = null,
     var branch: String? = null,
     var readEnabled: Boolean = true,
