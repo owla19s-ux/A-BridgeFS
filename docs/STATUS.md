@@ -145,4 +145,4 @@ Workspace + Repository + Branch
 
 ## 2026-10-02 CI 验证检查点
 
-`bd27214` 的 V021 新建 Conversation lambda 编译修复已提交；此前 Actions #72 仍针对旧 SHA `e023469b`，不能作为该修复的验证结果。本检查点用于触发并追踪最新 Branch 代码的 PR 构建，构建通过前不将本批次标记为已验证。
+`bd27214` 的 V021 新建 Conversation lambda 编译修复已提交；此前 Actions #72 仍针对旧 SHA `e023469b`，不能作为该修复的验证结果。当前可用 GitHub 连接器能够检查/重跑既有 Run，但没有可用的 workflow_dispatch 写入口；本次通过 Branch 文档提交产生的新 Commit 未自动产生新的 Actions Run。因此构建通过前不将本批次标记为已验证。
