@@ -176,6 +176,48 @@ class CollaborationCoordinator(
     }
 
     /**
+     * Performs one real GitHub Contents write for a task that already holds
+     * construction authority. GitHub's Contents API creates the commit.
+     */
+    fun updateFile(
+        taskId: String,
+        aiMemberId: String,
+        path: String,
+        content: String,
+        message: String,
+        sha: String
+    ): JSONObject {
+        val task = CollaborationTaskStore(context).get(taskId)
+            ?: error("协作任务不存在：$taskId")
+        require(task.workspaceId == workspaceId && task.conversationId == conversationId) {
+            "协作任务不属于当前工作区 / 对话"
+        }
+        require(task.status == CollaborationTaskRecord.STATUS_CONSTRUCTING) {
+            "当前协作任务未进入施工阶段"
+        }
+        require(task.constructionHolderAiMemberId == aiMemberId) {
+            "当前 AI 不是该协作任务的施工者"
+        }
+
+        val workspace = BridgeProjectStore(context).load().firstOrNull { it.id == workspaceId }
+            ?: error("工作区不存在：$workspaceId")
+        val auth = GitHubTokenStore(context).state()
+        val token = auth.accessToken?.takeIf { it.isNotBlank() }
+            ?: error("GitHub 尚未授权")
+        val service = GitHubWorkspaceService(context, GitHubApiClient(context, token), workspace.github)
+        val result = service.updateFile(path, content, message, sha, aiMemberId)
+        val commitSha = result.optJSONObject("commit")?.optString("sha").orEmpty().ifBlank { null }
+
+        CollaborationTaskStore(context).update(taskId) {
+            it.status = CollaborationTaskRecord.STATUS_WAITING_VERIFY
+            it.lastCommitSha = commitSha
+            it.lastChangedPath = path
+        }
+        AppLogger.log(context, AppLogger.Category.COLLABORATION, "GITHUB_WRITE", "taskId=$taskId path=$path")
+        return result
+    }
+
+    /**
      * Releases construction authority after the task reaches a safe boundary.
      * It does not silently release another AI's lock.
      */
@@ -189,7 +231,7 @@ class CollaborationCoordinator(
             ?: error("工作区不存在：$workspaceId")
         ConstructionLockStore(context).release(workspace, aiMemberId)
         taskStore.update(taskId) {
-            it.status = CollaborationTaskRecord.STATUS_COMPLETE
+            it.status = CollaborationTaskRecord.STATUS_WAITING_VERIFY
             it.constructionHolderAiMemberId = null
         }
         AppLogger.log(context, AppLogger.Category.COLLABORATION, "CONSTRUCTION_RELEASED", "taskId=$taskId")
