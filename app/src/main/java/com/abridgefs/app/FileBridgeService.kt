@@ -62,15 +62,16 @@ val text=intent.getStringExtra("bridgefs_external_command").orEmpty()
 val rootPath=intent.getStringExtra("bridgefs_root").orEmpty()
 val projectId=intent.getStringExtra("projectId")
 val conversationId=intent.getStringExtra("conversationId")
+val standaloneConversationId=intent.getStringExtra("standaloneConversationId")
 commandExecutor.submit {
-val result=executeExternalCommand(rootPath,text,projectId,conversationId)
-broadcastReceipt(result.first,result.second,result.third,projectId,conversationId)
+val result=executeExternalCommand(rootPath,text,projectId,conversationId,standaloneConversationId)
+broadcastReceipt(result.first,result.second,result.third,projectId,conversationId,standaloneConversationId)
 }
 }
 return START_NOT_STICKY
 }
 
-private fun executeExternalCommand(rootPath:String,text:String,projectId:String?,conversationId:String?):Triple<String,String,String>{
+private fun executeExternalCommand(rootPath:String,text:String,projectId:String?,conversationId:String?,standaloneConversationId:String?):Triple<String,String,String>{
 val rootFile=File(rootPath)
 if(rootPath.isBlank()||!rootFile.isDirectory||isProtectedWorkspace(rootPath)){
 return Triple("FAILED",text,"工作目录无效或属于受保护区域："+rootPath)
@@ -86,8 +87,11 @@ if (commands.size > limit) {
     return Triple("DENIED", text, "本轮指令数量 " + commands.size + " 超过限制 " + limit + "，未执行。")
 }
 val workspace = projectId?.let { id -> BridgeProjectStore(this).load().firstOrNull { it.id == id } }
-val conversation = workspace?.let { ws -> conversationId?.let { id -> ws.conversations.firstOrNull { it.id == id } } ?: ws.activeConversation() }
-val auth = PermissionPolicy.authorization(this, workspace, conversation)
+val workspaceConversation = workspace?.let { ws -> conversationId?.let { id -> ws.conversations.firstOrNull { it.id == id } } ?: ws.activeConversation() }
+val standaloneConversation = standaloneConversationId?.let { id ->
+    BridgeConversationStore(this).load().firstOrNull { it.id == id }
+}
+val auth = PermissionPolicy.authorization(this, workspace, workspaceConversation ?: standaloneConversation)
 val denied = commands.firstOrNull { PermissionPolicy.check(it, auth) == Decision.DENY }
 if (denied != null) {
     AppLogger.log(this, "EXECUTION_DENIED", "reason=permission command=" + denied)
@@ -108,7 +112,7 @@ Triple("FAILED",text,"执行异常："+(e.message ?: "未知错误"))
 }
 }
 
-private fun broadcastReceipt(status:String,command:String,message:String,projectId:String?,conversationId:String?){
+private fun broadcastReceipt(status:String,command:String,message:String,projectId:String?,conversationId:String?,standaloneConversationId:String?){
 val now=System.currentTimeMillis()
 val pending=org.json.JSONObject()
     .put("status",status)
@@ -125,6 +129,7 @@ val intent=Intent("com.bridgefs.RESULT").setPackage(packageName)
 .putExtra("message",message)
 .putExtra("projectId",projectId)
 .putExtra("conversationId",conversationId)
+.putExtra("standaloneConversationId",standaloneConversationId)
 .putExtra("time",now)
 sendBroadcast(intent)
 }
@@ -286,11 +291,11 @@ val cs=CommandParser.parse(raw)
 if(cs.isEmpty()){
     val message=CommandParser.lastError ?: "未发现可执行指令"
     findReceipt(box)?.let{it.text=message;it.setTextColor(Color.DKGRAY)}
-    broadcastReceipt("FAILED",raw,message,null,null)
+    broadcastReceipt("FAILED",raw,message,null,null,null)
 }else if(CommandParser.lastError!=null){
     val message=CommandParser.lastError!!
     findReceipt(box)?.let{it.text=message;it.setTextColor(Color.DKGRAY)}
-    broadcastReceipt("FAILED",raw,message,null,null)
+    broadcastReceipt("FAILED",raw,message,null,null,null)
 }else{
     runButton?.isEnabled=false
     commandExecutor.submit{
@@ -302,7 +307,7 @@ if(cs.isEmpty()){
             runButton?.isEnabled=true
             log("Command","执行 "+cs.size+" 条指令："+if(status=="SUCCEEDED")"成功" else "失败")
         }
-        broadcastReceipt(status,cs.joinToString(" | "){it.toString()},message,null,null)
+        broadcastReceipt(status,cs.joinToString(" | "){it.toString()},message,null,null,null)
     }
 }
 }

@@ -210,3 +210,23 @@ Verify 实链第一版已经接入：
 当前最关键断点：`CollaborationCoordinator.updateFile()` 已可真实写入，但 `runObjective()` 尚未把 Worker 的文件修改意图映射为该调用；因此“AI 自主施工 → Commit”仍不可达。
 
 旧 Decision AI ↔ Worker 文档仅作为历史参考，不再作为当前正式身份模型。
+
+
+## 12. UI 边界修正：独立对话与 Workspace 协作对话
+
+当前正式 UI 边界：
+
+```
+Workspace
+ └─ Workspace Conversations
+     └─ 双 AI 协作 / Task / ConstructionLock / Commit / Verify
+
+底部「对话」
+ └─ Standalone Conversations
+     └─ 用户 ↔ 单一 API
+     └─ 独立消息 / 回执 / 本地文件修改权限
+```
+
+独立对话不读取 Workspace.activeConversation，也不受 Workspace 双 AI 协作开关影响。
+
+Workspace 协作对话通过 Workspace 页面明确入口进入。
