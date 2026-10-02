@@ -40,6 +40,8 @@ class V021Activity : Activity() {
     private var page = Page.WORKSPACE
     private val executor = Executors.newSingleThreadExecutor()
     private var pendingReceipt: String? = null
+    private var collaborationRunningConversationId: String? = null
+    private var standaloneSendingConversationId: String? = null
     private val receiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: android.content.Context, intent: android.content.Intent) {
             val status = intent.getStringExtra("status") ?: "UNKNOWN"
@@ -831,6 +833,7 @@ class V021Activity : Activity() {
         root.addView(selector, LinearLayout.LayoutParams(-1, dp(64)).apply { bottomMargin = dp(6) })
 
         val profiles = collaborationProfileIds()
+        val collaborationRunning = collaborationRunningConversationId == conversation.id
         root.addView(TextView(this).apply {
             text = "协作 AI：" +
                 (apis().firstOrNull { it.id == profiles.first }?.name ?: "AI A") +
@@ -886,10 +889,16 @@ class V021Activity : Activity() {
             setHintTextColor(color(R.color.bridgefs_text_secondary))
         }
         composer.addView(input, LinearLayout.LayoutParams(0, dp(52), 1f))
-        composer.addView(actionButton("发送") {
-            sendWorkspaceCollaboration(input, conversation)
-            input.text.clear()
-        }, LinearLayout.LayoutParams(dp(70), dp(52)).apply { marginStart = dp(6) })
+        val sendButton = actionButton(if (collaborationRunning) "处理中…" else "发送") {
+            if (collaborationRunningConversationId == conversation.id) {
+                Toast.makeText(this@V021Activity, "本轮协作还在进行，请等待结果。", Toast.LENGTH_SHORT).show()
+            } else {
+                sendWorkspaceCollaboration(input, conversation)
+                input.text.clear()
+            }
+        }
+        sendButton.isEnabled = !collaborationRunning
+        composer.addView(sendButton, LinearLayout.LayoutParams(dp(82), dp(52)).apply { marginStart = dp(6) })
         root.addView(composer)
         content.addView(root)
     }
