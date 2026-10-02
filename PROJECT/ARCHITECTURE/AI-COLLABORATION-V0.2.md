@@ -1,6 +1,6 @@
 # 双 AI 协作协议 v0.2
 
-状态：设计基线 / 已确认方向 / 尚未完整实现
+状态：设计基线 / 已确认方向 / 施工链开发中
 
 ## 1. 核心原则
 
@@ -66,7 +66,9 @@ ConstructionLock(Workspace, Repository, Branch)
 
 第一阶段消息类型：
 
-PROPOSAL / QUESTION / DECISION / TASK / PROGRESS / REQUEST_WRITE / GRANT_WRITE / RELEASE_WRITE / COMMIT / VERIFY / BLOCKED / COMPLETE / ESCALATE
+PROPOSAL / QUESTION / DECISION / TASK / PROGRESS / REQUEST_WRITE / GRANT_WRITE / RELEASE_WRITE / FILE_CHANGE_REQUEST / COMMIT / VERIFY / BLOCKED / COMPLETE / ESCALATE
+
+当前代码协议仍保留 `DECISION_AI / WORKER` 作为任务阶段路由；文件修改协议正在施工中，不能把 Worker 普通文本或普通 `PROGRESS` 直接视为写入请求。
 
 消息协议不规定固定的 AI → AI 方向。
 
@@ -147,7 +149,8 @@ API Profile 是连接资源，不等于施工权。
 - `BridgeProject.conversations`：工作区内独立 Conversation 列表，已持久化。
 - `activeConversationId`：当前对话指针已持久化；旧扁平消息数据可自动迁移到默认 Conversation。
 - V021 工作区页提供开关 UI。
-- 当前开关尚未进入 `PermissionPolicy`，因此不能把它描述为真实执行授权。
+- `PermissionPolicy.authorization(workspace, conversation)` 已读取 Conversation 覆盖与 Workspace 默认值。
+- `FileBridgeService` 在真实本地执行入口再次使用有效授权，因此该权限已进入实际执行拦截；仍待新 APK / 真机验证。
 
 目标模型为：
 
@@ -162,6 +165,8 @@ GitHub 写入采用分层边界：
 3. `GitHubApiClient`：GitHub HTTP / Contents API 实现。
 
 当前已经具备 Workspace-scoped `updateFile()`，实际写入入口要求调用者提供 AI Member，并通过 ConstructionLock 检查该 AI 是否持有当前 Repository / Branch 的施工权。
+
+`CollaborationCoordinator.requestConstruction()` 已能把持久化任务推进到 `CONSTRUCTING` 并取得施工锁；`updateFile()` 已能完成真实 Contents API 更新并保存 Commit SHA。
 
 当前 ConstructionLock 已具备：
 - acquire：申请 / 持有
@@ -189,20 +194,19 @@ Verify 实链第一版已经接入：
 ### 11.3 下一阶段
 
 继续完成：
-- Chat 级本地文件权限覆盖
-- `PermissionPolicy` 实际执行拦截
-- Workspace / Conversation 数据拆分（第一阶段已落地，保留兼容 facade）
-- AI 成员与 API Profile 解耦
-- GitHub 写入 → Commit → Actions / Check Run → Verify
+- Worker 输出 → FILE_CHANGE_REQUEST → `updateFile()` 的安全协议接线
+- AI 自主施工 → Commit 的完整运行链
+- 新 Actions / APK / 真机实证
 - Receipt 与协作消息时间线统一
+- 双 AI 连续协作循环
+- 施工失败后的恢复 / 转移策略
 
+已完成基础设施但仍需真实验证：
+- Workspace / Conversation 数据拆分与权限执行拦截
+- AI 成员与 API Profile 解耦
+- Repository / Branch ConstructionLock
+- GitHub 写入 → Commit → Actions / Verify 基础链
 
-正式设计已确认，但当前代码仍需完成：
-- Workspace AI 成员模型
-- Repository / Branch 施工锁
-- 双 AI 消息循环
-- GitHub 实际写入链
-- Commit → Verify 实链
-- Receipt 状态统一
+当前最关键断点：`CollaborationCoordinator.updateFile()` 已可真实写入，但 `runObjective()` 尚未把 Worker 的文件修改意图映射为该调用；因此“AI 自主施工 → Commit”仍不可达。
 
 旧 Decision AI ↔ Worker 文档仅作为历史参考，不再作为当前正式身份模型。
