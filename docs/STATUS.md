@@ -356,3 +356,12 @@ Workspace + Repository + Branch
 - Verify 失败仍保留施工者信息，允许修复轮重新获取/确认同一施工权；Verify 成功后释放实际锁并清除任务持有者。
 - 本轮代码 Commit：01ae2970986e5b4bb4e3348002724d2659ad8eb6。
 - 仍未进行 Release 构建、APK 发布或真机验证。
+
+
+## 2026-10-02 Verify 修复轮第十六轮检查
+
+- 发现 Verify 失败后的 retryAfterVerifyFailure() 原先只检查任务记录中的 constructionHolderAiMemberId，随后就把 FAILED 改为 RUNNING。
+- 风险：实际 ConstructionLock 已被清理/丢失时，任务会进入 RUNNING，但修复轮并没有真实施工权。
+- 修复：FAILED → RUNNING 前，必须通过 ConstructionLockStore.requireHolder() 确认记录的修复者仍持有当前 Workspace + Repository + Branch 的实际施工锁。
+- 这样 Verify 失败后的修复轮不会产生“任务已恢复、施工权不存在”的中间状态。
+- 本轮代码 Commit：19468a83a8cc22b20816bb835dc7d35c52edfce2。
