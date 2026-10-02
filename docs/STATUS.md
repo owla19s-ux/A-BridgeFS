@@ -27,10 +27,10 @@ Decision AI / Worker AI 只作为任务阶段角色标签，不是固定身份�
 | 工作区 | 开发中 | Workspace → Conversations 数据结构已落地；V021 已接入 Workspace 切换 / 新建 / 重命名，以及 Conversation 切换 / 新建的基础 UI；仍需真机验证与继续清理兼容 facade |
 | 双 AI 协作协议 | 已确认设计 / 尚未完整实现 | 共享读取、施工权独占且可转移 |
 | 协作消息 | 开发中 | 聊天消息已开始保存并展示实际使用 API 的名称与头像；仍待构建/真机验证，协作链仍偏旧单轮实现 |
-| 施工锁 | 已设计未实现 | Repository / Branch 级独占写权限 |
+| 施工锁 | 开发中 | 已实现 Workspace + Repository + Branch 独占锁基础层；尚未接入完整 AI 施工流程 |
 | 协作回执 | 已设计未完全实现 | Receipt 与消息时间线仍需统一 |
 | 协作日志 | 已设计未完全实现 | 已有分类日志目录，产品级协作日志仍需补齐 |
-| GitHub 实际写入链 | 开发中 | 当前已有权限边界，但尚未形成完整写入 → Verify 链 |
+| GitHub 实际写入链 | 开发中 | Workspace 写入边界已要求 AI Member 持有 ConstructionLock；尚未形成完整写入 → Commit → Verify 链 |
 | Verify 实链 | 开发中 | 需要 Commit → Run / Check Run → Job → Result |
 | 复杂调度 / 多 AI | 未开始 | 当前明确不做 |
 
@@ -69,13 +69,13 @@ Workspace + Repository + Branch
 - `BridgeProject` 已增加工作区级 `localFileModifyEnabled`，并持久化保存。
 - V021 工作区页已出现“本地文件”权限卡；该开关目前表达**工作区意图**，尚未接入 `PermissionPolicy` 的最终执行判定。
 - GitHub 低层 `GitHubApiClient.updateFile()` 已支持 Contents API 的文件更新。
-- `GitHubWorkspaceService.updateFile()` 已作为工作区级写入边界，先检查 GitHub read/write 权限，再调用低层客户端。
+- `GitHubWorkspaceService.updateFile()` 已作为工作区级写入边界；实际写入要求 AI Member，并检查 Workspace + Repository + Branch ConstructionLock 后才调用低层客户端。
 
 ### 尚未完成
 
 - 本地文件修改开关已接入 `PermissionPolicy`，并由 `FileBridgeService` 在真实执行入口再次判定；尚待 APK 真机验证。
 - Conversation 级本地文件权限覆盖尚未实现；目标是 `Conversation override ?: Workspace permission`。
-- GitHub 文件写入尚未连接 AI 施工流程、Commit / PR / Actions / Verify。
+- GitHub 文件写入现在已经具备 ConstructionLock 基础门槛，但尚未连接完整 AI 施工流程、Commit / PR / Actions / Verify。
 - Workspace → Conversation 数据结构已落地，V021 对话切换/新建已开始使用工作区内 Conversation；仍保留兼容 facade，后续继续清理旧调用。
 - API 页面仍需从固定 Decision / Worker 配置迁移为 AI 成员 + API Profile 资源模型。
 
@@ -114,7 +114,7 @@ Workspace + Repository + Branch
 3. 把工作区 / Conversation 权限真正接入 PermissionPolicy。
 4. 把 API Profile 与 AI 成员、实际权限边界分离清楚。
 5. 统一 Receipt 状态链。
-6. 实现 Repository / Branch 施工锁。
+6. 完成 Repository / Branch 施工锁与 AI 施工流程接入。
 7. 连接真实 GitHub 写入与 Verify。
 8. 实现双 AI 连续协作循环。
 9. 清理旧 MainActivity / 旧日志路径等历史实现。
