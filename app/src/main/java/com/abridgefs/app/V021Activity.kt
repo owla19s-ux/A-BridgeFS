@@ -739,6 +739,7 @@ class V021Activity : Activity() {
         conversation.messages.forEach { m -> messageBox.addView(messageBubble(m)) }
         messages.addView(messageBox)
         root.addView(messages, LinearLayout.LayoutParams(-1, 0, 1f))
+        messages.post { messages.fullScroll(View.FOCUS_DOWN) }
 
         val composer = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -867,6 +868,7 @@ class V021Activity : Activity() {
         conversation.messages.forEach { m -> messageBox.addView(messageBubble(m)) }
         messages.addView(messageBox)
         root.addView(messages, LinearLayout.LayoutParams(-1, 0, 1f))
+        messages.post { messages.fullScroll(View.FOCUS_DOWN) }
 
         val composer = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -1297,6 +1299,7 @@ class V021Activity : Activity() {
             return
         }
         conversation.messages += BridgeChatMessage("user", text)
+        conversation.messages += BridgeChatMessage("tool", "[协作进行中]\n正在请求 Decision AI → Worker，请稍候……")
         store.save(projects)
         render()
         runCollaboration(current, text)
