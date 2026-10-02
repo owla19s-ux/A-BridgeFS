@@ -149,6 +149,7 @@ class V021Activity : Activity() {
         root.addView(header("工作区", "管理协作资源与权限"))
         root.addView(workspaceCard())
         root.addView(collaborationCard())
+        root.addView(localFilePermissionCard())
         root.addView(sectionTitle("API"))
         val list = apis()
         if (list.isEmpty()) {
