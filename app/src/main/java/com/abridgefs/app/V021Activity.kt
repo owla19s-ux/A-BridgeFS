@@ -474,7 +474,7 @@ class V021Activity : Activity() {
                 collaborationTaskActionRunningId = task.taskId
                 render()
                 executor.execute {
-                    runCatching {
+                    try {
                         val coordinator = CollaborationCoordinator(
                             this,
                             workspace!!.id,
@@ -490,24 +490,22 @@ class V021Activity : Activity() {
                         )
                         runOnUiThread {
                             Toast.makeText(this, result.message, Toast.LENGTH_LONG).show()
+                            collaborationTaskActionRunningId = null
                             render()
                         }
-                    }.onFailure {
+                    } catch (e: Exception) {
                         runOnUiThread {
-                            Toast.makeText(this, "修复轮启动失败：${it.message ?: "未知错误"}", Toast.LENGTH_LONG).show()
+                            collaborationTaskActionRunningId = null
+                            Toast.makeText(this, "修复轮启动失败：${e.message ?: "未知错误"}", Toast.LENGTH_LONG).show()
+                            render()
                         }
-                    }
-                }
-            })
-                    runOnUiThread {
-                        collaborationTaskActionRunningId = null
-                        render()
                     }
                 }
             }
             repairButton.isEnabled = !actionRunning
             box.addView(repairButton)
         }
+
         if (task.status == CollaborationTaskRecord.STATUS_WAITING_VERIFY) {
             val actionRunning = collaborationTaskActionRunningId == task.taskId
             val verifyButton = actionButton(if (actionRunning) "Verify处理中…" else "检查当前 Commit") {
@@ -515,7 +513,7 @@ class V021Activity : Activity() {
                 collaborationTaskActionRunningId = task.taskId
                 render()
                 executor.execute {
-                    runCatching {
+                    try {
                         val coordinator = CollaborationCoordinator(
                             this,
                             workspace!!.id,
@@ -531,17 +529,21 @@ class V021Activity : Activity() {
                         )
                         runOnUiThread {
                             Toast.makeText(this, result.message, Toast.LENGTH_LONG).show()
+                            collaborationTaskActionRunningId = null
                             render()
                         }
-                    }.onFailure {
+                    } catch (e: Exception) {
                         runOnUiThread {
-                            Toast.makeText(this, "Verify 失败：${it.message ?: "未知错误"}", Toast.LENGTH_LONG).show()
+                            collaborationTaskActionRunningId = null
+                            Toast.makeText(this, "Verify 失败：${e.message ?: "未知错误"}", Toast.LENGTH_LONG).show()
+                            render()
                         }
                     }
                 }
-            })
+            }
+            verifyButton.isEnabled = !actionRunning
+            box.addView(verifyButton)
         }
-
         return box
     }
 
