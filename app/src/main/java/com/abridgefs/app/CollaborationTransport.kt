@@ -208,6 +208,7 @@ class CollaborationCoordinator(
         val service = GitHubWorkspaceService(context, GitHubApiClient(context, token), workspace.github, workspace)
         val result = service.updateFile(path, content, message, sha, aiMemberId)
         val commitSha = result.optJSONObject("commit")?.optString("sha").orEmpty().ifBlank { null }
+        require(!commitSha.isNullOrBlank()) { "GitHub 写入成功但未返回 Commit SHA，已停止进入 Verify" }
 
         CollaborationTaskStore(context).update(taskId) {
             it.status = CollaborationTaskRecord.STATUS_WAITING_VERIFY
