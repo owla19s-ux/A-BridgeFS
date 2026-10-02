@@ -212,3 +212,19 @@ Workspace + Repository + Branch
 
 - PR #16 的 Android Verify 工作流使用 `pull_request` → `main` 触发。
 - 旧 Actions Run 不作为当前施工分支构建证据；后续以最新 Commit SHA 对应的 Run 为准。
+
+
+## 2026-10-02 追加：Workspace / 独立对话 UI 分离
+
+本轮根据真机 UI 检查确认并修正：
+
+- 原问题：V021「对话」页直接使用 Workspace.activeConversation()，因此普通独立对话实际上仍属于 Workspace。
+- 原问题：Workspace 的 `collaboration_mode_enabled` 会让普通对话发送路径直接进入双 AI 协作。
+- 修正：新增 `BridgeConversationStore`，独立对话单独持久化。
+- 修正：底部「对话」现在只管理独立对话。
+- 修正：Workspace 新增「进入协作对话」入口。
+- 修正：Workspace 协作对话独立使用 Workspace.conversations，可新建 / 切换。
+- 修正：独立对话继续支持 API 对话、BridgeFS 本地执行、回执及独立本地修改权限。
+- 修正：BridgeFS 回执增加 standaloneConversationId 路由，不再写入 Workspace Conversation。
+
+状态：**代码已实现，待 Actions / Release APK / 真机验证。**
