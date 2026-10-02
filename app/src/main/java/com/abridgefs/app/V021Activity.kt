@@ -60,7 +60,7 @@ class V021Activity : Activity() {
                     conversation.executions += receipt
                     conversation.messages += BridgeChatMessage("receipt", formatReceipt(receipt))
                     conversationStore.save(standaloneConversations)
-                    getSharedPreferences("bridgefs", 0).edit().remove("pending_receipt").apply()
+                    removePendingReceipt(intent.getStringExtra("receiptId"))
                     if (page == Page.CHAT) render()
                     else Toast.makeText(this@V021Activity, "收到执行回执：$status", Toast.LENGTH_SHORT).show()
                 }
@@ -75,7 +75,7 @@ class V021Activity : Activity() {
                 conversation.executions += receipt
                 conversation.messages += BridgeChatMessage("receipt", formatReceipt(receipt))
                 store.save(projects)
-                getSharedPreferences("bridgefs", 0).edit().remove("pending_receipt").apply()
+                removePendingReceipt(intent.getStringExtra("receiptId"))
                 if (page == Page.WORKSPACE_CHAT) render()
                 else Toast.makeText(this@V021Activity, "收到执行回执：$status", Toast.LENGTH_SHORT).show()
             }
@@ -118,44 +118,61 @@ class V021Activity : Activity() {
      */
     private fun recoverPendingReceipt() {
         val prefsStore = getSharedPreferences("bridgefs", Context.MODE_PRIVATE)
-        val raw = prefsStore.getString("pending_receipt", "").orEmpty()
-        if (raw.isBlank()) return
-        runCatching {
-            val obj = org.json.JSONObject(raw)
-            val status = obj.optString("status", "UNKNOWN")
-            val command = obj.optString("command", "")
-            val message = obj.optString("message", "")
-            val projectId = obj.optString("projectId", "").ifBlank { null }
-            val conversationId = obj.optString("conversationId", "").ifBlank { null }
-            val standaloneConversationId = obj.optString("standaloneConversationId", "").ifBlank { null }
-            val receipt = BridgeReceiptRecord(status, command, message)
-            if (!standaloneConversationId.isNullOrBlank()) {
-                val conversation = standaloneConversations.firstOrNull { it.id == standaloneConversationId }
-                if (conversation != null) {
+        val queued = org.json.JSONArray(prefsStore.getString("pending_receipts", "[]") ?: "[]")
+        val legacy = prefsStore.getString("pending_receipt", "").orEmpty()
+        val items = mutableListOf<org.json.JSONObject>()
+        for (i in 0 until queued.length()) queued.optJSONObject(i)?.let { items += it }
+        if (items.isEmpty() && legacy.isNotBlank()) runCatching { items += org.json.JSONObject(legacy) }
+        if (items.isEmpty()) return
+        val remaining = mutableListOf<org.json.JSONObject>()
+        var recoveredAny = false
+        for (obj in items) {
+            runCatching {
+                val status = obj.optString("status", "UNKNOWN")
+                val command = obj.optString("command", "")
+                val message = obj.optString("message", "")
+                val projectId = obj.optString("projectId", "").ifBlank { null }
+                val conversationId = obj.optString("conversationId", "").ifBlank { null }
+                val standaloneConversationId = obj.optString("standaloneConversationId", "").ifBlank { null }
+                val receipt = BridgeReceiptRecord(status, command, message, obj.optLong("time", System.currentTimeMillis()))
+                if (!standaloneConversationId.isNullOrBlank()) {
+                    val conversation = standaloneConversations.firstOrNull { it.id == standaloneConversationId }
+                    if (conversation == null) { remaining += obj; return@runCatching }
                     conversation.executions += receipt
                     conversation.messages += BridgeChatMessage("receipt", formatReceipt(receipt))
                     conversationStore.save(standaloneConversations)
                     pendingReceipt = formatReceipt(receipt)
-                    prefsStore.edit().remove("pending_receipt").apply()
-                    return@runCatching
-                }
-            } else {
-                val target = projects.firstOrNull { it.id == projectId }
-                val conversation = target?.let { ws ->
-                    conversationId?.let { id -> ws.conversations.firstOrNull { it.id == id } }
-                }
-                if (conversation != null) {
+                    recoveredAny = true
+                } else {
+                    val target = projects.firstOrNull { it.id == projectId }
+                    val conversation = target?.let { ws -> conversationId?.let { id -> ws.conversations.firstOrNull { it.id == id } } }
+                    if (conversation == null) { remaining += obj; return@runCatching }
                     conversation.executions += receipt
                     conversation.messages += BridgeChatMessage("receipt", formatReceipt(receipt))
                     store.save(projects)
                     pendingReceipt = formatReceipt(receipt)
-                    prefsStore.edit().remove("pending_receipt").apply()
-                    return@runCatching
+                    recoveredAny = true
                 }
+            }.onFailure {
+                remaining += obj
+                AppLogger.log(this, AppLogger.Category.EXECUTION, "PENDING_RECEIPT_RECOVERY_FAILED", it.message ?: "invalid pending receipt")
             }
-        }.onFailure {
-            AppLogger.log(this, AppLogger.Category.EXECUTION, "PENDING_RECEIPT_RECOVERY_FAILED", it.message ?: "invalid pending receipt")
         }
+        prefsStore.edit().putString("pending_receipts", org.json.JSONArray().apply { remaining.forEach { put(it) } }.toString()).remove("pending_receipt").apply()
+        if (!recoveredAny && remaining.isNotEmpty()) AppLogger.log(this, AppLogger.Category.EXECUTION, "PENDING_RECEIPT_RECOVERY_DEFERRED", "count=${remaining.size}")
+    }
+
+    private fun removePendingReceipt(receiptId: String?) {
+        val id = receiptId?.trim().orEmpty()
+        if (id.isBlank()) return
+        val prefsStore = getSharedPreferences("bridgefs", Context.MODE_PRIVATE)
+        val queued = org.json.JSONArray(prefsStore.getString("pending_receipts", "[]") ?: "[]")
+        val remaining = org.json.JSONArray()
+        for (i in 0 until queued.length()) {
+            val item = queued.optJSONObject(i) ?: continue
+            if (item.optString("receiptId", "") != id) remaining.put(item)
+        }
+        prefsStore.edit().putString("pending_receipts", remaining.toString()).remove("pending_receipt").apply()
     }
 
     private fun buildShell() {
