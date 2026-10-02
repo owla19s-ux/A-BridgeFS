@@ -87,7 +87,6 @@ class V021Activity : Activity() {
 
         projects = store.load()
         if (projects.isEmpty()) projects += store.newProject("默认工作区")
-        migrateLegacyWorkspaceDirectory()
         standaloneConversations = conversationStore.load()
         if (standaloneConversations.isEmpty()) {
             standaloneConversations += conversationStore.newConversation("默认对话", apis().firstOrNull()?.id)
@@ -100,6 +99,7 @@ class V021Activity : Activity() {
         }
         val activeWorkspaceId = prefs.getString("active_workspace_id", null)
         project = projects.firstOrNull { it.id == activeWorkspaceId } ?: projects.first()
+        migrateLegacyWorkspaceDirectory()
         prefs.edit().putString("active_workspace_id", project?.id).apply()
         apiId = project?.activeConversation()?.apiId ?: apis().firstOrNull()?.id.orEmpty()
         registerReceiver(receiver, IntentFilter("com.bridgefs.RESULT"), Context.RECEIVER_NOT_EXPORTED)
