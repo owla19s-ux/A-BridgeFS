@@ -228,3 +228,13 @@ Workspace + Repository + Branch
 - 修正：BridgeFS 回执增加 standaloneConversationId 路由，不再写入 Workspace Conversation。
 
 状态：**代码已实现，待 Actions / Release APK / 真机验证。**
+
+
+## 2026-10-02 Worker 自主施工协议接线
+
+- 新增 `FILE_CHANGE_REQUEST`：Worker 可以提交明确的 path / operation / content / commit_message。
+- Coordinator 在实际写入前校验 TASK.scope 的 allow_paths / deny_paths / allow_operations、Workspace GitHub writeEnabled、Worker AI Member 与 ConstructionLock。
+- 写入前重新读取 GitHub 当前文件 SHA，避免使用 AI 旧状态覆盖新版本。
+- 写入成功后保存 Commit SHA，并立即触发一次 Commit-scoped Verify 查询；Verify 仍以真实 Actions Run 为准。
+- Decision AI 的 `COMPLETE` 不再绕过已有 Commit 的 Verify；已有 Commit 的任务保持 `WAITING_VERIFY`，最终 COMPLETE 由 Verify 服务确认。
+- 本批次仍为开发中，未产生新的 Actions Run / APK / 真机证据前不标记已验证。
