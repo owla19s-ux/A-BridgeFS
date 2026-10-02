@@ -2,7 +2,7 @@ name: Android Build and Release
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -61,13 +61,17 @@ jobs:
           echo "A_BRIDGEFS_KEY_ALIAS=${KEY_ALIAS}" >> "$GITHUB_ENV"
           echo "A_BRIDGEFS_KEY_PASSWORD=${KEYSTORE_PASSWORD}" >> "$GITHUB_ENV"
 
-          keytool -list             -keystore "$RUNNER_TEMP/a-bridgefs-release.jks"             -storepass "${KEYSTORE_PASSWORD}"             -alias "${KEY_ALIAS}"             > /tmp/bridgefs-keytool.txt
+          keytool -list \
+            -keystore "$RUNNER_TEMP/a-bridgefs-release.jks" \
+            -storepass "${KEYSTORE_PASSWORD}" \
+            -alias "${KEY_ALIAS}" \
+            > /tmp/bridgefs-keytool.txt
 
           test -s /tmp/bridgefs-keytool.txt
           echo "Official signing keystore loaded successfully."
 
-      - name: Build signed release APK
-        run: gradle :app:assembleRelease
+      - name: Build official release APK
+        run: gradle :app:assembleRelease --stacktrace
 
       - name: Verify APK signature
         shell: bash
@@ -80,7 +84,7 @@ jobs:
 
           echo "APK signature verification passed."
 
-      - name: Prepare fixed APK
+      - name: Prepare canonical APK
         shell: bash
         run: |
           set -euo pipefail
@@ -90,7 +94,7 @@ jobs:
           cp "$APK" release/A-BridgeFS.apk
           test -s release/A-BridgeFS.apk
 
-      - name: Upload SHA-specific artifact
+      - name: Upload canonical APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: A-BridgeFS-${{ github.sha }}
@@ -104,4 +108,8 @@ jobs:
         run: |
           set -euo pipefail
           gh release delete latest --cleanup-tag --yes || true
-          gh release create latest             release/A-BridgeFS.apk             --target "$GITHUB_SHA"             --title "A-BridgeFS latest"             --notes "Automatically published from commit $GITHUB_SHA."
+          gh release create latest \
+            release/A-BridgeFS.apk \
+            --target "$GITHUB_SHA" \
+            --title "A-BridgeFS latest" \
+            --notes "Automatically published from commit $GITHUB_SHA."
