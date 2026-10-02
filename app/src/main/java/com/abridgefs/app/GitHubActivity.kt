@@ -23,7 +23,8 @@ class GitHubActivity : android.app.Activity() {
         super.onCreate(state)
         projects = projectStore.load()
         if (projects.isEmpty()) projects += projectStore.newProject("默认工作区")
-        workspace = projects.first()
+        val workspaceId = intent.getStringExtra("workspaceId")
+        workspace = projects.firstOrNull { it.id == workspaceId } ?: projects.first()
         build()
     }
 
