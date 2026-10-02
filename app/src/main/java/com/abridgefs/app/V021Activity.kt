@@ -751,9 +751,14 @@ class V021Activity : Activity() {
         }
     }
 
-    private fun collaborationProfileIds(): Pair<String,String> =
-        prefs.getString("collaboration_first_api_id", "").orEmpty() to
-            prefs.getString("collaboration_second_api_id", "").orEmpty()
+    private fun collaborationProfileIds(): Pair<String,String> {
+        val savedFirst = prefs.getString("collaboration_first_api_id", "").orEmpty()
+        val savedSecond = prefs.getString("collaboration_second_api_id", "").orEmpty()
+        if (savedFirst.isNotBlank() && savedSecond.isNotBlank()) return savedFirst to savedSecond
+        val members = project?.aiMembers.orEmpty()
+        return (members.getOrNull(0)?.apiProfileId.orEmpty()) to
+            (members.getOrNull(1)?.apiProfileId.orEmpty())
+    }
 
     private fun selectCollaborationProfiles() {
         val list = apis()
