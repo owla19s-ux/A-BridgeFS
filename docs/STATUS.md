@@ -74,7 +74,7 @@ Workspace + Repository + Branch
 ### 尚未完成
 
 - 本地文件修改开关尚未真正阻断 WRITE / EDIT。
-- Chat 级本地文件权限覆盖尚未实现；目标是 `Chat override ?: Workspace permission`。
+- Conversation 级本地文件权限覆盖尚未实现；目标是 `Conversation override ?: Workspace permission`。
 - GitHub 文件写入尚未连接 AI 施工流程、Commit / PR / Actions / Verify。
 - Workspace → Conversation 数据结构已落地，V021 对话切换/新建已开始使用工作区内 Conversation；仍保留兼容 facade，后续继续清理旧调用。
 - API 页面仍需从固定 Decision / Worker 配置迁移为 AI 成员 + API Profile 资源模型。
@@ -114,7 +114,6 @@ Workspace + Repository + Branch
 3. 把工作区 / Conversation 权限真正接入 PermissionPolicy。
 4. 把 API Profile 与 AI 成员、实际权限边界分离清楚。
 5. 统一 Receipt 状态链。
-5. 实现 Repository / Branch 施工锁。
 6. 实现 Repository / Branch 施工锁。
 7. 连接真实 GitHub 写入与 Verify。
 8. 实现双 AI 连续协作循环。
