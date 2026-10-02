@@ -287,7 +287,9 @@ class CollaborationCoordinator(
         )
         AppLogger.log(context, AppLogger.Category.COLLABORATION, "HUMAN_OBJECTIVE", "taskId=" + taskId)
         val rawTask = callDecisionAi(humanMessage, decisionSystemPrompt)
-        val task = parseProtocolResponse(rawTask)
+        val task = parseProtocolResponseWithRetry(rawTask) {
+            callDecisionAi(humanMessage, decisionSystemPrompt + compactRetryPrompt(CollaborationProtocol.Role.DECISION_AI))
+        }
         require(task.type == CollaborationProtocol.Type.TASK) { "Decision AI did not return TASK" }
         require(task.taskId == taskId) { "Decision AI changed task_id; collaboration task state cannot be recovered safely" }
         require(task.from == CollaborationProtocol.Role.DECISION_AI && task.to == CollaborationProtocol.Role.WORKER) {
@@ -304,12 +306,16 @@ class CollaborationCoordinator(
     /** Execute exactly one Worker -> Decision AI round. */
     fun dispatchOneWorkerRound(workerSystemPrompt: String, decisionSystemPrompt: String): List<CollaborationProtocol.Message> {
         val task = transport.pendingFor(CollaborationProtocol.Role.WORKER).firstOrNull { it.type == CollaborationProtocol.Type.TASK } ?: return emptyList()
-        val workerMessage = parseProtocolResponse(callWorker(task, workerSystemPrompt))
+        val workerMessage = parseProtocolResponseWithRetry(callWorker(task, workerSystemPrompt)) {
+            callWorker(task, workerSystemPrompt + compactRetryPrompt(CollaborationProtocol.Role.WORKER))
+        }
         validateResponse(workerMessage, CollaborationProtocol.Role.WORKER)
         transport.append(workerMessage)
         transport.markHandled(task.id)
         if (workerMessage.to != CollaborationProtocol.Role.DECISION_AI) return listOf(workerMessage)
-        val decisionMessage = parseProtocolResponse(callDecisionAi(workerMessage, decisionSystemPrompt))
+        val decisionMessage = parseProtocolResponseWithRetry(callDecisionAi(workerMessage, decisionSystemPrompt)) {
+            callDecisionAi(workerMessage, decisionSystemPrompt + compactRetryPrompt(CollaborationProtocol.Role.DECISION_AI))
+        }
         validateResponse(decisionMessage, CollaborationProtocol.Role.DECISION_AI)
         transport.append(decisionMessage)
         val taskId = task.taskId
@@ -328,6 +334,24 @@ class CollaborationCoordinator(
 
     fun pendingFor(role: CollaborationProtocol.Role): List<CollaborationProtocol.Message> = transport.pendingFor(role)
 
+    private fun parseProtocolResponseWithRetry(
+        raw: String,
+        retry: () -> String
+    ): CollaborationProtocol.Message {
+        return runCatching {
+            parseProtocolResponse(raw)
+        }.getOrElse { firstError ->
+            AppLogger.log(context, AppLogger.Category.COLLABORATION, "PROTOCOL_PARSE_RETRY", firstError.message ?: "invalid protocol response")
+            parseProtocolResponse(retry())
+        }
+    }
+
+    private fun compactRetryPrompt(role: CollaborationProtocol.Role): String {
+        val route = if (role == CollaborationProtocol.Role.DECISION_AI)
+            "from=decision_ai,to=worker,type=TASK"
+        else "from=worker,to=decision_ai,type=DECISION_REQUEST|PROGRESS|BLOCKED|COMMIT|VERIFY|COMPLETE"
+        return "\n上一轮输出无法被完整解析。请立即重新输出一个完整、紧凑、合法的 JSON 对象；不要 Markdown、不要解释、不要换行长文本；$route。避免冗长 scope、acceptance、autonomy 与 context_refs，只保留完成协议所需内容。确保最后一个字符为 }。"
+    }
     private fun parseProtocolResponse(raw: String): CollaborationProtocol.Message {
         val text = raw.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
         val json = try { JSONObject(text) } catch (_: Exception) {
