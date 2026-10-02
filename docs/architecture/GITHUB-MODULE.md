@@ -105,7 +105,7 @@ GitHub
 
 授权凭据单独存储，不进入工作区普通 JSON。
 
-历史数据如果只有 `github.accountLogin` 而没有 `githubAccount`，加载时仍兼容。
+历史数据如果只有 `githubAccountLogin` 而没有 `githubAccount`，加载时仍兼容。
 
 ## 6. Repository 选择
 
