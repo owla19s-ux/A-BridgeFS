@@ -75,7 +75,7 @@ Workspace + Repository + Branch
 
 - 本地文件修改开关已接入 `PermissionPolicy`，并由 `FileBridgeService` 在真实执行入口再次判定；尚待 APK 真机验证。
 - Conversation 级本地文件权限覆盖尚未实现；目标是 `Conversation override ?: Workspace permission`。
-- GitHub 文件写入现在已经具备 ConstructionLock 基础门槛，但尚未连接完整 AI 施工流程、Commit / PR / Actions / Verify。
+- GitHub 文件写入现在已经具备 ConstructionLock 基础门槛；协作任务已经能够显式申请施工权并进入真实 Contents API 写入，Contents API 返回的 Commit SHA 已持久化；Actions / Verify 尚未接通。
 - Workspace → Conversation 数据结构已落地，V021 对话切换/新建已开始使用工作区内 Conversation；仍保留兼容 facade，后续继续清理旧调用。
 - API 页面仍需从固定 Decision / Worker 配置迁移为 AI 成员 + API Profile 资源模型。
 
@@ -85,7 +85,7 @@ Workspace + Repository + Branch
 | --- | --- |
 | 工作区本地修改权限数据 | 已实现 |
 | 工作区本地修改权限 UI | 已实现 |
-| 本地修改权限实际执行拦截 | 已设计未实现 |
+| 本地修改权限实际执行拦截 | 已实现，待验证 |
 | GitHub 低层文件更新 | 已实现 |
 | GitHub Workspace 写入边界 | 已实现 |
 | GitHub → Commit → Verify | 开发中 |
@@ -172,3 +172,13 @@ Workspace + Repository + Branch
 - `CollaborationCoordinator` 现在接收当前 Workspace / Conversation ID，并使用对应隔离的 Transport。
 - 协作结果消息现在保存实际产生该协议消息的 API Profile ID、名称与头像，与普通 AI 消息的身份持久化规则统一。
 - ⚠️ 当前仍未通过新的 Actions Run / APK / 真机验证；以上为代码层检查与修复结果。
+
+
+### 2026-10-02 协作施工链第三轮检查
+
+- 新增 CollaborationTaskStore：持久化 Workspace + Conversation + Task 的施工状态，支持 App 退出后的任务状态恢复基础。
+- CollaborationCoordinator.requestConstruction(taskId, aiMemberId)：只有显式申请才获取 ConstructionLock，普通分析协作不会自动抢占 Repository / Branch 施工权。
+- CollaborationCoordinator.updateFile(...)：要求任务处于 CONSTRUCTING、当前 AI 持有任务施工权，然后进入 GitHubWorkspaceService.updateFile()。
+- GitHub Contents API 返回的 Commit SHA 与变更路径写回任务，并将状态推进为 WAITING_VERIFY。
+- 修复 GitHubWorkspaceService 通过反射读取 GitHubApiClient.context 的做法，改为直接使用自身持有的 Context。
+- ⚠️ 未验证：以上代码尚未经过新的 Actions Run、APK 安装及真机验证；Verify 实链仍未完成。
