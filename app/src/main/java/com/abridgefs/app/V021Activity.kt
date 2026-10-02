@@ -742,7 +742,8 @@ class V021Activity : Activity() {
             runCatching {
                 val ids = collaborationProfileIds()
                 require(ids.first.isNotBlank() && ids.second.isNotBlank()) { "请先选择两个协作 AI" }
-                val coordinator = CollaborationCoordinator(this, ids.first, ids.second)
+                val conversation = current.activeConversation()
+                val coordinator = CollaborationCoordinator(this, current.id, conversation.id, ids.first, ids.second)
                 val messages = coordinator.runObjective(
                     objective = objective,
                     decisionSystemPrompt = "你是本轮协作的规划参与者。将用户目标转成一个合法的协作 TASK JSON。当前阶段只负责分析、拆解与提出任务，不执行本地文件或 GitHub 操作。",
