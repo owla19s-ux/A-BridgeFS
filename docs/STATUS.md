@@ -165,3 +165,10 @@ Workspace + Repository + Branch
 - 移除 API 时同步解除所有 Workspace AI Member 的 Profile 绑定；若协作双 AI 配置因此不完整，会自动关闭协作模式，避免继续调用已删除 Profile。
 - 协作运行提示词已改为“规划参与者 / 执行参与者”任务阶段描述，不再把 Decision AI / Worker 写成两个永久身份。
 - ⚠️ 未验证：以上代码尚未经过新的 Actions Run、APK 安装及真机验证。
+
+### 2026-10-02 协作运行时第二轮检查
+
+- 修复协作 Transport 原先使用全局消息队列的问题：现在按 `Workspace + Conversation` 隔离协议消息与已处理状态，避免不同工作区/聊天互相消费任务。
+- `CollaborationCoordinator` 现在接收当前 Workspace / Conversation ID，并使用对应隔离的 Transport。
+- 协作结果消息现在保存实际产生该协议消息的 API Profile ID、名称与头像，与普通 AI 消息的身份持久化规则统一。
+- ⚠️ 当前仍未通过新的 Actions Run / APK / 真机验证；以上为代码层检查与修复结果。
