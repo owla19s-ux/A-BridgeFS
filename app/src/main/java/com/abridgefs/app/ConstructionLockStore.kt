@@ -1,0 +1,119 @@
+package com.abridgefs.app
+
+/**
+ * Exclusive construction permission for one Workspace + Repository + Branch.
+ *
+ * API Profiles identify connection resources; AI Members identify collaborators.
+ * The construction holder is always an AI Member, never an API Profile.
+ */
+data class ConstructionLock(
+    val workspaceId: String,
+    val repository: String,
+    val branch: String,
+    val holderAiMemberId: String? = null,
+    val acquiredAt: Long? = null
+) {
+    val isFree: Boolean
+        get() = holderAiMemberId.isNullOrBlank()
+
+    fun heldBy(aiMemberId: String): Boolean =
+        aiMemberId.isNotBlank() && holderAiMemberId == aiMemberId
+}
+
+/**
+ * Workspace-scoped construction lock boundary.
+ *
+ * The lock is deliberately kept separate from GitHub credentials and API
+ * profiles. A workspace may have multiple conversations and AI members, while
+ * one Repository/Branch can have at most one construction holder.
+ */
+class ConstructionLockStore(private val context: android.content.Context) {
+    private val prefs = context.getSharedPreferences("construction_locks", android.content.Context.MODE_PRIVATE)
+
+    @Synchronized
+    fun get(workspace: BridgeProject, repository: String? = workspace.github.repository, branch: String? = workspace.github.branch): ConstructionLock? {
+        val repo = repository?.trim().orEmpty()
+        val ref = branch?.trim().orEmpty()
+        if (repo.isBlank() || ref.isBlank()) return null
+        val key = key(workspace.id, repo, ref)
+        val holder = prefs.getString("${key}_holder", null)
+        val acquiredAt = if (prefs.contains("${key}_time")) prefs.getLong("${key}_time", 0L) else null
+        return ConstructionLock(workspace.id, repo, ref, holder, acquiredAt)
+    }
+
+    @Synchronized
+    fun acquire(workspace: BridgeProject, aiMemberId: String): ConstructionLock {
+        require(aiMemberId.isNotBlank()) { "AI Member 未指定" }
+        require(workspace.github.writeEnabled) { "当前工作区未允许 GitHub 修改" }
+        val repo = workspace.github.repository?.trim().orEmpty()
+        val branch = workspace.github.branch?.trim().orEmpty()
+        require(repo.isNotBlank()) { "GitHub Repository 未配置" }
+        require(branch.isNotBlank()) { "GitHub Branch 未配置" }
+
+        val members = workspace.aiMembers.map { it.id }
+        require(aiMemberId in members) { "AI Member 不属于当前工作区" }
+
+        val current = get(workspace, repo, branch)
+        if (current != null && !current.isFree && !current.heldBy(aiMemberId)) {
+            error("当前 Repository / Branch 已由其他 AI 持有施工权")
+        }
+        if (current?.heldBy(aiMemberId) == true) return current
+
+        val now = System.currentTimeMillis()
+        val lock = ConstructionLock(workspace.id, repo, branch, aiMemberId, now)
+        val key = key(workspace.id, repo, branch)
+        prefs.edit()
+            .putString("${key}_holder", aiMemberId)
+            .putLong("${key}_time", now)
+            .apply()
+        return lock
+    }
+
+    @Synchronized
+    fun release(workspace: BridgeProject, aiMemberId: String) {
+        val lock = get(workspace) ?: return
+        require(lock.heldBy(aiMemberId)) { "当前 AI 不持有施工权" }
+        val key = key(lock.workspaceId, lock.repository, lock.branch)
+        prefs.edit().remove("${key}_holder").remove("${key}_time").apply()
+    }
+
+    @Synchronized
+    fun transfer(workspace: BridgeProject, fromAiMemberId: String, toAiMemberId: String): ConstructionLock {
+        require(toAiMemberId.isNotBlank()) { "目标 AI Member 未指定" }
+        require(toAiMemberId in workspace.aiMembers.map { it.id }) { "目标 AI Member 不属于当前工作区" }
+        val current = get(workspace) ?: error("当前没有施工权")
+        require(current.heldBy(fromAiMemberId)) { "当前 AI 不持有施工权" }
+        require(fromAiMemberId != toAiMemberId) { "不能转移给同一个 AI" }
+
+        val now = System.currentTimeMillis()
+        val key = key(current.workspaceId, current.repository, current.branch)
+        prefs.edit()
+            .putString("${key}_holder", toAiMemberId)
+            .putLong("${key}_time", now)
+            .apply()
+        return current.copy(holderAiMemberId = toAiMemberId, acquiredAt = now)
+    }
+
+    @Synchronized
+    fun requireHolder(workspace: BridgeProject, aiMemberId: String): ConstructionLock {
+        val lock = get(workspace) ?: error("当前 Repository / Branch 没有施工权")
+        check(lock.heldBy(aiMemberId)) { "当前 AI 未持有 Repository / Branch 施工权" }
+        return lock
+    }
+
+    @Synchronized
+    fun clearWorkspace(workspaceId: String) {
+        val prefix = "lock_${workspaceId}_"
+        prefs.all.keys
+            .filter { it.startsWith(prefix) }
+            .forEach { key ->
+                prefs.edit().remove(key).apply()
+            }
+    }
+
+    private fun key(workspaceId: String, repository: String, branch: String): String =
+        "lock_" + safe(workspaceId) + "_" + safe(repository) + "_" + safe(branch)
+
+    private fun safe(value: String): String =
+        value.trim().replace(Regex("[^A-Za-z0-9._-]"), "_")
+}
