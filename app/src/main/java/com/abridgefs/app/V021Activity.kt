@@ -153,6 +153,7 @@ class V021Activity : Activity() {
         root.addView(workspaceSelectorCard())
         root.addView(workspaceCard())
         root.addView(collaborationCard())
+        root.addView(collaborationTaskCard())
         root.addView(localFilePermissionCard())
         root.addView(sectionTitle("API"))
         val list = apis()
@@ -307,6 +308,106 @@ class V021Activity : Activity() {
             isEnabled = configured
             setOnCheckedChangeListener { _, value -> prefs.edit().putBoolean("collaboration_mode_enabled", value).apply() }
         })
+        return box
+    }
+
+    private fun collaborationTaskCard(): View {
+        val box = card()
+        val workspace = project
+        val conversation = workspace?.activeConversation()
+        val task = if (workspace != null && conversation != null) {
+            CollaborationTaskStore(this).latest(workspace.id, conversation.id)
+        } else {
+            null
+        }
+        box.addView(TextView(this).apply {
+            text = "协作任务"
+            textSize = 16f
+            typeface = Typeface.DEFAULT_BOLD
+        })
+        if (task == null) {
+            box.addView(TextView(this).apply {
+                text = "当前对话还没有协作任务。发送消息并启用 AI 协作后，这里会显示任务状态。"
+                textSize = 13f
+                setTextColor(color(R.color.bridgefs_text_secondary))
+                setPadding(0, dp(5), 0, dp(8))
+            })
+            return box
+        }
+
+        val memberA = workspace?.aiMembers?.getOrNull(0)
+        val memberB = workspace?.aiMembers?.getOrNull(1)
+        val holderName = task.constructionHolderAiMemberId?.let { id ->
+            workspace?.aiMembers?.firstOrNull { it.id == id }?.name
+        }
+        box.addView(TextView(this).apply {
+            text = "状态：${task.status}"
+            textSize = 14f
+            typeface = Typeface.DEFAULT_BOLD
+            setPadding(0, dp(5), 0, dp(2))
+        })
+        box.addView(TextView(this).apply {
+            text = buildString {
+                append("任务：")
+                append(task.objective)
+                if (!task.lastCommitSha.isNullOrBlank()) {
+                    append("\nCommit：")
+                    append(task.lastCommitSha)
+                }
+                if (!holderName.isNullOrBlank()) {
+                    append("\n施工者：")
+                    append(holderName)
+                }
+            }
+            textSize = 12f
+            setTextColor(color(R.color.bridgefs_text_secondary))
+            setPadding(0, dp(2), 0, dp(8))
+        })
+
+        if (task.status == CollaborationTaskRecord.STATUS_WAITING_CONSTRUCTION && memberA != null) {
+            box.addView(actionButton("AI A 申请施工锁") {
+                runCatching {
+                    val coordinator = CollaborationCoordinator(
+                        this,
+                        workspace!!.id,
+                        conversation!!.id,
+                        memberA.apiProfileId.orEmpty(),
+                        memberB?.apiProfileId.orEmpty()
+                    )
+                    coordinator.requestConstruction(task.taskId, memberA.id)
+                    AppLogger.log(this, AppLogger.Category.COLLABORATION, "CONSTRUCTION_REQUESTED_UI", "taskId=${task.taskId}")
+                    render()
+                }.onFailure {
+                    Toast.makeText(this, "申请施工失败：${it.message ?: "未知错误"}", Toast.LENGTH_LONG).show()
+                }
+            })
+        }
+
+        if (task.status == CollaborationTaskRecord.STATUS_WAITING_VERIFY) {
+            box.addView(actionButton("检查当前 Commit") {
+                executor.execute {
+                    runCatching {
+                        val coordinator = CollaborationCoordinator(
+                            this,
+                            workspace!!.id,
+                            conversation!!.id,
+                            memberA?.apiProfileId.orEmpty(),
+                            memberB?.apiProfileId.orEmpty()
+                        )
+                        val result = coordinator.verifyTask(task.taskId)
+                        runOnUiThread {
+                            Toast.makeText(this, result.message, Toast.LENGTH_LONG).show()
+                            render()
+                        }
+                    }.onFailure {
+                        runOnUiThread {
+                            Toast.makeText(this, "Verify 失败：${it.message ?: "未知错误"}", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
+            })
+        }
+
         return box
     }
 
