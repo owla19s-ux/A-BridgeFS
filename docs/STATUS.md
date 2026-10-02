@@ -317,4 +317,10 @@ Workspace + Repository + Branch
 - UI 状态入口复核：WAITING_CONSTRUCTION 仅提供 Worker 申请施工锁；WAITING_VERIFY 提供 Verify/继续协作；FAILED 且仍有施工者时提供 Verify 失败修复轮；与当前任务状态机保持一致。
 - 本轮仍未构建、未安装 APK、未真机验证。
 - 协作恢复再加一层保护：Transport 中未标记 handled 的旧 TASK/DECISION_RESPONSE 可能跨进程保留；现在只有任务仍处于 RUNNING/CONSTRUCTING 时才允许 Worker round 消费，WAITING_VERIFY/COMPLETE/FAILED 等状态不会重放旧消息，避免 Commit 后因进程重启再次施工。
+## 2026-10-02 构建链与协作 Branch 对齐第十二轮
+
+- 发现真实链路断点：Workspace 允许配置 Repository + Branch 施工锁，但正式 Android Workflow 原先只监听 `main`。因此非 main Branch 的真实 GitHub Contents Commit 不会触发正式 Verify Run，协作任务可能永久 WAITING_VERIFY。
+- 修复：正式 `Android Build and Release` Workflow 现在对所有 push Branch 执行同一套 Release APK 构建与签名校验；但只有 `main` 才执行 `Publish latest Release`。
+- 结果：施工 Branch 可以获得与正式链一致的 Build / signature verification / Artifact / Commit-scoped Verify；不会覆盖正式 `latest` Release。
+- 注意：该修改目前只存在于开发分支，尚未产生新的 Actions Run，不能标记为已验证。
 
