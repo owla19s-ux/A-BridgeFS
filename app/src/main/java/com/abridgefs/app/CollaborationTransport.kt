@@ -155,6 +155,32 @@ class CollaborationCoordinator(private val context: Context) {
         return CollaborationApiClient(CollaborationApiConfig.fromPreferences(context, CollaborationProtocol.Role.WORKER)).invoke(message, systemPrompt)
     }
 
+    fun runObjective(
+        objective: String,
+        decisionSystemPrompt: String,
+        workerSystemPrompt: String
+    ): List<CollaborationProtocol.Message> {
+        require(objective.isNotBlank()) { "objective is blank" }
+        val taskId = CollaborationProtocol.newTaskId()
+        val humanMessage = CollaborationProtocol.Message(
+            from = CollaborationProtocol.Role.HUMAN,
+            to = CollaborationProtocol.Role.DECISION_AI,
+            taskId = taskId,
+            type = CollaborationProtocol.Type.PROGRESS,
+            payload = JSONObject().put("objective", objective)
+        )
+        AppLogger.log(context, AppLogger.Category.COLLABORATION, "HUMAN_OBJECTIVE", "taskId=" + taskId)
+        val rawTask = callDecisionAi(humanMessage, decisionSystemPrompt)
+        val task = parseProtocolResponse(rawTask)
+        require(task.type == CollaborationProtocol.Type.TASK) { "Decision AI did not return TASK" }
+        require(task.from == CollaborationProtocol.Role.DECISION_AI && task.to == CollaborationProtocol.Role.WORKER) {
+            "Decision AI TASK route is invalid"
+        }
+        submitTask(task)
+        AppLogger.log(context, AppLogger.Category.COLLABORATION, "TASK_SUBMITTED", "taskId=" + taskId)
+        return dispatchOneWorkerRound(workerSystemPrompt, decisionSystemPrompt)
+    }
+
     /** Execute exactly one Worker -> Decision AI round. */
     fun dispatchOneWorkerRound(workerSystemPrompt: String, decisionSystemPrompt: String): List<CollaborationProtocol.Message> {
         val task = transport.pendingFor(CollaborationProtocol.Role.WORKER).firstOrNull { it.type == CollaborationProtocol.Type.TASK } ?: return emptyList()
