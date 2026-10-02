@@ -353,7 +353,11 @@ class V021Activity : Activity() {
                 orientation = LinearLayout.VERTICAL
                 setPadding(dp(4), dp(4), dp(4), dp(2))
                 background = colorDrawable(
-                    if (m.role == "user") R.color.bridgefs_selected_surface else R.color.bridgefs_input_surface,
+                    when (m.role) {
+                        "user" -> R.color.bridgefs_selected_surface
+                        "receipt" -> R.color.bridgefs_button_bg
+                        else -> R.color.bridgefs_input_surface
+                    },
                     14
                 )
             }
@@ -374,7 +378,9 @@ class V021Activity : Activity() {
                 gravity = if (m.role == "user") Gravity.RIGHT else Gravity.LEFT
             })
             val row = FrameLayout(this)
-            row.addView(bubbleBox, FrameLayout.LayoutParams(-2, -2).apply {
+            row.addView(bubbleBox, FrameLayout.LayoutParams(
+                (resources.displayMetrics.widthPixels * 0.82f).toInt(), -2
+            ).apply {
                 gravity = if (m.role == "user") Gravity.RIGHT else Gravity.LEFT
                 leftMargin = dp(4); rightMargin = dp(4)
             })
@@ -630,6 +636,7 @@ class V021Activity : Activity() {
     private fun recordReceipt(current:BridgeProject,status:String,command:String,message:String) {
         val receipt=BridgeReceiptRecord(status,command,message)
         current.executions += receipt
+        current.messages += BridgeChatMessage("receipt", formatReceipt(receipt))
         pendingReceipt=formatReceipt(receipt)
         store.save(projects)
         if(page==Page.CHAT) render()
