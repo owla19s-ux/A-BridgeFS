@@ -310,3 +310,10 @@ Workspace + Repository + Branch
 - 保留旧 `pending_receipt` 的兼容读取，迁移后删除旧槽位。
 - 本轮未构建、未安装 APK、未真机验证。
 
+## 2026-10-02 协作状态机与施工锁第十一轮检查
+
+- 发现：Verify 成功属于 GitHub 事实状态；原实现释放施工锁时使用严格 `require(holder)`。如果 App 重启/恢复后本地锁记录已经不存在，可能出现“真实 Actions 已成功，但任务无法进入 COMPLETE”的状态不一致。
+- 修复：Verify 成功后的锁释放改为幂等处理。锁存在且由原施工者持有时正常释放；锁已不存在或已提前释放时记录诊断日志，不阻止任务进入 COMPLETE；异常释放失败同样记录日志。
+- UI 状态入口复核：WAITING_CONSTRUCTION 仅提供 Worker 申请施工锁；WAITING_VERIFY 提供 Verify/继续协作；FAILED 且仍有施工者时提供 Verify 失败修复轮；与当前任务状态机保持一致。
+- 本轮仍未构建、未安装 APK、未真机验证。
+
