@@ -1577,6 +1577,7 @@ class V021Activity : Activity() {
             .putExtra("bridgefs_root", root)
             .putExtra("projectId", null as String?)
             .putExtra("conversationId", null as String?)
+            .putExtra("workspaceId", workspace?.id)
             .putExtra("standaloneConversationId", conversation.id)
 
         runCatching { startForegroundService(intent) }.onFailure {
