@@ -130,142 +130,16 @@ class ApiSettingsActivity : Activity() {
         }, LinearLayout.LayoutParams(-1, dp(46)).apply { topMargin = dp(10) })
 
 
-        root.addView(sectionLabel("AI 协作（Decision AI / Worker）"))
-        val decisionUrl = EditText(this).apply {
-            hint = "Decision AI API 地址"
-            setText(prefs.getString("collab_decision_base_url", ""))
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
-        }
-        root.addView(decisionUrl, fieldParams())
-
-        val decisionKey = EditText(this).apply {
-            hint = "Decision AI API Key"
-            setText(secrets.getNamed("collab_decision_api_key") ?: prefs.getString("collab_decision_api_key", "").orEmpty())
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-        }
-        root.addView(decisionKey, fieldParams())
-
-        val decisionModel = EditText(this).apply {
-            hint = "Decision AI 模型"
-            setText(prefs.getString("collab_decision_model", ""))
-        }
-        root.addView(decisionModel, fieldParams())
-
-        val workerUrl = EditText(this).apply {
-            hint = "Worker API 地址"
-            setText(prefs.getString("collab_worker_base_url", ""))
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
-        }
-        root.addView(workerUrl, fieldParams())
-
-        val workerKey = EditText(this).apply {
-            hint = "Worker API Key"
-            setText(secrets.getNamed("collab_worker_api_key") ?: prefs.getString("collab_worker_api_key", "").orEmpty())
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-        }
-        root.addView(workerKey, fieldParams())
-
-        val workerModel = EditText(this).apply {
-            hint = "Worker 模型"
-            setText(prefs.getString("collab_worker_model", ""))
-        }
-        root.addView(workerModel, fieldParams())
-
-        val objective = EditText(this).apply {
-            hint = "单轮协作目标，例如：检查项目当前状态并给出下一步施工建议"
-            minLines = 2
-            gravity = Gravity.TOP
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
-        }
-        root.addView(objective, LinearLayout.LayoutParams(-1, dp(80)))
-
-        root.addView(actionButton("保存协作 API 设置") {
-            prefs.edit()
-                .putString("collab_decision_base_url", decisionUrl.text.toString().trim())
-                                .putString("collab_decision_model", decisionModel.text.toString().trim())
-                .putString("collab_worker_base_url", workerUrl.text.toString().trim())
-                                .putString("collab_worker_model", workerModel.text.toString().trim())
-                .apply()
-            secrets.putNamed("collab_decision_api_key", decisionKey.text.toString())
-            secrets.putNamed("collab_worker_api_key", workerKey.text.toString())
-            prefs.edit().remove("collab_decision_api_key").remove("collab_worker_api_key").apply()
-            Toast.makeText(this, "协作 API 设置已保存", Toast.LENGTH_SHORT).show()
-        })
-
-        val collaborationStatus = TextView(this).apply {
-            text = "单轮协作状态：未运行"
+        root.addView(sectionLabel("AI 协作"))
+        root.addView(TextView(this).apply {
+            text = "API Profile 只负责连接资源。AI 协作参与者请回到「工作区」，从已保存的 API Profile 中选择 AI A 与 AI B。这里不再保存固定的 Decision AI / Worker API。"
             textSize = 13f
             setTextColor(resources.getColor(R.color.bridgefs_text_secondary))
-            setPadding(dp(4), dp(10), dp(4), dp(10))
-        }
-        root.addView(collaborationStatus, LinearLayout.LayoutParams(-1, dp(72)))
-
-        root.addView(actionButton("运行单轮协作") {
-            if (!AccessPolicy.isApiEnabled(this)) {
-                collaborationStatus.text = "单轮协作状态：API 全局访问已关闭"
-                Toast.makeText(this, "请先在「连接与访问」中开启 API", Toast.LENGTH_SHORT).show()
-                return@actionButton
-            }
-            val taskText = objective.text.toString().trim()
-            val dUrl = decisionUrl.text.toString().trim()
-            val dKey = decisionKey.text.toString()
-            val dModel = decisionModel.text.toString().trim()
-            val wUrl = workerUrl.text.toString().trim()
-            val wKey = workerKey.text.toString()
-            val wModel = workerModel.text.toString().trim()
-
-            val missing = buildList {
-                if (taskText.isBlank()) add("协作目标")
-                if (dUrl.isBlank()) add("Decision AI 地址")
-                if (dKey.isBlank()) add("Decision AI API Key")
-                if (dModel.isBlank()) add("Decision AI 模型")
-                if (wUrl.isBlank()) add("Worker 地址")
-                if (wKey.isBlank()) add("Worker API Key")
-                if (wModel.isBlank()) add("Worker 模型")
-            }
-            if (missing.isNotEmpty()) {
-                collaborationStatus.text = "单轮协作状态：请填写\n" + missing.joinToString("、")
-                return@actionButton
-            }
-
-            // Persist exactly the values used by this run, so the runtime and
-            // the visible UI cannot silently diverge.
-            prefs.edit()
-                .putString("collab_decision_base_url", dUrl)
-                .putString("collab_decision_api_key", dKey)
-                .putString("collab_decision_model", dModel)
-                .putString("collab_worker_base_url", wUrl)
-                .putString("collab_worker_api_key", wKey)
-                .putString("collab_worker_model", wModel)
-                .apply()
-
-            collaborationStatus.text = "单轮协作状态：运行中…"
-            Thread {
-                runCatching {
-                    val coordinator = CollaborationCoordinator(this)
-                    val taskId = CollaborationProtocol.newTaskId()
-                    val task = CollaborationProtocol.task(
-                        taskId = taskId,
-                        objective = taskText,
-                        allowPaths = emptyList(),
-                        allowOperations = listOf("read", "analyze"),
-                        acceptance = listOf("Worker 返回一条合法协议消息，并由 Decision AI 接收"),
-                        selfResolve = listOf("普通分析与格式问题"),
-                        mustAsk = listOf("超出当前任务范围的修改")
-                    )
-                    coordinator.submitTask(task)
-                    val messages = coordinator.dispatchOneWorkerRound(
-                        workerSystemPrompt = "你是 A-BridgeFS Worker。严格返回一个合法的 Decision AI ↔ Worker v0.1 协议 JSON。当前只做单轮协作测试，不执行 GitHub 或本地文件修改。",
-                        decisionSystemPrompt = "你是 A-BridgeFS Decision AI。严格返回一个合法的 Decision AI ↔ Worker v0.1 协议 JSON。根据 Worker 消息给出当前任务所需的正式决策或状态处理。"
-                    )
-                    val summary = messages.joinToString("\n\n") { it.type.name + " / " + it.from.name + " → " + it.to.name + "\n" + it.toJson().toString() }
-                    runOnUiThread { collaborationStatus.text = "单轮协作状态：成功\n" + summary.take(5000) }
-                }.onFailure { e ->
-                    val reason = e.message ?: e::class.simpleName ?: "未知错误"
-                    runOnUiThread { collaborationStatus.text = "单轮协作状态：失败\n$reason" }
-                }
-            }.start()
+            setPadding(dp(4), dp(6), dp(4), dp(10))
         })
+        root.addView(actionButton("返回工作区选择协作 AI") {
+            finish()
+        }, LinearLayout.LayoutParams(-1, dp(46)))
 
         val scroll = ScrollView(this).apply { addView(root) }
         setContentView(scroll)
