@@ -20,6 +20,8 @@ data class CollaborationTaskRecord(
     var status: String = STATUS_CREATED,
     var constructionRequestedByAiMemberId: String? = null,
     var constructionHolderAiMemberId: String? = null,
+    var lastCommitSha: String? = null,
+    var lastChangedPath: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     var updatedAt: Long = System.currentTimeMillis()
 ) {
@@ -117,6 +119,8 @@ class CollaborationTaskStore(private val context: Context) {
             .put("status", task.status)
             .put("constructionRequestedByAiMemberId", task.constructionRequestedByAiMemberId)
             .put("constructionHolderAiMemberId", task.constructionHolderAiMemberId)
+            .put("lastCommitSha", task.lastCommitSha)
+            .put("lastChangedPath", task.lastChangedPath)
             .put("createdAt", task.createdAt)
             .put("updatedAt", task.updatedAt)
 
@@ -129,6 +133,8 @@ class CollaborationTaskStore(private val context: Context) {
             status = obj.optString("status", CollaborationTaskRecord.STATUS_CREATED),
             constructionRequestedByAiMemberId = obj.optString("constructionRequestedByAiMemberId", "").ifBlank { null },
             constructionHolderAiMemberId = obj.optString("constructionHolderAiMemberId", "").ifBlank { null },
+            lastCommitSha = obj.optString("lastCommitSha", "").ifBlank { null },
+            lastChangedPath = obj.optString("lastChangedPath", "").ifBlank { null },
             createdAt = obj.optLong("createdAt", System.currentTimeMillis()),
             updatedAt = obj.optLong("updatedAt", System.currentTimeMillis())
         )
