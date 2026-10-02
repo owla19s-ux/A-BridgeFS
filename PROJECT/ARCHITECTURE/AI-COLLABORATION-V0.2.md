@@ -139,6 +139,38 @@ API Profile 是连接资源，不等于施工权。
 
 ## 11. 当前实现差距
 
+### 11.1 工作区权限落地进度
+
+工作区已经开始承载本地文件修改权限：
+
+- `BridgeProject.localFileModifyEnabled`：工作区级开关，已持久化。
+- V021 工作区页提供开关 UI。
+- 当前开关尚未进入 `PermissionPolicy`，因此不能把它描述为真实执行授权。
+
+目标模型为：
+
+`effectiveLocalFileModify = chatOverride ?: workspace.localFileModifyEnabled`
+
+### 11.2 GitHub 写入边界
+
+GitHub 写入采用两层边界：
+
+1. `GitHubWorkspaceService`：业务级 Workspace 权限边界。
+2. `GitHubApiClient`：GitHub HTTP / Contents API 实现。
+
+当前已支持 Workspace-scoped `updateFile()`，但尚未连接完整施工流程。
+
+### 11.3 下一阶段
+
+继续完成：
+- Chat 级本地文件权限覆盖
+- `PermissionPolicy` 实际执行拦截
+- Workspace / Conversation 数据拆分
+- AI 成员与 API Profile 解耦
+- GitHub 写入 → Commit → Actions / Check Run → Verify
+- Receipt 与协作消息时间线统一
+
+
 正式设计已确认，但当前代码仍需完成：
 - Workspace AI 成员模型
 - Repository / Branch 施工锁
