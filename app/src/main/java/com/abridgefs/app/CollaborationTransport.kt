@@ -460,11 +460,7 @@ class CollaborationCoordinator(
                         CollaborationTaskRecord.STATUS_FAILED -> CollaborationTaskRecord.STATUS_FAILED
                         CollaborationTaskRecord.STATUS_WAITING_VERIFY -> CollaborationTaskRecord.STATUS_WAITING_VERIFY
                         CollaborationTaskRecord.STATUS_COMPLETE -> CollaborationTaskRecord.STATUS_COMPLETE
-                        else -> if (it.lastCommitSha.isNullOrBlank()) {
-                            CollaborationTaskRecord.STATUS_COMPLETE
-                        } else {
-                            CollaborationTaskRecord.STATUS_WAITING_VERIFY
-                        }
+                        else -> CollaborationTaskRecord.STATUS_COMPLETE
                     }
                     else -> record.status
                 }
