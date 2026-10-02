@@ -18,6 +18,35 @@ A-BridgeFS 当前作为 **AI 协作移动端工作台 + 本地执行桥** 进行
 
 Decision AI / Worker AI 只作为任务阶段角色标签，不是固定身份。
 
+## 核心开发验收原则：功能必须与 UI 打通
+
+A-BridgeFS 的“功能完成”不是指代码中存在对应类、数据模型、Service、Client 或 API。
+
+任何用户功能都必须完成以下闭环：
+
+`功能设计 → 代码实现 → UI 入口 → 用户可操作 → 状态保存/恢复 → 实际功能链生效 → APK 真机验证`
+
+因此统一使用四级状态：
+
+- 🟡 **代码已实现**：底层逻辑存在，但用户还不能正常使用。
+- 🟠 **UI 未打通**：功能存在，但没有正确、完整的用户操作路径。
+- 🔵 **待验证**：UI 已经能够实际操作，但尚未完成 APK 真机验证。
+- 🟢 **已验证**：APK 中实际操作成功，完整链路成立。
+
+**只有完整达到“代码 + UI + 真机验证”才可以视为真正完成。**
+
+检查每项功能时固定追问：
+
+1. 用户从哪里进入？
+2. 用户具体怎么操作？
+3. UI 调用了哪个实际功能？
+4. 操作结果是否保存？
+5. 重新进入后是否恢复？
+6. 是否真正影响后续业务链？
+7. APK 中能否实际操作并验证？
+
+这条原则同时适用于 Workspace、Conversation、API、权限、GitHub、BridgeFS、Receipt、日志及后续所有功能。
+
 ## 当前状态
 
 | 部分 | 状态 | 说明 |
@@ -26,7 +55,7 @@ Decision AI / Worker AI 只作为任务阶段角色标签，不是固定身份�
 | API / 对话 | 已实现 / 待统一验证 | API 可配置、可聊天；Chat → API 持久绑定已实现 |
 | 本地指令 / BridgeFS | 已实现 | 保留真实本地执行能力 |
 | GitHub 连接基础 | 已实现 / 待真机验证 | PAT、Keystore、账号、Repository、Branch 基础能力已落地 |
-| 工作区 | 开发中 | 当前仍需从 BridgeProject 继续演化 |
+| 工作区 | 开发中 | 数据模型已有，但 UI 用户路径尚未完整打通 |
 | 双 AI 协作协议 | 已确认设计 / 尚未完整实现 | 共享读取、施工权独占且可转移 |
 | 协作消息 | 开发中 | 当前实现仍偏旧单轮协作链 |
 | 施工锁 | 已设计未实现 | Repository / Branch 级独占写权限 |
@@ -77,8 +106,6 @@ Workspace + Repository + Branch
 - 当前协作实现仍偏单轮协议链，尚未形成双 AI 连续协作循环。
 - GitHub 实际写入尚未形成完整 GitHub → Verify 链。
 
-此前关于“协作 API Key 明文写入 SharedPreferences”的判断已撤回；当前代码已有 SecretStore / Android Keystore 迁移逻辑。
-
 ## 最近一次功能核对（2026-10-02）
 
 以下问题已由实际 App 使用情况确认：
@@ -95,14 +122,18 @@ Workspace + Repository + Branch
 
 ## 当前施工优先级
 
-1. 统一正式架构文档：双 AI、共享读取、Repository / Branch 施工权独占且可转移。
-2. 统一 Receipt 状态链。
-3. 把 API Profile 与实际权限边界分离清楚。
-4. 逐步拆分 Workspace / Conversation 数据模型。
-5. 实现 Repository / Branch 施工锁。
-6. 连接真实 GitHub 写入与 Verify。
-7. 实现双 AI 连续协作循环。
-8. 清理旧 MainActivity / 旧日志路径等历史实现。
+1. **Workspace / Conversation UI 闭环**：让用户真正进入 Workspace、管理 Workspace，并独立新建 / 切换 Conversation；同时清理业务层对旧兼容 facade 的依赖。
+2. **API 消息身份闭环**：单条 AI 消息保存并显示实际使用的 API 名称与头像。
+3. **权限闭环**：Workspace 本地修改权限 → Conversation 覆盖 → PermissionPolicy → BridgeFS 实际执行。
+4. **AI Member / API Profile 解耦**：让 AI 身份、API 连接资源、施工权三者边界清晰。
+5. **Repository / Branch 施工锁**：实现独占施工权、申请、释放、转移。
+6. **GitHub 施工闭环**：AI → 修改 → Commit → Verify。
+7. **Receipt 状态统一**：统一消息、执行、pending、Verify、最终回执状态。
+8. **双 AI 连续协作**：在上述基础设施稳定后接入持续协作循环。
+9. **日志工作区整理**。
+10. **历史代码清理**：MainActivity、旧日志路径等。
+
+后续施工默认按以上顺序推进；普通实现问题无需用户逐次输入“继续”，只有产品、架构、权限或用户授权决策才暂停。
 
 ## 2026-10-02 追加确认：API 页面与对话执行链
 
