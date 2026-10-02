@@ -289,20 +289,23 @@ class V021Activity : Activity() {
         }
         root.addView(header("对话", "与当前工作区中的 API 协作"))
 
+        val workspace = project ?: return
+        val conversation = workspace.activeConversation()
         val chatSelector = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(14), dp(8), dp(8), dp(8))
             background = colorDrawable(R.color.bridgefs_input_surface, 14)
             setOnClickListener {
-                if (projects.isEmpty()) return@setOnClickListener
-                val labels = projects.map { it.name.ifBlank { "未命名对话" } }.toTypedArray()
-                val currentIndex = projects.indexOfFirst { it.id == project?.id }.coerceAtLeast(0)
+                val conversations = workspace.conversations
+                if (conversations.isEmpty()) return@setOnClickListener
+                val labels = conversations.map { it.name.ifBlank { "未命名对话" } }.toTypedArray()
+                val currentIndex = conversations.indexOfFirst { it.id == workspace.activeConversationId }.coerceAtLeast(0)
                 AlertDialog.Builder(this@V021Activity)
                     .setTitle("切换对话")
                     .setSingleChoiceItems(labels, currentIndex) { dialog, which ->
-                        project = projects[which]
-                        apiId = project?.apiId.orEmpty()
+                        workspace.activeConversationId = conversations[which].id
+                        apiId = workspace.activeConversation().apiId.orEmpty()
                         store.save(projects)
                         dialog.dismiss()
                         render()
@@ -319,7 +322,7 @@ class V021Activity : Activity() {
                 setTextColor(color(R.color.bridgefs_text_secondary))
             })
             addView(TextView(this@V021Activity).apply {
-                text = project?.name ?: "未选择对话"
+                text = conversation.name.ifBlank { "未命名对话" }
                 textSize = 16f
                 typeface = Typeface.DEFAULT_BOLD
                 setTextColor(color(R.color.bridgefs_text_primary))
@@ -335,7 +338,7 @@ class V021Activity : Activity() {
         root.addView(chatSelector, LinearLayout.LayoutParams(-1, dp(64)).apply { bottomMargin = dp(8) })
 
         val apis = apis()
-        val selected = apis.firstOrNull { it.id == (project?.apiId ?: apiId) }
+        val selected = apis.firstOrNull { it.id == (conversation.apiId ?: apiId) }
         val selector = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -347,12 +350,12 @@ class V021Activity : Activity() {
                     return@setOnClickListener
                 }
                 val labels = apis.map { it.name.ifBlank { "未命名 API" } }.toTypedArray()
-                val current = apis.indexOfFirst { it.id == (project?.apiId ?: apiId) }.coerceAtLeast(0)
+                val current = apis.indexOfFirst { it.id == (conversation.apiId ?: apiId) }.coerceAtLeast(0)
                 AlertDialog.Builder(this@V021Activity)
                     .setTitle("选择对话 API")
                     .setSingleChoiceItems(labels, current) { dialog, which ->
                         apiId = apis[which].id
-                        project?.apiId = apiId
+                        workspace.activeConversation().apiId = apiId
                         store.save(projects)
                         dialog.dismiss()
                         render()
@@ -493,8 +496,19 @@ class V021Activity : Activity() {
         }
         root.addView(apiLabel, LinearLayout.LayoutParams(-1, dp(52)))
         root.addView(actionButton("创建并进入对话") {
-            val chat = store.newProject(name.text.toString().trim().ifBlank { "新聊天 " + (projects.size + 1) }).also { it.apiId = selectedId.ifBlank { null } }
-            projects += chat; project = chat; apiId = chat.apiId.orEmpty(); store.save(projects); page = Page.CHAT; render()
+            val workspace = project ?: return@setOnClickListener
+            val chat = BridgeConversation(
+                id = UUID.randomUUID().toString(),
+                name = name.text.toString().trim().ifBlank { "新聊天 " + (workspace.conversations.size + 1) },
+                apiId = selectedId.ifBlank { null }
+            )
+            workspace.conversations += chat
+            workspace.activeConversationId = chat.id
+            project = workspace
+            apiId = chat.apiId.orEmpty()
+            store.save(projects)
+            page = Page.CHAT
+            render()
         }, LinearLayout.LayoutParams(-1, dp(46)).apply { topMargin = dp(14) })
         root.addView(textButton("取消") { page = Page.CHAT; render() }, LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(6) })
         content.addView(root)
