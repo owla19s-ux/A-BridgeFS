@@ -146,3 +146,11 @@ Workspace + Repository + Branch
 ## 2026-10-02 CI 验证检查点
 
 `bd27214` 的 V021 新建 Conversation lambda 编译修复已提交；此前 Actions #72 仍针对旧 SHA `e023469b`，不能作为该修复的验证结果。当前可用 GitHub 连接器能够检查/重跑既有 Run，但没有可用的 workflow_dispatch 写入口；本次通过 Branch 文档提交产生的新 Commit 未自动产生新的 Actions Run。因此构建通过前不将本批次标记为已验证。
+
+### #20 AI Member / API Profile 解耦
+- 🟡 **开发中**：已抽出 `ApiProfileStore`，API Profile 不再承担协作角色身份。
+- 🟡 **开发中**：Workspace 已持久化两个 `BridgeAiMember`，AI A / AI B 可绑定不同 API Profile。
+- 🟡 **开发中**：协作运行时按参与者 Profile ID 取 API，不再读取固定 Decision / Worker API 配置。
+- 🟡 **开发中**：V021 工作区 UI 已提供两个协作 AI 的选择入口；旧 API 设置页已移除固定 Decision / Worker 配置。
+- ⚠️ **未验证**：新的 Actions Run / APK / 实机链路尚未验证。
+
