@@ -65,16 +65,38 @@ class GitHubWorkspaceService(
      * Callers use this service so the workspace read/write boundary is checked
      * before a repository write reaches the low-level GitHub client.
      */
-    fun updateFile(path: String, content: String, message: String, sha: String): JSONObject {
-        requireWritePermission()
+    fun updateFile(
+        path: String,
+        content: String,
+        message: String,
+        sha: String,
+        aiMemberId: String
+    ): JSONObject {
+        requireWritePermission(aiMemberId)
         val (owner, name) = repositoryParts()
         return client.updateFile(owner, name, path, content, message, workspace.branch, sha)
     }
 
+    /**
+     * Backward-compatible guard for callers that only need to inspect whether
+     * the workspace permits GitHub writes. Actual file writes require an
+     * AI Member construction lock through the overload above.
+     */
     fun requireWritePermission() {
         requireRead()
         check(workspace.writeEnabled) { "当前工作区未允许 GitHub 修改" }
     }
+
+    fun requireWritePermission(aiMemberId: String) {
+        requireWritePermission()
+        ConstructionLockStore(clientContext()).requireHolder(workspace, aiMemberId)
+    }
+
+    private fun clientContext(): android.content.Context =
+        client.javaClass.getDeclaredField("context").let { field ->
+            field.isAccessible = true
+            field.get(client) as android.content.Context
+        }
 
     private fun requireRead() {
         check(workspace.readEnabled) { "当前工作区未允许 GitHub 读取" }
