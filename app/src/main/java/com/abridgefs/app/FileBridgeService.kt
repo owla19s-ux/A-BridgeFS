@@ -286,7 +286,7 @@ val cs=CommandParser.parse(raw)
 if(cs.isEmpty()){
     val message=CommandParser.lastError ?: "未发现可执行指令"
     findReceipt(box)?.let{it.text=message;it.setTextColor(Color.DKGRAY)}
-    broadcastReceipt("FAILED",raw,message,null)
+    broadcastReceipt("FAILED",raw,message,null,null)
 }else if(CommandParser.lastError!=null){
     val message=CommandParser.lastError!!
     findReceipt(box)?.let{it.text=message;it.setTextColor(Color.DKGRAY)}
@@ -302,7 +302,7 @@ if(cs.isEmpty()){
             runButton?.isEnabled=true
             log("Command","执行 "+cs.size+" 条指令："+if(status=="SUCCEEDED")"成功" else "失败")
         }
-        broadcastReceipt(status,cs.joinToString(" | "){it.toString()},message,null)
+        broadcastReceipt(status,cs.joinToString(" | "){it.toString()},message,null,null)
     }
 }
 }

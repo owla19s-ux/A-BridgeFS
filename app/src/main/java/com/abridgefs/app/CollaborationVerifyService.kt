@@ -23,7 +23,7 @@ class CollaborationVerifyService(private val context: Context) {
 
     fun verify(taskId: String): GitHubVerifyResult {
         val taskStore = CollaborationTaskStore(context)
-        val task = taskStore.get(taskId) ?: error("协作任务不存在：\${taskId}")
+        val task = taskStore.get(taskId) ?: error("协作任务不存在：${taskId}")
         val commitSha = task.lastCommitSha?.takeIf { it.isNotBlank() }
             ?: error("协作任务尚未产生 Commit SHA")
 
@@ -38,7 +38,8 @@ class CollaborationVerifyService(private val context: Context) {
         val service = GitHubWorkspaceService(
             context,
             GitHubApiClient(context, token),
-            workspace.github
+            workspace.github,
+            workspace
         )
         val array = service.workflowRunsForCommit(commitSha).optJSONArray("workflow_runs")
         val run = findExactRun(array, commitSha)
@@ -66,12 +67,12 @@ class CollaborationVerifyService(private val context: Context) {
                 }
                 GitHubVerifyResult(
                     GitHubVerifyState.WAITING, commitSha, runId, status, conclusion,
-                    "GitHub Actions 正在运行：\${status ?: "unknown"}", url
+                    "GitHub Actions 正在运行：${status ?: "unknown"}", url
                 )
             }
             conclusion == "success" -> {
                 releaseAfterSuccess(workspace, taskStore, task)
-                recordReceipt(workspace, task, "VERIFY_PASS", "GitHub Actions", "Verify 通过：\$commitSha")
+                recordReceipt(workspace, task, "VERIFY_PASS", "GitHub Actions", "Verify 通过：$commitSha")
                 GitHubVerifyResult(
                     GitHubVerifyState.PASSED, commitSha, runId, status, conclusion,
                     "GitHub Actions Verify 通过", url
@@ -83,11 +84,11 @@ class CollaborationVerifyService(private val context: Context) {
                 }
                 recordReceipt(
                     workspace, task, "VERIFY_FAIL", "GitHub Actions",
-                    "Verify 失败：\${conclusion ?: "unknown"}；Commit=\$commitSha"
+                    "Verify 失败：${conclusion ?: "unknown"}；Commit=$commitSha"
                 )
                 GitHubVerifyResult(
                     GitHubVerifyState.FAILED, commitSha, runId, status, conclusion,
-                    "GitHub Actions Verify 未通过：\${conclusion ?: "unknown"}", url
+                    "GitHub Actions Verify 未通过：${conclusion ?: "unknown"}", url
                 )
             }
         }

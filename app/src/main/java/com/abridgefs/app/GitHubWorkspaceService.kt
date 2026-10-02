@@ -12,7 +12,8 @@ import org.json.JSONObject
 class GitHubWorkspaceService(
     private val context: android.content.Context,
     private val client: GitHubApiClient,
-    private val workspace: GitHubWorkspace
+    private val workspace: GitHubWorkspace,
+    private val project: BridgeProject? = null
 ) {
     fun currentAccount(): JSONObject {
         requireRead()
@@ -97,7 +98,7 @@ class GitHubWorkspaceService(
 
     fun requireWritePermission(aiMemberId: String) {
         requireWritePermission()
-        ConstructionLockStore(context).requireHolder(workspace, aiMemberId)
+        ConstructionLockStore(context).requireHolder(project ?: error("GitHub 写入必须绑定工作区")) , aiMemberId)
     }
 
     private fun requireRead() {

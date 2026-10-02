@@ -204,7 +204,7 @@ class CollaborationCoordinator(
         val auth = GitHubTokenStore(context).state()
         val token = auth.accessToken?.takeIf { it.isNotBlank() }
             ?: error("GitHub 尚未授权")
-        val service = GitHubWorkspaceService(context, GitHubApiClient(context, token), workspace.github)
+        val service = GitHubWorkspaceService(context, GitHubApiClient(context, token), workspace.github, workspace)
         val result = service.updateFile(path, content, message, sha, aiMemberId)
         val commitSha = result.optJSONObject("commit")?.optString("sha").orEmpty().ifBlank { null }
 
