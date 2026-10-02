@@ -161,13 +161,14 @@ class V021Activity : Activity() {
     }
 
     private fun updateNav() {
+        val selectedPage = if (page == Page.WORKSPACE_CHAT) Page.WORKSPACE else page
         listOf(
             navWorkspace to Page.WORKSPACE,
             navChat to Page.CHAT,
             navConfig to Page.CONFIG
         ).forEach { (v,p) ->
-            v.setTextColor(if (p == page) color(R.color.bridgefs_accent) else color(R.color.bridgefs_text_secondary))
-            v.background = if (p == page)
+            v.setTextColor(if (p == selectedPage) color(R.color.bridgefs_accent) else color(R.color.bridgefs_text_secondary))
+            v.background = if (p == selectedPage)
                 colorDrawable(R.color.bridgefs_selected_surface, 14)
             else
                 colorDrawable(R.color.bridgefs_surface, 14)
@@ -667,6 +668,8 @@ class V021Activity : Activity() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(14), dp(10), dp(14), dp(8))
         }
+        root.addView(textButton("← 返回工作区") { page = Page.WORKSPACE; render() },
+            LinearLayout.LayoutParams(-1, dp(34)))
         root.addView(header("协作对话", "当前工作区内的双 AI 协作现场"))
 
         val workspace = project ?: return
