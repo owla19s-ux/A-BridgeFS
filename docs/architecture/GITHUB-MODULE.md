@@ -94,34 +94,58 @@ GitHub
 
 ## 5. 数据模型
 
-工作区至少需要保存：
+工作区 GitHub 资源保存：
 
-- githubAccountLogin
-- githubRepositoryId
-- githubRepositoryFullName
-- githubBranch
-- githubReadEnabled
-- githubWriteEnabled
+- `githubAccount`：当前绑定的 GitHub 登录名
+- `github.repositoryId`：GitHub Repository 稳定 ID
+- `githubRepository`：Repository full name，格式为 `owner/name`
+- `github.branch`：当前 Branch
+- `github.readEnabled`
+- `github.writeEnabled`
 
 授权凭据单独存储，不进入工作区普通 JSON。
+
+历史数据如果只有 `github.accountLogin` 而没有 `githubAccount`，加载时仍兼容。
 
 ## 6. Repository 选择
 
 Repository 列表来自 GitHub API，而不是用户手工输入。
 
-当前设计优先使用：
+当前流程：
 
-- authenticated user
-- 可访问 repositories
-- Repository metadata
+```
+GitHubTokenStore
+    ↓
+GitHubApiClient
+    ↓
+GitHubWorkspaceService
+    ↓
+GitHubActivity
+    ↓
+Workspace.github
+```
 
-选择后保存 repository ID + full name。
+选择后保存：
+
+- Repository ID
+- Repository full name
+- 默认 Branch
+- 当前 GitHub 账号
+
+Repository ID 用于稳定标识资源，full name 用于显示及 GitHub REST 路径。
 
 ## 7. Branch 选择
 
 Branch 列表来自当前 Repository。
 
 不能把输入框中的任意字符串直接视为已存在 Branch。
+
+Branch 查询通过 `GitHubWorkspaceService` 执行，因此必须同时满足：
+
+- GitHub 全局访问开启
+- GitHub Token 已授权
+- 当前工作区允许读取
+- Repository 已配置
 
 ## 8. 能力映射
 
@@ -175,7 +199,7 @@ A-BridgeFS
         ↓
 GitHub 权限判断
         ↓
-GitHub Module
+GitHub Workspace Service
         ↓
 Repository / Branch
         ↓
@@ -197,6 +221,7 @@ GitHub 是真实执行资源之一，不是 UI 装饰。
 - 做工作区绑定
 - 做读取 / 修改边界
 - 建立 GitHub 工作区页面
+- 统一 Repository / Branch 查询入口到 Workspace Service
 
 暂不提前做：
 
@@ -205,8 +230,3 @@ GitHub 是真实执行资源之一，不是 UI 装饰。
 - GitHub 全部 API
 - 完整 Git 客户端
 - 自动调度器
-
-## 13. 参考
-
-GitHub 官方文档说明，GitHub App / 用户访问令牌可以按 Repository 和权限进一步限制；Repository metadata、Contents、Issues、Pull requests、Actions 等能力使用不同的权限边界。
-

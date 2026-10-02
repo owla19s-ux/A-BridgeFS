@@ -186,12 +186,12 @@ class V021Activity : Activity() {
             setTextColor(if (connected) color(R.color.bridgefs_accent) else color(R.color.bridgefs_text_secondary))
         })
         box.addView(TextView(this).apply {
-            text = project?.githubRepository ?: "未选择 Repository"
+            text = project?.github?.displayRepository() ?: "未选择 Repository"
             textSize = 14f
             setPadding(0, dp(4), 0, dp(2))
         })
         box.addView(TextView(this).apply {
-            text = "Branch  ·  " + (project?.githubBranch ?: "未选择")
+            text = "Branch  ·  " + (project?.github?.displayBranch() ?: "未选择")
             textSize = 12f
             setTextColor(color(R.color.bridgefs_text_secondary))
             setPadding(0, dp(2), 0, dp(8))

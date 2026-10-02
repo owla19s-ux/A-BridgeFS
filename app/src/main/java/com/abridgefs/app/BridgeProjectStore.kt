@@ -12,14 +12,35 @@ data class BridgeProject(
     val id: String,
     var name: String,
     var apiId: String? = null,
-    var githubAccountLogin: String? = null,
-    var githubRepository: String? = null,
-    var githubBranch: String? = null,
-    var githubReadEnabled: Boolean = true,
-    var githubWriteEnabled: Boolean = false,
+    var github: GitHubWorkspace = GitHubWorkspace(),
     val messages: MutableList<BridgeChatMessage> = mutableListOf(),
     val executions: MutableList<BridgeReceiptRecord> = mutableListOf()
-)
+) {
+    @Deprecated("Use github.accountLogin")
+    var githubAccountLogin: String?
+        get() = github.accountLogin
+        set(value) { github.accountLogin = value }
+
+    @Deprecated("Use github.repository")
+    var githubRepository: String?
+        get() = github.repository
+        set(value) { github.repository = value }
+
+    @Deprecated("Use github.branch")
+    var githubBranch: String?
+        get() = github.branch
+        set(value) { github.branch = value }
+
+    @Deprecated("Use github.readEnabled")
+    var githubReadEnabled: Boolean
+        get() = github.readEnabled
+        set(value) { github.readEnabled = value }
+
+    @Deprecated("Use github.writeEnabled")
+    var githubWriteEnabled: Boolean
+        get() = github.writeEnabled
+        set(value) { github.writeEnabled = value }
+}
 
 class BridgeProjectStore(private val context: Context) {
     private val prefs = context.getSharedPreferences("bridgefs_projects", Context.MODE_PRIVATE)
@@ -28,27 +49,44 @@ class BridgeProjectStore(private val context: Context) {
     fun load(): MutableList<BridgeProject> {
         val array = JSONArray(prefs.getString(key, "[]") ?: "[]")
         val result = mutableListOf<BridgeProject>()
+
         for (i in 0 until array.length()) {
             val obj = array.getJSONObject(i)
             val project = BridgeProject(
                 id = obj.getString("id"),
                 name = obj.getString("name"),
                 apiId = obj.optString("apiId", "").ifBlank { null },
-                githubAccountLogin = obj.optString("githubAccountLogin", "").ifBlank { null },
-                githubRepository = obj.optString("githubRepository", "").ifBlank { null },
-                githubBranch = obj.optString("githubBranch", "").ifBlank { null },
-                githubReadEnabled = obj.optBoolean("githubReadEnabled", true),
-                githubWriteEnabled = obj.optBoolean("githubWriteEnabled", false)
+                github = GitHubWorkspace(
+                    accountLogin = obj.optString("githubAccount", "").ifBlank {
+                        obj.optString("githubAccountLogin", "").ifBlank { null }
+                    },
+                    repositoryId = obj.optString("githubRepositoryId", "").toLongOrNull(),
+                    repository = obj.optString("githubRepository", "").ifBlank { null },
+                    branch = obj.optString("githubBranch", "").ifBlank { null },
+                    readEnabled = obj.optBoolean("githubReadEnabled", true),
+                    writeEnabled = obj.optBoolean("githubWriteEnabled", false)
+                )
             )
+
             val messages = obj.optJSONArray("messages") ?: JSONArray()
             for (j in 0 until messages.length()) {
                 val item = messages.getJSONObject(j)
-                project.messages += BridgeChatMessage(item.getString("role"), item.getString("content"), item.optLong("time", System.currentTimeMillis()))
+                project.messages += BridgeChatMessage(
+                    item.getString("role"),
+                    item.getString("content"),
+                    item.optLong("time", System.currentTimeMillis())
+                )
             }
+
             val executions = obj.optJSONArray("executions") ?: JSONArray()
             for (j in 0 until executions.length()) {
                 val item = executions.getJSONObject(j)
-                project.executions += BridgeReceiptRecord(item.getString("status"), item.getString("command"), item.getString("message"), item.optLong("time", System.currentTimeMillis()))
+                project.executions += BridgeReceiptRecord(
+                    item.getString("status"),
+                    item.getString("command"),
+                    item.getString("message"),
+                    item.optLong("time", System.currentTimeMillis())
+                )
             }
             result += project
         }
@@ -62,16 +100,22 @@ class BridgeProjectStore(private val context: Context) {
                 .put("id", project.id)
                 .put("name", project.name)
                 .put("apiId", project.apiId.orEmpty())
-                .put("githubAccountLogin", project.githubAccountLogin.orEmpty())
-                .put("githubRepository", project.githubRepository.orEmpty())
-                .put("githubBranch", project.githubBranch.orEmpty())
-                .put("githubReadEnabled", project.githubReadEnabled)
-                .put("githubWriteEnabled", project.githubWriteEnabled)
+                .put("githubAccount", project.github.accountLogin.orEmpty())
+                .put("githubRepositoryId", project.github.repositoryId?.toString().orEmpty())
+                .put("githubRepository", project.github.repository.orEmpty())
+                .put("githubBranch", project.github.branch.orEmpty())
+                .put("githubReadEnabled", project.github.readEnabled)
+                .put("githubWriteEnabled", project.github.writeEnabled)
+
             obj.put("messages", JSONArray().apply {
-                project.messages.forEach { put(JSONObject().put("role", it.role).put("content", it.content).put("time", it.time)) }
+                project.messages.forEach {
+                    put(JSONObject().put("role", it.role).put("content", it.content).put("time", it.time))
+                }
             })
             obj.put("executions", JSONArray().apply {
-                project.executions.forEach { put(JSONObject().put("status", it.status).put("command", it.command).put("message", it.message).put("time", it.time)) }
+                project.executions.forEach {
+                    put(JSONObject().put("status", it.status).put("command", it.command).put("message", it.message).put("time", it.time))
+                }
             })
             array.put(obj)
         }
