@@ -770,6 +770,16 @@ class V021Activity : Activity() {
                 .putString("collaboration_first_api_id", list[first].id)
                 .putString("collaboration_second_api_id", list[second].id)
                 .apply()
+            project?.let { workspace ->
+                if (workspace.aiMembers.size < 2) {
+                    while (workspace.aiMembers.size < 2) {
+                        workspace.aiMembers += BridgeAiMember(UUID.randomUUID().toString(), "AI " + ('A'.code + workspace.aiMembers.size).toChar())
+                    }
+                }
+                workspace.aiMembers[0].apiProfileId = list[first].id
+                workspace.aiMembers[1].apiProfileId = list[second].id
+                store.save(projects)
+            }
         }
         AlertDialog.Builder(this)
             .setTitle("先选择 AI A")
