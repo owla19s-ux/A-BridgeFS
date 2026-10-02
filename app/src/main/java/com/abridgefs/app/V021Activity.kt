@@ -209,19 +209,19 @@ class V021Activity : Activity() {
             CollaborationApiConfig.fromPreferences(this, CollaborationProtocol.Role.WORKER).isConfigured()
         box.addView(TextView(this).apply { text = "AI 协作"; textSize = 16f; typeface = Typeface.DEFAULT_BOLD })
         box.addView(TextView(this).apply {
-            text = if (configured) "Decision AI / Worker 已配置" else "Decision AI / Worker 尚未完整配置"
+            text = "两个 AI 共享工作区资源；API 是连接资源，不再代表固定 Decision / Worker 身份。"
             textSize = 13f
             setTextColor(color(R.color.bridgefs_text_secondary))
             setPadding(0, dp(4), 0, dp(8))
         })
         box.addView(Switch(this).apply {
-            text = "启用三方协作模式"
+            text = "启用 AI 协作"
             textSize = 13f
             isChecked = prefs.getBoolean("collaboration_mode_enabled", false)
             isEnabled = configured
             setOnCheckedChangeListener { _, value -> prefs.edit().putBoolean("collaboration_mode_enabled", value).apply() }
         })
-        box.addView(actionButton("配置协作 API") { startActivity(Intent(this, ApiSettingsActivity::class.java)) })
+        box.addView(actionButton("配置 AI / API") { startActivity(Intent(this, ApiSettingsActivity::class.java)) })
         return box
     }
 
