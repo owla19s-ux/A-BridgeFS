@@ -1,0 +1,81 @@
+# A-BridgeFS 构建前检查清单
+
+更新时间：2026-10-02
+
+## 目的
+
+每次准备生成新的 APK 前，先完成一次“代码事实 + 功能要求 + 已知问题”预检。只有预检通过，才进入 Actions 构建和真机验证。
+
+核心原则：
+
+> 代码里存在，不等于用户功能已经完成；UI 有入口，也不等于底层链路已经接通。
+
+## 一、检查来源
+
+1. `docs/REQUIREMENTS.md`：用户确认的功能要求。
+2. `docs/STATUS.md`：当前实现状态。
+3. GitHub Issue #29 及其子任务：当前问题与施工顺序。
+4. 当前施工分支代码：确认实际调用链和 UI 行为。
+5. Commit / Actions / 真机结果：作为最终事实。
+
+## 二、构建前固定检查
+
+### A. 功能表
+
+逐项确认：
+- Workspace 是否能被用户实际进入和管理。
+- Workspace 与 Conversation 是否已经真正分开。
+- 是否能独立新建 / 切换 Conversation。
+- 每个 Conversation 是否绑定自己的 API。
+- AI 消息是否显示对应 API 名称与头像，而不只是页面顶部显示。
+- API Profile 是否只承担连接资源角色，不承担施工权。
+- 本地文件修改权限是否真正进入 PermissionPolicy / BridgeFS 执行链。
+- GitHub 读取 / 修改边界是否真正生效。
+- 双 AI 是否按照正式架构工作，而不是旧 Decision / Worker 固定模型。
+- Receipt 是否能恢复并与消息 / 执行 / Verify 状态对应。
+- 日志是否能从 App 内实际访问并按类型查看。
+
+### B. 代码检查
+
+重点检查：
+- Launcher 与实际页面入口。
+- Workspace / Conversation 数据模型及所有调用方。
+- 旧 BridgeProject 兼容字段是否仍被业务代码使用。
+- API Profile 与权限代码是否存在错误耦合。
+- PermissionPolicy 是否读取正确的 Workspace / Conversation 有效权限。
+- GitHub 写入是否经过 Workspace + Repository + Branch 施工边界。
+- 是否存在旧 Decision / Worker 协议残留。
+- 是否存在旧日志路径和重复日志入口。
+- MainActivity 是否仍承载新功能。
+- 本轮修改是否留下 UI 有入口但功能没有接通的路径。
+
+### C. 已知问题回归
+
+至少检查 Issue #29 当前子任务，以及上一轮确认的问题：
+- 消息宽度：当前已解决，回归确认即可。
+- API 名称：当前消息中未显示，待修复。
+- API 头像：当前消息中未显示，待修复。
+- Workspace 独立页面 / 数据结构：当前 App 尚未真正完成。
+- 独立新建 Conversation：当前 App 尚未真正完成。
+
+## 三、构建后验证
+
+Actions 构建完成后必须记录：
+- 构建 Commit SHA。
+- Workflow / Job 结果。
+- APK 对应版本 / 构建号。
+- APK SHA-256。
+- 真机安装结果。
+- 本轮功能实际验证结果。
+
+未经真实验证，不把“已实现”改为“已验证”。
+
+## 四、问题处理规则
+
+新发现的 Bug / 遗漏需求：
+
+发现 → 建 Issue → 加入 Issue #29 → 排施工顺序 → 修改 → Commit → 验证 → 更新状态。
+
+如果是普通实现问题，施工可以继续，不需要用户反复输入“继续”。
+
+如果涉及产品、架构、权限边界或用户授权的新决策，则暂停并报告。
