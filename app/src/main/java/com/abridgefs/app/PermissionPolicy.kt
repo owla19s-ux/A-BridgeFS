@@ -44,7 +44,8 @@ object PermissionPolicy {
             confirm.remove(FileAction.WRITE)
             confirm.remove(FileAction.EDIT)
         }
-        return Authorization(prefs.getString("root_path", "").orEmpty(), allowed, confirm)
+        val root = workspace?.workspaceDirectory ?: prefs.getString("root_path", "").orEmpty()
+        return Authorization(root, allowed, confirm)
     }
 
     fun action(command: Command): FileAction = when (command) {

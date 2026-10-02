@@ -3,6 +3,8 @@ package com.abridgefs.app
 import android.app.*
 import android.content.Intent
 import android.content.IntentFilter
+import android.net.Uri
+import android.provider.DocumentsContract
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
@@ -18,6 +20,9 @@ import java.util.UUID
 import java.util.concurrent.Executors
 
 class V021Activity : Activity() {
+    companion object {
+        private const val REQUEST_WORKSPACE_DIRECTORY = 2101
+    }
     private val prefs by lazy { getSharedPreferences("bridgefs", 0) }
     private val store by lazy { BridgeProjectStore(this) }
     private val apiProfiles by lazy { ApiProfileStore(this) }
@@ -94,6 +99,7 @@ class V021Activity : Activity() {
         }
         val activeWorkspaceId = prefs.getString("active_workspace_id", null)
         project = projects.firstOrNull { it.id == activeWorkspaceId } ?: projects.first()
+        migrateLegacyWorkspaceDirectory()
         prefs.edit().putString("active_workspace_id", project?.id).apply()
         apiId = project?.activeConversation()?.apiId ?: apis().firstOrNull()?.id.orEmpty()
         registerReceiver(receiver, IntentFilter("com.bridgefs.RESULT"), Context.RECEIVER_NOT_EXPORTED)
@@ -473,11 +479,35 @@ class V021Activity : Activity() {
     private fun localFilePermissionCard(): View {
         val box = card()
         val enabled = project?.localFileModifyEnabled ?: false
+        val rootPath = project?.workspaceDirectory.orEmpty().trim()
+
         box.addView(TextView(this).apply {
             text = "本地文件"
             textSize = 16f
             typeface = Typeface.DEFAULT_BOLD
         })
+
+        box.addView(TextView(this).apply {
+            text = if (rootPath.isBlank()) "工作目录：未设置" else "工作目录：$rootPath"
+            textSize = 12f
+            setTextColor(color(R.color.bridgefs_text_secondary))
+            setPadding(0, dp(4), 0, dp(8))
+        })
+
+        val directoryRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        directoryRow.addView(TextView(this@V021Activity).apply {
+            text = if (rootPath.isBlank()) "AI 本地执行需要先选择目录" else "AI 将在此目录执行本地指令"
+            textSize = 12f
+            setTextColor(color(R.color.bridgefs_text_secondary))
+        }, LinearLayout.LayoutParams(0, dp(42), 1f))
+        directoryRow.addView(textButton("选择目录") {
+            openWorkspaceDirectoryPicker()
+        }, LinearLayout.LayoutParams(dp(88), dp(42)))
+        box.addView(directoryRow)
+
         box.addView(CheckBox(this).apply {
             text = "允许当前工作区进行本地文件修改"
             isChecked = enabled
@@ -492,6 +522,72 @@ class V021Activity : Activity() {
             setTextColor(color(R.color.bridgefs_text_secondary))
         })
         return box
+    }
+
+    private fun migrateLegacyWorkspaceDirectory() {
+        val legacyRoot = prefs.getString("root_path", "").orEmpty().trim()
+        if (legacyRoot.isBlank() || projects.any { !it.workspaceDirectory.isNullOrBlank() }) return
+        val target = project ?: projects.firstOrNull() ?: return
+        target.workspaceDirectory = legacyRoot
+        store.save(projects)
+    }
+
+    private fun openWorkspaceDirectoryPicker() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+            addFlags(
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
+                    Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+            )
+        }
+        startActivityForResult(intent, REQUEST_WORKSPACE_DIRECTORY)
+    }
+
+    @Suppress("DEPRECATION")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != REQUEST_WORKSPACE_DIRECTORY || resultCode != RESULT_OK) return
+
+        val uri = data?.data ?: return
+        val path = documentTreeUriToPath(uri)
+        if (path == null) {
+            Toast.makeText(this, "暂时只支持设备主存储目录，请重新选择。", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        runCatching {
+            contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            )
+        }
+
+        val workspace = project
+        if (workspace == null) {
+            Toast.makeText(this, "当前没有可用工作区。", Toast.LENGTH_SHORT).show()
+            return
+        }
+        workspace.workspaceDirectory = path
+        store.save(projects)
+        Toast.makeText(this, "当前工作区目录已设置：$path", Toast.LENGTH_SHORT).show()
+        render()
+    }
+
+    private fun documentTreeUriToPath(uri: Uri): String? {
+        val documentId = DocumentsContract.getTreeDocumentId(uri)
+        val separator = documentId.indexOf(':')
+        if (separator <= 0) return null
+
+        val volume = documentId.substring(0, separator)
+        val relative = documentId.substring(separator + 1).trim('/')
+
+        return when {
+            volume.equals("primary", ignoreCase = true) -> {
+                if (relative.isBlank()) "/storage/emulated/0"
+                else "/storage/emulated/0/$relative"
+            }
+            else -> null
+        }
     }
 
     private fun renderChat() {
@@ -920,7 +1016,7 @@ class V021Activity : Activity() {
         items.forEach { (title,summary) ->
             root.addView(configCard(title,summary) {
                 when(title) {
-                    "AI 与 API" -> { page = Page.WORKSPACE; render() }
+                    "AI 与 API" -> startActivity(Intent(this, ApiSettingsActivity::class.java))
                     "连接与访问" -> startActivity(Intent(this, GlobalAccessActivity::class.java))
                     else -> startActivity(Intent(this, SettingsCategoryActivity::class.java).putExtra("category", title))
                 }
@@ -1031,8 +1127,8 @@ class V021Activity : Activity() {
                 val coordinator = CollaborationCoordinator(this, current.id, conversation.id, ids.first, ids.second)
                 val messages = coordinator.runObjective(
                     objective = objective,
-                    decisionSystemPrompt = "你是本轮协作的规划参与者。将用户目标转成一个合法的协作 TASK JSON。当前阶段只负责分析、拆解与提出任务，不执行本地文件或 GitHub 操作。",
-                    workerSystemPrompt = "你是本轮协作的执行参与者。严格返回合法的协作协议 JSON。当前阶段只负责分析任务并返回执行结果或 DECISION_REQUEST，不直接修改 GitHub 或本地文件。"
+                    decisionSystemPrompt = "你是本轮协作的规划参与者。你必须只返回一个合法 JSON 对象，不要 Markdown、代码围栏或解释文字。协议版本必须为 0.1；from 只能是 decision_ai，to 只能是 worker；type 必须是 TASK。task_id 必须原样使用输入消息的 task_id。payload 必须包含 objective、scope、acceptance、autonomy、context_refs。当前阶段只负责分析、拆解与提出任务，不执行本地文件或 GitHub 操作。",
+                    workerSystemPrompt = "你是本轮协作的执行参与者。你必须只返回一个合法 JSON 对象，不要 Markdown、代码围栏或解释文字。协议版本必须为 0.1；from 只能是 worker；对 Decision AI 的回复 to 必须是 decision_ai；type 根据情况使用 DECISION_REQUEST、PROGRESS、BLOCKED、COMMIT、VERIFY 或 COMPLETE。不要使用 executor、assistant、user 等角色名。当前阶段只负责分析任务并返回执行结果或 DECISION_REQUEST，不直接修改 GitHub 或本地文件。"
                 )
                 val profileStore = ApiProfileStore(this)
                 val profileByRole = mapOf(
@@ -1176,6 +1272,10 @@ class V021Activity : Activity() {
         val text = input.text.toString().trim()
         if (text.isBlank()) return
         val current = project ?: return
+        if (!AccessPolicy.isApiEnabled(this)) {
+            Toast.makeText(this, "API 全局访问已关闭", Toast.LENGTH_SHORT).show()
+            return
+        }
         val ids = collaborationProfileIds()
         if (ids.first.isBlank() || ids.second.isBlank() || ids.first == ids.second) {
             Toast.makeText(this, "请先在工作区选择两个不同的协作 AI", Toast.LENGTH_SHORT).show()
@@ -1205,7 +1305,8 @@ class V021Activity : Activity() {
             return
         }
 
-        val auth = PermissionPolicy.authorization(this, null, conversation)
+        val workspace = project
+        val auth = PermissionPolicy.authorization(this, workspace, conversation)
         val denied = commands.firstOrNull { PermissionPolicy.check(it, auth) == Decision.DENY }
         if (denied != null) {
             recordReceipt(conversation, "DENIED", denied.toString(), "当前独立对话权限设置禁止该操作")
@@ -1230,16 +1331,18 @@ class V021Activity : Activity() {
     }
 
     private fun dispatchToBridge(command: String, conversation: BridgeConversation) {
-        val root = prefs.getString("root_path", "").orEmpty().trim()
+        val workspace = project
+        val root = workspace?.workspaceDirectory.orEmpty().trim()
         if (root.isBlank()) {
-            recordReceipt(conversation, "FAILED", "AI command", "未设置 BridgeFS 工作目录，指令未执行。")
+            recordReceipt(conversation, "FAILED", "AI command", "当前工作区未设置 BridgeFS 工作目录，指令未执行。")
             return
         }
 
         val intent = Intent(this, FileBridgeService::class.java)
             .putExtra("bridgefs_external_command", command)
             .putExtra("bridgefs_root", root)
-            .putExtra("standaloneConversationId", conversation.id)
+            .putExtra("projectId", workspace?.id)
+            .putExtra("conversationId", conversation.id)
 
         runCatching { startForegroundService(intent) }.onFailure {
             recordReceipt(conversation, "FAILED", "AI command", "启动 BridgeFS 执行服务失败：" + (it.message ?: "未知错误"))
