@@ -301,16 +301,40 @@ class CollaborationCoordinator(
             it.status = CollaborationTaskRecord.STATUS_RUNNING
         }
         AppLogger.log(context, AppLogger.Category.COLLABORATION, "TASK_SUBMITTED", "taskId=" + taskId)
-        return dispatchOneWorkerRound(workerSystemPrompt, decisionSystemPrompt)
+        val messages = mutableListOf<CollaborationProtocol.Message>()
+        var rounds = 0
+        val maxIterations = task.payload.optJSONObject("autonomy")?.optInt("max_iterations", 20)?.coerceIn(1, 20) ?: 20
+        while (rounds < maxIterations) {
+            val round = dispatchOneWorkerRound(workerSystemPrompt, decisionSystemPrompt)
+            if (round.isEmpty()) break
+            messages += round
+            rounds++
+            val decision = round.lastOrNull { it.from == CollaborationProtocol.Role.DECISION_AI }
+            val state = CollaborationTaskStore(context).get(taskId)?.status
+            if (decision?.type == CollaborationProtocol.Type.COMPLETE ||
+                decision?.type == CollaborationProtocol.Type.BLOCKED ||
+                decision?.type == CollaborationProtocol.Type.ESCALATE ||
+                state == CollaborationTaskRecord.STATUS_WAITING_VERIFY ||
+                state == CollaborationTaskRecord.STATUS_COMPLETE ||
+                state == CollaborationTaskRecord.STATUS_FAILED) break
+        }
+        if (rounds >= maxIterations && CollaborationTaskStore(context).get(taskId)?.status == CollaborationTaskRecord.STATUS_RUNNING) {
+            CollaborationTaskStore(context).update(taskId) { it.status = CollaborationTaskRecord.STATUS_FAILED }
+            AppLogger.log(context, AppLogger.Category.COLLABORATION, "MAX_ITERATIONS", "taskId=$taskId")
+        }
+        return messages
     }
 
     /** Execute exactly one Worker -> Decision AI round. */
     fun dispatchOneWorkerRound(workerSystemPrompt: String, decisionSystemPrompt: String): List<CollaborationProtocol.Message> {
-        val task = transport.pendingFor(CollaborationProtocol.Role.WORKER).firstOrNull { it.type == CollaborationProtocol.Type.TASK } ?: return emptyList()
+        val task = transport.pendingFor(CollaborationProtocol.Role.WORKER).firstOrNull { it.taskId == currentTask()?.taskId && (it.type == CollaborationProtocol.Type.TASK || it.type == CollaborationProtocol.Type.DECISION_RESPONSE) } ?: return emptyList()
         val workerMessage = parseProtocolResponseWithRetry(callWorker(task, workerSystemPrompt)) {
             callWorker(task, workerSystemPrompt + compactRetryPrompt(CollaborationProtocol.Role.WORKER))
         }
         validateResponse(workerMessage, CollaborationProtocol.Role.WORKER)
+        require(workerMessage.type in setOf(CollaborationProtocol.Type.DECISION_REQUEST, CollaborationProtocol.Type.PROGRESS, CollaborationProtocol.Type.BLOCKED, CollaborationProtocol.Type.FILE_CHANGE_REQUEST)) {
+            "Worker 只能返回 DECISION_REQUEST / PROGRESS / BLOCKED / FILE_CHANGE_REQUEST；Commit / Verify / Complete 必须由系统状态产生"
+        }
         transport.append(workerMessage)
         transport.markHandled(task.id)
 
@@ -369,7 +393,7 @@ class CollaborationCoordinator(
     private fun compactRetryPrompt(role: CollaborationProtocol.Role, initialTask: Boolean = true): String {
         val route = if (role == CollaborationProtocol.Role.DECISION_AI) {
             if (initialTask) "from=decision_ai,to=worker,type=TASK" else "from=decision_ai,to=worker,type=DECISION_RESPONSE|COMPLETE"
-        } else "from=worker,to=decision_ai,type=DECISION_REQUEST|PROGRESS|BLOCKED|COMMIT|VERIFY|COMPLETE|FILE_CHANGE_REQUEST"
+        } else "from=worker,to=decision_ai,type=DECISION_REQUEST|PROGRESS|BLOCKED|FILE_CHANGE_REQUEST"
         return "\n上一轮输出无法被完整解析。请立即重新输出一个完整、紧凑、合法的 JSON 对象；不要 Markdown、不要解释、不要换行长文本；$route。避免冗长 scope、acceptance、autonomy 与 context_refs，只保留完成协议所需内容。确保最后一个字符为 }。"
     }
     private fun executeFileChangeRequest(
