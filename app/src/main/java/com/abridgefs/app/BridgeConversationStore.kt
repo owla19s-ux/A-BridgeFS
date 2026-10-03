@@ -50,7 +50,7 @@ class BridgeConversationStore(private val context: Context) {
                             .put("status", it.status)
                             .put("command", it.command)
                             .put("message", it.message)
-                            .put("time", it.time))
+                            .put("time", it.time).put("receiptId", it.receiptId))
                     }
                 })
             )
@@ -104,7 +104,8 @@ class BridgeConversationStore(private val context: Context) {
                 item.getString("status"),
                 item.getString("command"),
                 item.getString("message"),
-                item.optLong("time", System.currentTimeMillis())
+                item.optLong("time", System.currentTimeMillis()),
+                item.optString("receiptId", "").ifBlank { UUID.randomUUID().toString() }
             )
         }
     }
