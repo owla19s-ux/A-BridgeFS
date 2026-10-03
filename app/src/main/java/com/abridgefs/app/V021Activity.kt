@@ -50,6 +50,7 @@ class V021Activity : Activity() {
             val message = intent.getStringExtra("message") ?: ""
             val projectId = intent.getStringExtra("projectId")
             val conversationId = intent.getStringExtra("conversationId")
+            val workspaceId = intent.getStringExtra("workspaceId")
             val standaloneConversationId = intent.getStringExtra("standaloneConversationId")
             val receipt = BridgeReceiptRecord(status, command, message)
             pendingReceipt = formatReceipt(receipt)
@@ -67,7 +68,9 @@ class V021Activity : Activity() {
                 return
             }
 
-            val target = projects.firstOrNull { it.id == projectId } ?: project
+            val target = projects.firstOrNull { it.id == workspaceId }
+                ?: projects.firstOrNull { it.id == projectId }
+                ?: project
             val conversation = target?.let { ws ->
                 conversationId?.let { id -> ws.conversations.firstOrNull { it.id == id } } ?: ws.activeConversation()
             }
@@ -133,6 +136,7 @@ class V021Activity : Activity() {
                 val message = obj.optString("message", "")
                 val projectId = obj.optString("projectId", "").ifBlank { null }
                 val conversationId = obj.optString("conversationId", "").ifBlank { null }
+                val workspaceId = obj.optString("workspaceId", "").ifBlank { null }
                 val standaloneConversationId = obj.optString("standaloneConversationId", "").ifBlank { null }
                 val receipt = BridgeReceiptRecord(status, command, message, obj.optLong("time", System.currentTimeMillis()))
                 if (!standaloneConversationId.isNullOrBlank()) {
@@ -144,7 +148,8 @@ class V021Activity : Activity() {
                     pendingReceipt = formatReceipt(receipt)
                     recoveredAny = true
                 } else {
-                    val target = projects.firstOrNull { it.id == projectId }
+                    val target = projects.firstOrNull { it.id == workspaceId }
+                        ?: projects.firstOrNull { it.id == projectId }
                     val conversation = target?.let { ws -> conversationId?.let { id -> ws.conversations.firstOrNull { it.id == id } } }
                     if (conversation == null) { remaining += obj; return@runCatching }
                     conversation.executions += receipt
