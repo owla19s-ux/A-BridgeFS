@@ -22,6 +22,7 @@ import java.util.concurrent.Executors
 class V021Activity : Activity() {
     companion object {
         private const val REQUEST_WORKSPACE_DIRECTORY = 2101
+        private const val RECEIPT_MESSAGE_PREFIX = "[Receipt]"
     }
     private val prefs by lazy { getSharedPreferences("bridgefs", 0) }
     private val store by lazy { BridgeProjectStore(this) }
@@ -52,14 +53,16 @@ class V021Activity : Activity() {
             val conversationId = intent.getStringExtra("conversationId")
             val workspaceId = intent.getStringExtra("workspaceId")
             val standaloneConversationId = intent.getStringExtra("standaloneConversationId")
-            val receipt = BridgeReceiptRecord(status, command, message)
+            val receipt = BridgeReceiptRecord(status, command, message, intent.getLongExtra("time", System.currentTimeMillis()), intent.getStringExtra("receiptId")?.takeIf { it.isNotBlank() } ?: UUID.randomUUID().toString())
             pendingReceipt = formatReceipt(receipt)
 
             if (!standaloneConversationId.isNullOrBlank()) {
                 val conversation = standaloneConversations.firstOrNull { it.id == standaloneConversationId }
                 if (conversation != null) {
-                    conversation.executions += receipt
-                    conversation.messages += BridgeChatMessage("receipt", formatReceipt(receipt))
+                    if (!conversation.executions.any { it.receiptId == receipt.receiptId }) {
+                        conversation.executions += receipt
+                        conversation.messages += BridgeChatMessage("receipt", formatReceipt(receipt), receipt.time)
+                    }
                     conversationStore.save(standaloneConversations)
                     removePendingReceipt(intent.getStringExtra("receiptId"))
                     if (page == Page.CHAT) render()
@@ -75,8 +78,10 @@ class V021Activity : Activity() {
                 conversationId?.let { id -> ws.conversations.firstOrNull { it.id == id } } ?: ws.activeConversation()
             }
             if (conversation != null) {
-                conversation.executions += receipt
-                conversation.messages += BridgeChatMessage("receipt", formatReceipt(receipt))
+                if (!conversation.executions.any { it.receiptId == receipt.receiptId }) {
+                    conversation.executions += receipt
+                    conversation.messages += BridgeChatMessage("receipt", formatReceipt(receipt), receipt.time)
+                }
                 store.save(projects)
                 removePendingReceipt(intent.getStringExtra("receiptId"))
                 if (page == Page.WORKSPACE_CHAT && target?.id == project?.id) render()
