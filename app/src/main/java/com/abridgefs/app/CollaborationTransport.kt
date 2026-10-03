@@ -306,7 +306,7 @@ class CollaborationCoordinator(
             it.lastCommitSha = branchHead
             it.lastChangedPath = path
             it.pendingWritePath = null
-            it.pendingWriteContent = null
+            it.pendingWriteBlobSha = null
             it.pendingWriteMessage = null
             it.pendingWriteSha = null
         }
