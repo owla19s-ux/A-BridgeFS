@@ -401,3 +401,12 @@ Workspace + Repository + Branch
 - 修正 Verify PASS 后 `VERIFY_PASSED -> DECISION_RESPONSE -> Worker` 的继续路径：Decision AI 要求继续时，现在显式恢复 `RUNNING` 后再派发 Worker，避免因 Worker 调度器只接受 RUNNING / CONSTRUCTING 而静默停止。
 - 当前 PR #36 已不再包含重复 Transport 文件。
 - 最新修复仍未合并；截至本轮，最新 Commit 尚未出现新的 Android Build and Release Actions Run，因此没有把代码级结果冒充为构建验证。
+
+
+## 2026-10-03 Receipt 路由与执行权限第十九轮检查
+
+- 发现 Receipt 广播缺少 workspaceId：独立对话执行虽然在 Intent 中携带了 workspaceId，但 FileBridgeService 广播回 Activity 时没有继续传递，可能导致回执在 Activity 恢复时落入当前 Workspace。
+- 修复：FileBridgeService 的 Receipt 持久化与 Broadcast 均保留 workspaceId；V021Activity 前台接收与 pending_receipts 恢复均优先按 workspaceId，再按 conversationId 定位原始对话。
+- 权限链复核：全局 perm_* → Workspace localFileModifyEnabled → Conversation localFileModifyOverride 最终统一进入 PermissionPolicy；FileBridgeService 作为最终执行入口会再次计算权限，不依赖 UI 单次判断。
+- ai_auto_bridgefs_enabled 当前只控制独立 AI 对话自动解析并触发 BridgeFS 指令；Workspace AI 协作走独立的 Collaboration 流程，没有误用该开关。
+- 本轮仍未构建、未发布 APK、未真机验证。
