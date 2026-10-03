@@ -215,7 +215,7 @@ class CollaborationCoordinator(
         CollaborationTaskStore(context).update(taskId) {
             it.status = CollaborationTaskRecord.STATUS_CONSTRUCTION_WRITING
             it.pendingWritePath = path
-            it.pendingWriteContent = content
+            it.pendingWriteBlobSha = gitBlobSha(content)
             it.pendingWriteMessage = message
             it.pendingWriteSha = sha
         }
@@ -230,7 +230,7 @@ class CollaborationCoordinator(
             it.lastCommitSha = commitSha
             it.lastChangedPath = path
             it.pendingWritePath = null
-            it.pendingWriteContent = null
+            it.pendingWriteBlobSha = null
             it.pendingWriteMessage = null
             it.pendingWriteSha = null
         }
@@ -274,7 +274,8 @@ class CollaborationCoordinator(
         val task = CollaborationTaskStore(context).get(taskId) ?: return
         if (task.status != CollaborationTaskRecord.STATUS_CONSTRUCTION_WRITING) return
         val path = task.pendingWritePath?.takeIf { it.isNotBlank() } ?: error("施工恢复缺少目标路径")
-        val content = task.pendingWriteContent ?: error("施工恢复缺少目标内容")
+        val expectedBlobSha = task.pendingWriteBlobSha?.takeIf { it.isNotBlank() }
+            ?: error("施工恢复缺少预期 Blob SHA")
         val workspace = BridgeProjectStore(context).load().firstOrNull { it.id == task.workspaceId }
             ?: error("工作区不存在：" + task.workspaceId)
         val holder = task.constructionHolderAiMemberId?.takeIf { it.isNotBlank() }
@@ -285,7 +286,6 @@ class CollaborationCoordinator(
             ?: error("GitHub 尚未授权")
         val service = GitHubWorkspaceService(context, GitHubApiClient(context, token), workspace.github, workspace)
         val remote = service.file(path)
-        val expectedBlobSha = gitBlobSha(content)
         require(remote.optString("sha").trim() == expectedBlobSha) {
             "施工恢复检测到远端文件与预期内容不一致：" + path + "；不会重复写入"
         }
