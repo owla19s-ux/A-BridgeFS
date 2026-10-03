@@ -66,7 +66,7 @@ val workspaceId=intent.getStringExtra("workspaceId")
 val standaloneConversationId=intent.getStringExtra("standaloneConversationId")
 commandExecutor.submit {
 val result=executeExternalCommand(rootPath,text,projectId,conversationId,workspaceId,standaloneConversationId)
-broadcastReceipt(result.first,result.second,result.third,projectId,conversationId,standaloneConversationId)
+broadcastReceipt(result.first,result.second,result.third,projectId,conversationId,workspaceId,standaloneConversationId)
 }
 }
 return START_NOT_STICKY
@@ -137,6 +137,7 @@ val intent=Intent("com.bridgefs.RESULT").setPackage(packageName)
 .putExtra("message",message)
 .putExtra("projectId",projectId)
 .putExtra("conversationId",conversationId)
+.putExtra("workspaceId",workspaceId)
 .putExtra("standaloneConversationId",standaloneConversationId)
 .putExtra("time",now)
 sendBroadcast(intent)
