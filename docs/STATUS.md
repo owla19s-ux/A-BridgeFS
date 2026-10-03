@@ -374,3 +374,13 @@ Workspace + Repository + Branch
 - 修复：Verify PASS 后直接进入 RUNNING，再追加系统 COMMIT 并执行 Decision AI 后续轮；不再暴露“Verify 已通过但后续协作尚未完成”的 COMPLETE 中间态。
 - COMPLETE 现在只应由真正完成边界写入。
 - 本轮代码 Commit：7969f8a8e7482d3a87712a8bfeb193b43e9a0ccf。
+
+
+## 2026-10-03 协作状态机第十八轮：Verify / 写入恢复
+
+- 修正第十七轮遗留的状态机问题：Verify PASS 不再先写 COMPLETE。新增 VERIFY_PASSED 中间态，只有 Verify 后续 Decision AI 真正返回 COMPLETE 时才进入 COMPLETE。
+- 新增 CONSTRUCTION_WRITING 状态及待写入字段：path / content / commit message / 原始文件 SHA。GitHub Contents API 写入前先持久化写入意图。
+- 如果 App 在 GitHub 写入成功、但本地保存 Commit SHA 之前终止，恢复流程不会盲目再次写入；会重新读取远端文件 Blob SHA，并检查当前 Branch HEAD 的 Commit 是否包含目标文件变更，确认后恢复为 WAITING_VERIFY。
+- GitHub API 增加 Branch HEAD / Commit 查询能力，用于上述恢复核对。
+- Verify 后继续轮与 Verify 失败修复轮进入新阶段前，会清理同一 Task 下遗留的 Worker TASK / DECISION_RESPONSE，避免旧输入抢先驱动新一轮。
+- 以上属于代码级修复；当前 PR #36 仍未合并，尚未通过新的 Release Actions Run / APK / 真机验证。
