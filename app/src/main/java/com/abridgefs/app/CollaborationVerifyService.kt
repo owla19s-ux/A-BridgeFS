@@ -32,6 +32,7 @@ class CollaborationVerifyService(private val context: Context) {
         // re-checking the same historical SHA must not mutate the task back
         // into a different state or create duplicate terminal receipts.
         when (task.status) {
+            CollaborationTaskRecord.STATUS_VERIFY_PASSED,
             CollaborationTaskRecord.STATUS_COMPLETE -> {
                 return GitHubVerifyResult(
                     GitHubVerifyState.PASSED,
@@ -47,6 +48,13 @@ class CollaborationVerifyService(private val context: Context) {
                 )
             }
             CollaborationTaskRecord.STATUS_WAITING_VERIFY -> Unit
+            CollaborationTaskRecord.STATUS_CONSTRUCTION_WRITING -> {
+                return GitHubVerifyResult(
+                    GitHubVerifyState.WAITING,
+                    commitSha,
+                    message = "GitHub 写入处于恢复阶段，先核对远端文件与 Commit；不重复写入"
+                )
+            }
             else -> {
                 return GitHubVerifyResult(
                     GitHubVerifyState.WAITING,
@@ -183,7 +191,7 @@ class CollaborationVerifyService(private val context: Context) {
             }
         }
         taskStore.update(task.taskId) {
-            it.status = CollaborationTaskRecord.STATUS_COMPLETE
+            it.status = CollaborationTaskRecord.STATUS_VERIFY_PASSED
             it.constructionHolderAiMemberId = null
         }
     }
