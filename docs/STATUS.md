@@ -384,3 +384,12 @@ Workspace + Repository + Branch
 - GitHub API 增加 Branch HEAD / Commit 查询能力，用于上述恢复核对。
 - Verify 后继续轮与 Verify 失败修复轮进入新阶段前，会清理同一 Task 下遗留的 Worker TASK / DECISION_RESPONSE，避免旧输入抢先驱动新一轮。
 - 以上属于代码级修复；当前 PR #36 仍未合并，尚未通过新的 Release Actions Run / APK / 真机验证。
+
+
+## 2026-10-03 第十八轮补充：恢复数据最小化
+
+- 写入恢复不再把待写文件正文保存到 SharedPreferences；任务只保存预期 Git Blob SHA、目标路径、原始文件 SHA 等恢复元数据。
+- 恢复时以远端 Blob SHA 为第一判断依据，避免重复 Contents API 写入；确认 Branch HEAD 包含目标文件后才恢复为 WAITING_VERIFY。
+- Workspace UI 已暴露 VERIFY_PASSED / CONSTRUCTION_WRITING 两种可恢复状态，进程在 Verify PASS 后中断或写入阶段中断时不会留下无入口状态。
+- 静态检查曾发现并已修复一次旧字段残留；当前最新开发分支头为 486413343a3f9eab521abefb72c217d706ebe69a。
+- 当前仍无该 Commit 对应的新 Actions Run，因此本轮结论仍是代码级检查，不是构建/真机验证。
