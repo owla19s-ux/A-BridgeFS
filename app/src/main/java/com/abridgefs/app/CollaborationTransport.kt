@@ -3,6 +3,7 @@ package com.abridgefs.app
 import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
+import java.security.MessageDigest
 
 /**
  * Minimal transport boundary for Decision AI ↔ Worker.
@@ -210,6 +211,15 @@ class CollaborationCoordinator(
         val auth = GitHubTokenStore(context).state()
         val token = auth.accessToken?.takeIf { it.isNotBlank() }
             ?: error("GitHub 尚未授权")
+
+        CollaborationTaskStore(context).update(taskId) {
+            it.status = CollaborationTaskRecord.STATUS_CONSTRUCTION_WRITING
+            it.pendingWritePath = path
+            it.pendingWriteContent = content
+            it.pendingWriteMessage = message
+            it.pendingWriteSha = sha
+        }
+
         val service = GitHubWorkspaceService(context, GitHubApiClient(context, token), workspace.github, workspace)
         val result = service.updateFile(path, content, message, sha, aiMemberId)
         val commitSha = result.optJSONObject("commit")?.optString("sha").orEmpty().ifBlank { null }
@@ -219,6 +229,10 @@ class CollaborationCoordinator(
             it.status = CollaborationTaskRecord.STATUS_WAITING_VERIFY
             it.lastCommitSha = commitSha
             it.lastChangedPath = path
+            it.pendingWritePath = null
+            it.pendingWriteContent = null
+            it.pendingWriteMessage = null
+            it.pendingWriteSha = null
         }
         AppLogger.log(context, AppLogger.Category.COLLABORATION, "GITHUB_WRITE", "taskId=$taskId path=$path")
         return result
@@ -251,8 +265,61 @@ class CollaborationCoordinator(
      * Checks the exact Commit SHA against GitHub Actions and closes the task
      * only after a completed successful run.
      */
-    fun verifyTask(taskId: String): GitHubVerifyResult =
-        CollaborationVerifyService(context).verify(taskId)
+    fun verifyTask(taskId: String): GitHubVerifyResult {
+        recoverInterruptedWrite(taskId)
+        return CollaborationVerifyService(context).verify(taskId)
+    }
+
+    private fun recoverInterruptedWrite(taskId: String) {
+        val task = CollaborationTaskStore(context).get(taskId) ?: return
+        if (task.status != CollaborationTaskRecord.STATUS_CONSTRUCTION_WRITING) return
+        val path = task.pendingWritePath?.takeIf { it.isNotBlank() } ?: error("施工恢复缺少目标路径")
+        val content = task.pendingWriteContent ?: error("施工恢复缺少目标内容")
+        val workspace = BridgeProjectStore(context).load().firstOrNull { it.id == task.workspaceId }
+            ?: error("工作区不存在：" + task.workspaceId)
+        val holder = task.constructionHolderAiMemberId?.takeIf { it.isNotBlank() }
+            ?: error("施工恢复缺少施工者")
+        ConstructionLockStore(context).requireHolder(workspace, holder)
+
+        val token = GitHubTokenStore(context).state().accessToken?.takeIf { it.isNotBlank() }
+            ?: error("GitHub 尚未授权")
+        val service = GitHubWorkspaceService(context, GitHubApiClient(context, token), workspace.github, workspace)
+        val remote = service.file(path)
+        val expectedBlobSha = gitBlobSha(content)
+        require(remote.optString("sha").trim() == expectedBlobSha) {
+            "施工恢复检测到远端文件与预期内容不一致：" + path + "；不会重复写入"
+        }
+
+        val branchHead = service.branchHead().trim()
+        require(branchHead.isNotBlank()) { "施工恢复无法取得 Branch HEAD" }
+        val commit = service.commit(branchHead)
+        val files = commit.optJSONArray("files")
+        val touched = files != null && (0 until files.length()).any {
+            files.optJSONObject(it)?.optString("filename") == path
+        }
+        require(touched) {
+            "施工恢复无法确认 Branch HEAD 包含目标文件变更：" + path + "；不会进入 Verify"
+        }
+
+        CollaborationTaskStore(context).update(taskId) {
+            it.status = CollaborationTaskRecord.STATUS_WAITING_VERIFY
+            it.lastCommitSha = branchHead
+            it.lastChangedPath = path
+            it.pendingWritePath = null
+            it.pendingWriteContent = null
+            it.pendingWriteMessage = null
+            it.pendingWriteSha = null
+        }
+        AppLogger.log(context, AppLogger.Category.COLLABORATION, "GITHUB_WRITE_RECOVERED",
+            "taskId=" + taskId + " commit=" + branchHead + " path=" + path)
+    }
+
+    private fun gitBlobSha(content: String): String {
+        val bytes = content.toByteArray(Charsets.UTF_8)
+        val header = ("blob " + bytes.size + "\u0000").toByteArray(Charsets.UTF_8)
+        val digest = MessageDigest.getInstance("SHA-1")
+        return digest.digest(header + bytes).joinToString("") { "%02x".format(it) }
+    }
 
     /**
      * Verifies the current Commit and, when it passes, starts one bounded
