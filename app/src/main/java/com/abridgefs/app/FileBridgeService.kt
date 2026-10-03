@@ -113,7 +113,7 @@ Triple("FAILED",text,"执行异常："+(e.message ?: "未知错误"))
 }
 }
 
-private fun broadcastReceipt(status:String,command:String,message:String,projectId:String?,conversationId:String?,standaloneConversationId:String?){
+private fun broadcastReceipt(status:String,command:String,message:String,projectId:String?,conversationId:String?,workspaceId:String?,standaloneConversationId:String?){
 val now=System.currentTimeMillis()
 val pending=org.json.JSONObject()
     .put("receiptId",java.util.UUID.randomUUID().toString())
@@ -121,7 +121,7 @@ val pending=org.json.JSONObject()
     .put("command",command)
     .put("message",message)
     .put("time",now)
-    .put("projectId",projectId ?: "").put("conversationId",conversationId ?: "")
+    .put("projectId",projectId ?: "").put("conversationId",conversationId ?: "").put("workspaceId",workspaceId ?: "")
     .put("standaloneConversationId",standaloneConversationId ?: "")
 val prefs = getSharedPreferences("bridgefs",0)
 val queue = org.json.JSONArray(prefs.getString("pending_receipts","[]") ?: "[]")
