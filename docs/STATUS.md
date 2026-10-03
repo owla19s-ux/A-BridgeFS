@@ -365,3 +365,12 @@ Workspace + Repository + Branch
 - 修复：FAILED → RUNNING 前，必须通过 ConstructionLockStore.requireHolder() 确认记录的修复者仍持有当前 Workspace + Repository + Branch 的实际施工锁。
 - 这样 Verify 失败后的修复轮不会产生“任务已恢复、施工权不存在”的中间状态。
 - 本轮代码 Commit：19468a83a8cc22b20816bb835dc7d35c52edfce2。
+
+
+## 2026-10-03 Verify 后续协作状态边界第十七轮
+
+- 发现 verifyAndContinue() 原逻辑依赖 CollaborationVerifyService 在 Verify PASS 时先写 COMPLETE，随后再改回 RUNNING。
+- 风险：如果进程恰好在两次持久化之间终止，任务恢复后会被视为 COMPLETE，但 Decision AI 后续审议尚未完成。
+- 修复：Verify PASS 后直接进入 RUNNING，再追加系统 COMMIT 并执行 Decision AI 后续轮；不再暴露“Verify 已通过但后续协作尚未完成”的 COMPLETE 中间态。
+- COMPLETE 现在只应由真正完成边界写入。
+- 本轮代码 Commit：7969f8a8e7482d3a87712a8bfeb193b43e9a0ccf。
