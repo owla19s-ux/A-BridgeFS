@@ -22,7 +22,6 @@ import java.util.concurrent.Executors
 class V021Activity : Activity() {
     companion object {
         private const val REQUEST_WORKSPACE_DIRECTORY = 2101
-        private const val RECEIPT_MESSAGE_PREFIX = "[Receipt]"
     }
     private val prefs by lazy { getSharedPreferences("bridgefs", 0) }
     private val store by lazy { BridgeProjectStore(this) }
@@ -143,12 +142,14 @@ class V021Activity : Activity() {
                 val conversationId = obj.optString("conversationId", "").ifBlank { null }
                 val workspaceId = obj.optString("workspaceId", "").ifBlank { null }
                 val standaloneConversationId = obj.optString("standaloneConversationId", "").ifBlank { null }
-                val receipt = BridgeReceiptRecord(status, command, message, obj.optLong("time", System.currentTimeMillis()))
+                val receipt = BridgeReceiptRecord(status, command, message, obj.optLong("time", System.currentTimeMillis()), obj.optString("receiptId", "").ifBlank { UUID.randomUUID().toString() })
                 if (!standaloneConversationId.isNullOrBlank()) {
                     val conversation = standaloneConversations.firstOrNull { it.id == standaloneConversationId }
                     if (conversation == null) { remaining += obj; return@runCatching }
-                    conversation.executions += receipt
-                    conversation.messages += BridgeChatMessage("receipt", formatReceipt(receipt))
+                    if (!conversation.executions.any { it.receiptId == receipt.receiptId }) {
+                        conversation.executions += receipt
+                        conversation.messages += BridgeChatMessage("receipt", formatReceipt(receipt), receipt.time)
+                    }
                     conversationStore.save(standaloneConversations)
                     pendingReceipt = formatReceipt(receipt)
                     recoveredAny = true
@@ -157,8 +158,10 @@ class V021Activity : Activity() {
                         ?: projects.firstOrNull { it.id == projectId }
                     val conversation = target?.let { ws -> conversationId?.let { id -> ws.conversations.firstOrNull { it.id == id } } }
                     if (conversation == null) { remaining += obj; return@runCatching }
-                    conversation.executions += receipt
-                    conversation.messages += BridgeChatMessage("receipt", formatReceipt(receipt))
+                    if (!conversation.executions.any { it.receiptId == receipt.receiptId }) {
+                        conversation.executions += receipt
+                        conversation.messages += BridgeChatMessage("receipt", formatReceipt(receipt), receipt.time)
+                    }
                     store.save(projects)
                     pendingReceipt = formatReceipt(receipt)
                     recoveredAny = true
