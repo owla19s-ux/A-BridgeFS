@@ -523,7 +523,10 @@ class V021Activity : Activity() {
             box.addView(repairButton)
         }
 
-        if (task.status == CollaborationTaskRecord.STATUS_WAITING_VERIFY) {
+        if (task.status == CollaborationTaskRecord.STATUS_WAITING_VERIFY ||
+            task.status == CollaborationTaskRecord.STATUS_VERIFY_PASSED ||
+            task.status == CollaborationTaskRecord.STATUS_CONSTRUCTION_WRITING
+        ) {
             val actionRunning = collaborationTaskActionRunningId == task.taskId
             val verifyButton = actionButton(if (actionRunning) "Verify处理中…" else "检查当前 Commit") {
                 if (collaborationTaskActionRunningId == task.taskId) return@actionButton
@@ -570,6 +573,8 @@ class V021Activity : Activity() {
         CollaborationTaskRecord.STATUS_WAITING_CONSTRUCTION -> "等待进入施工"
         CollaborationTaskRecord.STATUS_CONSTRUCTING -> "施工中"
         CollaborationTaskRecord.STATUS_WAITING_VERIFY -> "等待 Verify"
+        CollaborationTaskRecord.STATUS_VERIFY_PASSED -> "Verify 已通过，等待继续"
+        CollaborationTaskRecord.STATUS_CONSTRUCTION_WRITING -> "GitHub 写入恢复中"
         CollaborationTaskRecord.STATUS_COMPLETE -> "已完成"
         CollaborationTaskRecord.STATUS_FAILED -> "失败"
         CollaborationTaskRecord.STATUS_CANCELLED -> "已取消"
