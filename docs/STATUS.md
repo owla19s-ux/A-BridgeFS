@@ -393,3 +393,11 @@ Workspace + Repository + Branch
 - Workspace UI 已暴露 VERIFY_PASSED / CONSTRUCTION_WRITING 两种可恢复状态，进程在 Verify PASS 后中断或写入阶段中断时不会留下无入口状态。
 - 静态检查曾发现并已修复一次旧字段残留；当前最新开发分支头为 486413343a3f9eab521abefb72c217d706ebe69a。
 - 当前仍无该 Commit 对应的新 Actions Run，因此本轮结论仍是代码级检查，不是构建/真机验证。
+
+
+## 2026-10-03 第十八轮结构审查补充
+
+- 发现并删除重复的 `app/src/main/java/com/abridgefs/CollaborationTransport.kt`。该文件虽然目录较旧，但声明同一个 `com.abridgefs.app` package，并重复定义 CollaborationTransport / CollaborationApiConfig / CollaborationApiClient / CollaborationCoordinator；保留统一的新路径 `app/src/main/java/com/abridgefs/app/CollaborationTransport.kt`。
+- 修正 Verify PASS 后 `VERIFY_PASSED -> DECISION_RESPONSE -> Worker` 的继续路径：Decision AI 要求继续时，现在显式恢复 `RUNNING` 后再派发 Worker，避免因 Worker 调度器只接受 RUNNING / CONSTRUCTING 而静默停止。
+- 当前 PR #36 已不再包含重复 Transport 文件。
+- 最新修复仍未合并；截至本轮，最新 Commit 尚未出现新的 Android Build and Release Actions Run，因此没有把代码级结果冒充为构建验证。
