@@ -418,3 +418,12 @@ Workspace + Repository + Branch
 - 现在只有当前页面确实属于目标 Workspace 时才直接刷新；如果用户正在查看其他 Workspace，则保留目标回执并提示“收到执行回执”，不强制切换用户当前工作区。
 - 消息气泡已确认：user / assistant / tool / receipt 均有独立显示路径，所有消息均提供复制入口；Receipt 不是只能通过“回执”按钮取出，而是直接进入聊天消息。
 - 本轮仍未构建、未发布 APK、未真机验证。
+
+
+## 2026-10-03 Receipt 幂等性第二十轮检查
+
+- FileBridgeService 已生成唯一 `receiptId`；此前 Workspace / standalone 的历史模型没有持久化该 ID，导致前台 Broadcast 与后台 pending recovery 缺少统一幂等键。
+- 现在 `BridgeReceiptRecord` 持久化 `receiptId`；旧历史数据加载时自动生成兼容 ID。
+- 前台 Broadcast 插入 Receipt 前按 `receiptId` 去重；后台恢复同样按 `receiptId` 去重。
+- standalone chat 与 Workspace chat 都只在用户当前确实正在查看目标对话时刷新；其他情况下只提示，不抢夺当前页面。
+- 本轮仍未构建 APK、未发布、未真机验证。
