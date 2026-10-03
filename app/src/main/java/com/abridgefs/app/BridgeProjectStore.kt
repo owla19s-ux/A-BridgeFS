@@ -13,7 +13,7 @@ data class BridgeChatMessage(
     val apiName: String? = null,
     val apiAvatar: String? = null
 )
-data class BridgeReceiptRecord(val status: String, val command: String, val message: String, val time: Long = System.currentTimeMillis())
+data class BridgeReceiptRecord(val status: String, val command: String, val message: String, val time: Long = System.currentTimeMillis(), val receiptId: String = UUID.randomUUID().toString())
 
 data class BridgeAiMember(
     val id: String,
@@ -218,7 +218,7 @@ class BridgeProjectStore(private val context: Context) {
                         })
                         .put("executions", JSONArray().apply {
                             conversation.executions.forEach {
-                                put(JSONObject().put("status", it.status).put("command", it.command).put("message", it.message).put("time", it.time))
+                                put(JSONObject().put("status", it.status).put("command", it.command).put("message", it.message).put("time", it.time).put("receiptId", it.receiptId))
                             }
                         })
                     )
@@ -278,7 +278,8 @@ class BridgeProjectStore(private val context: Context) {
                 item.getString("status"),
                 item.getString("command"),
                 item.getString("message"),
-                item.optLong("time", System.currentTimeMillis())
+                item.optLong("time", System.currentTimeMillis()),
+                item.optString("receiptId", "").ifBlank { UUID.randomUUID().toString() }
             )
         }
     }
