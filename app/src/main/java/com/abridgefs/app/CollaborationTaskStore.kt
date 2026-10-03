@@ -23,7 +23,7 @@ data class CollaborationTaskRecord(
     var lastCommitSha: String? = null,
     var lastChangedPath: String? = null,
     var pendingWritePath: String? = null,
-    var pendingWriteContent: String? = null,
+    var pendingWriteBlobSha: String? = null,
     var pendingWriteMessage: String? = null,
     var pendingWriteSha: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
@@ -128,7 +128,7 @@ class CollaborationTaskStore(private val context: Context) {
             .put("lastCommitSha", task.lastCommitSha)
             .put("lastChangedPath", task.lastChangedPath)
             .put("pendingWritePath", task.pendingWritePath)
-            .put("pendingWriteContent", task.pendingWriteContent)
+            .put("pendingWriteBlobSha", task.pendingWriteBlobSha)
             .put("pendingWriteMessage", task.pendingWriteMessage)
             .put("pendingWriteSha", task.pendingWriteSha)
             .put("createdAt", task.createdAt)
@@ -146,7 +146,7 @@ class CollaborationTaskStore(private val context: Context) {
             lastCommitSha = obj.optString("lastCommitSha", "").ifBlank { null },
             lastChangedPath = obj.optString("lastChangedPath", "").ifBlank { null },
             pendingWritePath = obj.optString("pendingWritePath", "").ifBlank { null },
-            pendingWriteContent = obj.optString("pendingWriteContent", "").ifBlank { null },
+            pendingWriteBlobSha = obj.optString("pendingWriteBlobSha", "").ifBlank { null },
             pendingWriteMessage = obj.optString("pendingWriteMessage", "").ifBlank { null },
             pendingWriteSha = obj.optString("pendingWriteSha", "").ifBlank { null },
             createdAt = obj.optLong("createdAt", System.currentTimeMillis()),
