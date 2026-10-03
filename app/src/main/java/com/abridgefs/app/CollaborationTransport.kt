@@ -321,6 +321,16 @@ class CollaborationCoordinator(
         return digest.digest(header + bytes).joinToString("") { "%02x".format(it) }
     }
 
+    private fun discardPendingWorkerInputs(taskId: String) {
+        transport.pendingFor(CollaborationProtocol.Role.WORKER)
+            .filter {
+                it.taskId == taskId &&
+                    (it.type == CollaborationProtocol.Type.TASK ||
+                        it.type == CollaborationProtocol.Type.DECISION_RESPONSE)
+            }
+            .forEach { transport.markHandled(it.id) }
+    }
+
     /**
      * Verifies the current Commit and, when it passes, starts one bounded
      * Decision AI -> Worker continuation round. The next Worker file change,
@@ -331,6 +341,7 @@ class CollaborationCoordinator(
         if (result.state != GitHubVerifyState.PASSED) return result
 
         val task = CollaborationTaskStore(context).get(taskId) ?: return result
+        discardPendingWorkerInputs(taskId)
         CollaborationTaskStore(context).update(taskId) {
             it.status = CollaborationTaskRecord.STATUS_RUNNING
             it.constructionHolderAiMemberId = null
@@ -390,6 +401,7 @@ class CollaborationCoordinator(
         // repair round. Do not transition FAILED -> RUNNING unless the actual
         // Repository/Branch lock is still held by the recorded repair owner.
         ConstructionLockStore(context).requireHolder(workspace, repairHolder)
+        discardPendingWorkerInputs(taskId)
 
         CollaborationTaskStore(context).update(taskId) {
             it.status = CollaborationTaskRecord.STATUS_RUNNING
