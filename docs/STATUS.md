@@ -410,3 +410,11 @@ Workspace + Repository + Branch
 - 权限链复核：全局 perm_* → Workspace localFileModifyEnabled → Conversation localFileModifyOverride 最终统一进入 PermissionPolicy；FileBridgeService 作为最终执行入口会再次计算权限，不依赖 UI 单次判断。
 - ai_auto_bridgefs_enabled 当前只控制独立 AI 对话自动解析并触发 BridgeFS 指令；Workspace AI 协作走独立的 Collaboration 流程，没有误用该开关。
 - 本轮仍未构建、未发布 APK、未真机验证。
+
+
+## 2026-10-03 Receipt UI 第十九轮补充
+
+- 发现并修复：Receipt 已正确写入目标 Workspace，但 Activity 当前正在查看另一个 Workspace 时，原逻辑仍会直接刷新 `WORKSPACE_CHAT`，用户会看不到目标回执，容易误判为回执丢失。
+- 现在只有当前页面确实属于目标 Workspace 时才直接刷新；如果用户正在查看其他 Workspace，则保留目标回执并提示“收到执行回执”，不强制切换用户当前工作区。
+- 消息气泡已确认：user / assistant / tool / receipt 均有独立显示路径，所有消息均提供复制入口；Receipt 不是只能通过“回执”按钮取出，而是直接进入聊天消息。
+- 本轮仍未构建、未发布 APK、未真机验证。
