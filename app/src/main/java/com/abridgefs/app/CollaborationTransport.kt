@@ -374,6 +374,14 @@ class CollaborationCoordinator(
         require(decision.type == CollaborationProtocol.Type.DECISION_RESPONSE) {
             "Verify 通过后的 Decision AI 必须返回 DECISION_RESPONSE 或 COMPLETE"
         }
+
+        // Verify_PASSED is an explicit boundary. A DECISION_RESPONSE means the
+        // task is continuing, so reopen the bounded Worker round explicitly.
+        // This avoids dispatchOneWorkerRound() silently rejecting the persisted
+        // VERIFY_PASSED state.
+        CollaborationTaskStore(context).update(taskId) {
+            it.status = CollaborationTaskRecord.STATUS_RUNNING
+        }
         dispatchOneWorkerRound(workerSystemPrompt, decisionSystemPrompt)
         return result
     }
