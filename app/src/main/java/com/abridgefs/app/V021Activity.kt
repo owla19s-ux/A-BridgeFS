@@ -79,7 +79,7 @@ class V021Activity : Activity() {
                 conversation.messages += BridgeChatMessage("receipt", formatReceipt(receipt))
                 store.save(projects)
                 removePendingReceipt(intent.getStringExtra("receiptId"))
-                if (page == Page.WORKSPACE_CHAT) render()
+                if (page == Page.WORKSPACE_CHAT && target?.id == project?.id) render()
                 else Toast.makeText(this@V021Activity, "收到执行回执：$status", Toast.LENGTH_SHORT).show()
             }
         }
