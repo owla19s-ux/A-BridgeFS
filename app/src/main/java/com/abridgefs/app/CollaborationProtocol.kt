@@ -24,7 +24,8 @@ object CollaborationProtocol {
         COMMIT,
         VERIFY,
         ESCALATE,
-        COMPLETE
+        COMPLETE,
+        FILE_CHANGE_REQUEST
     }
 
     enum class State {
@@ -101,6 +102,7 @@ object CollaborationProtocol {
             Type.DECISION_REQUEST -> if (message.from != Role.WORKER || message.to != Role.DECISION_AI) "DECISION_REQUEST route must be Worker → Decision AI" else null
             Type.DECISION_RESPONSE -> if (message.from != Role.DECISION_AI || message.to != Role.WORKER) "DECISION_RESPONSE route must be Decision AI → Worker" else null
             Type.ESCALATE -> if (message.to != Role.HUMAN) "ESCALATE must target human" else null
+            Type.FILE_CHANGE_REQUEST -> if (message.from != Role.WORKER || message.to != Role.DECISION_AI) "FILE_CHANGE_REQUEST route must be Worker → Decision AI" else null
             Type.PROGRESS, Type.BLOCKED, Type.COMMIT, Type.VERIFY, Type.COMPLETE -> null
         }
         return if (routeError == null) ValidationResult(true) else ValidationResult(false, routeError)
@@ -115,7 +117,7 @@ object CollaborationProtocol {
             Type.TASK -> State.WORKING
             Type.DECISION_REQUEST -> State.WAITING_DECISION
             Type.DECISION_RESPONSE -> State.WORKING
-            Type.PROGRESS, Type.COMMIT, Type.VERIFY -> {
+            Type.PROGRESS, Type.COMMIT, Type.VERIFY, Type.FILE_CHANGE_REQUEST -> {
                 if (message.type == Type.VERIFY &&
                     message.payload.optString("verdict") == "pass") State.WORKING
                 else current
@@ -229,6 +231,30 @@ object CollaborationProtocol {
                 .put("instruction", instruction)
                 .put("scope_change", scopeChange ?: JSONObject.NULL)
                 .put("grants", grants)
+        )
+    }
+
+    fun fileChangeRequest(
+        taskId: String,
+        path: String,
+        content: String,
+        commitMessage: String,
+        operation: String = "write"
+    ): Message {
+        require(path.isNotBlank()) { "path is blank" }
+        require(content.isNotEmpty()) { "content is empty" }
+        require(commitMessage.isNotBlank()) { "commitMessage is blank" }
+        require(operation == "write" || operation == "edit") { "unsupported file operation: $operation" }
+        return Message(
+            from = Role.WORKER,
+            to = Role.DECISION_AI,
+            taskId = taskId,
+            type = Type.FILE_CHANGE_REQUEST,
+            payload = JSONObject()
+                .put("path", path.trimStart('/'))
+                .put("operation", operation)
+                .put("content", content)
+                .put("commit_message", commitMessage)
         )
     }
 

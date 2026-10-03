@@ -2,7 +2,7 @@ name: Android Build and Release
 
 on:
   push:
-    branches: [main]
+    branches: ['**']
   workflow_dispatch:
 
 concurrency:
@@ -73,16 +73,39 @@ jobs:
       - name: Build official release APK
         run: gradle :app:assembleRelease --stacktrace
 
-      - name: Verify APK signature
+      - name: Verify APK signature and signer identity
         shell: bash
         run: |
           set -euo pipefail
           APK="app/build/outputs/apk/release/app-release.apk"
+          KEYSTORE="$RUNNER_TEMP/a-bridgefs-release.jks"
           test -s "$APK"
+          test -s "$KEYSTORE"
 
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          "$APKSIGNER" verify --verbose "$APK"
 
-          echo "APK signature verification passed."
+          expected_cert="$(keytool -exportcert -rfc \
+            -keystore "$KEYSTORE" \
+            -storepass "$A_BRIDGEFS_KEYSTORE_PASSWORD" \
+            -alias "$A_BRIDGEFS_KEY_ALIAS" \
+            | openssl x509 -noout -fingerprint -sha256 \
+            | sed 's/^[^=]*=//' \
+            | tr -d ':')"
+
+          actual_cert="$("$APKSIGNER" verify --print-certs "$APK" \
+            | awk -F': ' '/Signer #1 certificate SHA-256 digest:/ {print $2; exit}' \
+            | tr -d ':')"
+
+          test -n "$expected_cert"
+          test -n "$actual_cert"
+
+          echo "Official keystore certificate SHA-256: $expected_cert"
+          echo "APK signer certificate SHA-256:        $actual_cert"
+
+          test "${expected_cert^^}" = "${actual_cert^^}"
+
+          echo "APK signature verification and official signer identity check passed."
 
       - name: Prepare canonical APK
         shell: bash
@@ -102,6 +125,7 @@ jobs:
           if-no-files-found: error
 
       - name: Publish latest Release
+        if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash

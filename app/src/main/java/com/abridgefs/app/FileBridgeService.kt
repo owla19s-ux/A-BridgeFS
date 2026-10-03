@@ -62,16 +62,17 @@ val text=intent.getStringExtra("bridgefs_external_command").orEmpty()
 val rootPath=intent.getStringExtra("bridgefs_root").orEmpty()
 val projectId=intent.getStringExtra("projectId")
 val conversationId=intent.getStringExtra("conversationId")
+val workspaceId=intent.getStringExtra("workspaceId")
 val standaloneConversationId=intent.getStringExtra("standaloneConversationId")
 commandExecutor.submit {
-val result=executeExternalCommand(rootPath,text,projectId,conversationId,standaloneConversationId)
-broadcastReceipt(result.first,result.second,result.third,projectId,conversationId,standaloneConversationId)
+val result=executeExternalCommand(rootPath,text,projectId,conversationId,workspaceId,standaloneConversationId)
+broadcastReceipt(result.first,result.second,result.third,projectId,conversationId,workspaceId,standaloneConversationId)
 }
 }
 return START_NOT_STICKY
 }
 
-private fun executeExternalCommand(rootPath:String,text:String,projectId:String?,conversationId:String?,standaloneConversationId:String?):Triple<String,String,String>{
+private fun executeExternalCommand(rootPath:String,text:String,projectId:String?,conversationId:String?,workspaceId:String?,standaloneConversationId:String?):Triple<String,String,String>{
 val rootFile=File(rootPath)
 if(rootPath.isBlank()||!rootFile.isDirectory||isProtectedWorkspace(rootPath)){
 return Triple("FAILED",text,"工作目录无效或属于受保护区域："+rootPath)
@@ -86,7 +87,7 @@ if (commands.size > limit) {
     AppLogger.log(this, "EXECUTION_DENIED", "reason=command_limit count=" + commands.size + " limit=" + limit)
     return Triple("DENIED", text, "本轮指令数量 " + commands.size + " 超过限制 " + limit + "，未执行。")
 }
-val workspace = projectId?.let { id -> BridgeProjectStore(this).load().firstOrNull { it.id == id } }
+val workspace = (workspaceId ?: projectId)?.let { id -> BridgeProjectStore(this).load().firstOrNull { it.id == id } }
 val workspaceConversation = workspace?.let { ws -> conversationId?.let { id -> ws.conversations.firstOrNull { it.id == id } } ?: ws.activeConversation() }
 val standaloneConversation = standaloneConversationId?.let { id ->
     BridgeConversationStore(this).load().firstOrNull { it.id == id }
@@ -112,23 +113,31 @@ Triple("FAILED",text,"执行异常："+(e.message ?: "未知错误"))
 }
 }
 
-private fun broadcastReceipt(status:String,command:String,message:String,projectId:String?,conversationId:String?,standaloneConversationId:String?){
+private fun broadcastReceipt(status:String,command:String,message:String,projectId:String?,conversationId:String?,workspaceId:String?,standaloneConversationId:String?){
 val now=System.currentTimeMillis()
 val pending=org.json.JSONObject()
+    .put("receiptId",java.util.UUID.randomUUID().toString())
     .put("status",status)
     .put("command",command)
     .put("message",message)
     .put("time",now)
-    .put("projectId",projectId ?: "").put("conversationId",conversationId ?: "")
-getSharedPreferences("bridgefs",0).edit()
-    .putString("pending_receipt",pending.toString())
+    .put("projectId",projectId ?: "").put("conversationId",conversationId ?: "").put("workspaceId",workspaceId ?: "")
+    .put("standaloneConversationId",standaloneConversationId ?: "")
+val prefs = getSharedPreferences("bridgefs",0)
+val queue = org.json.JSONArray(prefs.getString("pending_receipts","[]") ?: "[]")
+queue.put(pending)
+prefs.edit()
+    .putString("pending_receipts",queue.toString())
+    .remove("pending_receipt")
     .apply()
 val intent=Intent("com.bridgefs.RESULT").setPackage(packageName)
+.putExtra("receiptId",pending.optString("receiptId"))
 .putExtra("status",status)
 .putExtra("command",command)
 .putExtra("message",message)
 .putExtra("projectId",projectId)
 .putExtra("conversationId",conversationId)
+.putExtra("workspaceId",workspaceId)
 .putExtra("standaloneConversationId",standaloneConversationId)
 .putExtra("time",now)
 sendBroadcast(intent)

@@ -228,3 +228,202 @@ Workspace + Repository + Branch
 - 修正：BridgeFS 回执增加 standaloneConversationId 路由，不再写入 Workspace Conversation。
 
 状态：**代码已实现，待 Actions / Release APK / 真机验证。**
+
+
+## 2026-10-02 Worker 自主施工协议接线
+
+- 新增 `FILE_CHANGE_REQUEST`：Worker 可以提交明确的 path / operation / content / commit_message。
+- Coordinator 在实际写入前校验 TASK.scope 的 allow_paths / deny_paths / allow_operations、Workspace GitHub writeEnabled、Worker AI Member 与 ConstructionLock。
+- 写入前重新读取 GitHub 当前文件 SHA，避免使用 AI 旧状态覆盖新版本。
+- 写入成功后保存 Commit SHA，并立即触发一次 Commit-scoped Verify 查询；Verify 仍以真实 Actions Run 为准。
+- Decision AI 的 `COMPLETE` 不再绕过已有 Commit 的 Verify；已有 Commit 的任务保持 `WAITING_VERIFY`，最终 COMPLETE 由 Verify 服务确认。
+- 本批次仍为开发中，未产生新的 Actions Run / APK / 真机证据前不标记已验证。
+
+
+## 2026-10-02 协作施工链第五轮代码检查
+
+- 修复 FILE_CHANGE_REQUEST 被协议 when 重复枚举导致的编译错误。
+- Worker 输出收紧为 DECISION_REQUEST / PROGRESS / BLOCKED / FILE_CHANGE_REQUEST；COMMIT / VERIFY / COMPLETE 不再由 Worker 直接声明，避免 AI 伪造施工完成状态。
+- Worker 协作轮现在按 TASK / DECISION_RESPONSE 继续，并受 TASK.autonomy.max_iterations（1–20）限制。
+- 每轮仍以真实任务状态为停止条件；产生 Commit 后进入 WAITING_VERIFY，不在同一轮继续写下一文件。
+- FILE_CHANGE_REQUEST 已接入 UI 展示，Worker 施工请求可被直接识别。
+- UI 中所有 CollaborationCoordinator 入口均绑定 Worker AI Member。
+- 当前仍未形成 Verify PASS 后自动继续下一施工轮的后台循环；这属于下一阶段，不在本轮伪装成已完成。
+- 本批次仍未合并、未发布 APK、未进行真机验证。
+
+## 2026-10-02 构建 / 签名链第六轮检查
+
+- 当前正式 APK 仍只有 `.github/workflows/android-build.yml` 这一条 Release 构建链：main push / 手动触发 → 固定触发 Commit → Release assemble → 官方 Keystore → `apksigner verify` → 统一 `A-BridgeFS.apk`。
+- Workflow 会先校验 `git rev-parse HEAD == GITHUB_SHA`，因此不会因为 checkout 到错误 Commit 而静默构建旧代码。
+- 当前签名配置同时区分 `storePassword` / `keyPassword` 两个 Gradle 字段，但 Workflow 实际把两者都设置为 `KEYSTORE_PASSWORD`。这在“Keystore 密码与 Key 密码相同”的现有设置下可以工作，但比 Android 官方示例的独立配置更窄；暂不改动，先确认现有正式 Keystore 的真实密码关系。
+- 当前 Workflow 只执行 `apksigner verify --verbose`，尚未将“期望证书 SHA-256 指纹”作为硬性构建门槛。因此“APK 可验证签名”与“APK 一定由我们指定的正式证书签名”仍应区分记录。
+- GitHub 官方建议敏感签名材料使用 Secrets；当前 Keystore Base64、Keystore 密码、Alias 均通过 GitHub Secrets 注入，符合这一基本方向。
+- 当前 PR #36 仍为开发中，未合并、未发布新的 APK；本轮检查结果不作为真机验证证据。
+
+## 2026-10-02 协作状态机第六轮
+
+- Verify PASS 后新增**有界继续轮**：系统先确认真实 Commit-scoped Verify 通过，再恢复任务为 RUNNING，交给 Decision AI 判断 COMPLETE 或下一步 DECISION_RESPONSE。
+- 下一轮 Worker 仍通过既有 `dispatchOneWorkerRound()`，若需要文件修改，必须重新经过 `FILE_CHANGE_REQUEST`、施工范围校验与 ConstructionLock。
+- Verify FAIL 后新增“修复轮”入口：保留原施工锁，由 Decision AI 根据失败状态生成 DECISION_RESPONSE，再进入一次 Worker 轮；不得直接把 Verify FAIL 任务标记为完成。
+- 这不是无限后台循环：每次 Verify 后最多继续一轮，后续 Commit 必须再次经过真实 Verify。
+- Workspace UI 已提供 Verify 失败后的“根据 Verify 失败结果继续修复”入口；Verify 等待入口改为执行“Verify + 有界继续”。
+- 本轮仍未合并、未构建、未真机验证；状态机代码需要下一轮 Release 构建确认编译与运行行为。
+
+
+## 2026-10-02 协作状态机第七轮代码审查
+
+- 修复：Worker 施工后若 GitHub Actions Verify 已经返回失败，随后 Decision AI 返回 COMPLETE 时，不再把 FAILED 覆盖为 WAITING_VERIFY。
+- 状态优先保留真实 Verify 结果；COMPLETE 不能覆盖 FAILED / WAITING_VERIFY / 已完成状态。
+- 当前仍未执行 Release 构建或真机验证；该修复需要后续正式构建确认编译，并用真实 Commit → Actions → Verify 流验证。
+
+
+## 2026-10-02 协作状态机第八轮代码审查
+
+- 修复：Verify PASS 后任务进入 RUNNING 时，历史 lastCommitSha 不再被当作“当前仍需 Verify”的依据；Decision AI 在没有产生新 Commit 的情况下可以正常 COMPLETE。
+- 修复：GitHub Contents 写入后如果响应缺少 Commit SHA，不再继续进入 WAITING_VERIFY，直接停止并报告异常，避免形成无法验证的任务状态。
+- 修复：Workspace 的 Verify / Verify 失败修复按钮增加任务级互斥，避免重复点击同时启动两次协作继续轮。
+- 本轮仅修改开发分支，仍未合并、未构建、未真机验证。
+
+## 2026-10-02 Verify 对应 Run 第九轮检查
+
+- 修复：Verify 不再只按 `head_sha` 命中第一个 Actions Run。
+- 正式 Verify 现在限定为 `.github/workflows/android-build.yml` / `Android Build and Release`。
+- 同一 Commit 存在多个正式 Run 时，按 `created_at` 选择最新 Run；较旧 Run 不再抢先决定 PASS / FAIL。
+- 这与当前正式 APK 构建链保持一致：**Android Build and Release 才是 A-BridgeFS 的正式 Release / Verify 来源**。
+- 当前实际历史 Commit 查询显示，现有正式构建 Commit 各只有一个对应 Run；本轮修复主要针对未来增加其他 Workflow、同 SHA 手动触发等情况。
+- 本轮仍仅修改开发分支，未合并、未构建、未真机验证。
+
+## 2026-10-02 执行权限边界第十轮检查
+
+- 发现并修复：独立对话触发 BridgeFS 时，原执行 Intent 为了区分独立对话回执而将 `projectId` 设为 null；FileBridgeService 因此无法恢复当前 Workspace，只能按全局权限重新计算。
+- UI 发送前虽然已经按 `Workspace + 独立 Conversation` 检查权限，但 Service 作为最终执行入口必须再次拥有同一 Workspace 身份，否则存在“UI 判定禁止 / Service 重新判定为允许”的权限边界不一致。
+- 现在独立执行 Intent 额外携带 `workspaceId`；`projectId` 继续保持 null，仅用于维持独立 Conversation 回执路由。
+- FileBridgeService 现在按 `workspaceId` 恢复 Workspace，再与独立 Conversation 一起进入 `PermissionPolicy.authorization()`。
+- 本轮仍未构建、未安装 APK、未真机验证。
+
+## 2026-10-02 Receipt 持久化队列检查
+
+- 发现：`FileBridgeService` 原先只有单个 `pending_receipt` 槽位；Activity 不在前台时，如果连续产生多个执行回执，后一个回执可能覆盖前一个。
+- 修复：改为 `pending_receipts` JSON 队列，每条回执增加唯一 `receiptId`；广播同时携带该 ID。
+- Activity 前台收到回执时按 `receiptId` 从队列中删除对应项，不再清空整个队列。
+- Activity 启动恢复时会按队列顺序恢复全部可路由回执；目标 Conversation 暂时不存在的回执保留在队列中等待后续恢复。
+- 保留旧 `pending_receipt` 的兼容读取，迁移后删除旧槽位。
+- 本轮未构建、未安装 APK、未真机验证。
+
+## 2026-10-02 协作状态机与施工锁第十一轮检查
+
+- 发现：Verify 成功属于 GitHub 事实状态；原实现释放施工锁时使用严格 `require(holder)`。如果 App 重启/恢复后本地锁记录已经不存在，可能出现“真实 Actions 已成功，但任务无法进入 COMPLETE”的状态不一致。
+- 修复：Verify 成功后的锁释放改为幂等处理。锁存在且由原施工者持有时正常释放；锁已不存在或已提前释放时记录诊断日志，不阻止任务进入 COMPLETE；异常释放失败同样记录日志。
+- UI 状态入口复核：WAITING_CONSTRUCTION 仅提供 Worker 申请施工锁；WAITING_VERIFY 提供 Verify/继续协作；FAILED 且仍有施工者时提供 Verify 失败修复轮；与当前任务状态机保持一致。
+- 本轮仍未构建、未安装 APK、未真机验证。
+- 协作恢复再加一层保护：Transport 中未标记 handled 的旧 TASK/DECISION_RESPONSE 可能跨进程保留；现在只有任务仍处于 RUNNING/CONSTRUCTING 时才允许 Worker round 消费，WAITING_VERIFY/COMPLETE/FAILED 等状态不会重放旧消息，避免 Commit 后因进程重启再次施工。
+## 2026-10-02 构建链与协作 Branch 对齐第十二轮
+
+- 发现真实链路断点：Workspace 允许配置 Repository + Branch 施工锁，但正式 Android Workflow 原先只监听 `main`。因此非 main Branch 的真实 GitHub Contents Commit 不会触发正式 Verify Run，协作任务可能永久 WAITING_VERIFY。
+- 修复：正式 `Android Build and Release` Workflow 现在对所有 push Branch 执行同一套 Release APK 构建与签名校验；但只有 `main` 才执行 `Publish latest Release`。
+- 结果：施工 Branch 可以获得与正式链一致的 Build / signature verification / Artifact / Commit-scoped Verify；不会覆盖正式 `latest` Release。
+- 注意：该修改目前只存在于开发分支，尚未产生新的 Actions Run，不能标记为已验证。
+
+
+
+## 2026-10-02 构建 / 签名链第十三轮检查
+
+- 按 Android 官方方式补强 APK 签名身份校验：apksigner verify --print-certs 可取得 APK 的 SHA-256 证书摘要；官方文档明确该工具可用于读取已签名应用的 SHA-256 certificate digest。 
+- Workflow 现在从受保护的正式 Release Keystore 导出其公钥证书，计算 SHA-256，再与最终 app-release.apk 的实际 Signer #1 SHA-256 逐字比对。
+- 因此不需要把证书指纹本身再作为 Secret 保存；私钥材料仍只通过 GitHub Secrets 注入，证书指纹作为公开身份信息在 CI 中计算。
+- 新门槛同时保留 apksigner verify --verbose：一层确认 APK 签名结构有效，一层确认签名者就是当前正式 Keystore 的证书。
+- 本次修改 Commit：68101b58eb79c5b79fdf32c1f2ed534039ce038a，目前仍在 PR #36 开发分支；该 Commit 尚无新的 Actions Run，因此不能标记为已验证。
+- 结论：签名链从“签名有效”提升为“签名有效 + 签名身份与正式 Keystore 一致”；但尚未获得 CI 实际执行证据。
+
+
+## 2026-10-02 Verify 状态机第十四轮检查
+
+- 发现状态回退漏洞：任务进入 COMPLETE 或 FAILED 后，仍可通过旧的 lastCommitSha 再次调用 Verify；这可能重复写 VERIFY_PASS / VERIFY_FAIL Receipt，甚至让历史 Commit 的 CI 结果重新参与当前任务状态判断。
+- 修复：CollaborationVerifyService 现在只允许 STATUS_WAITING_VERIFY 进入真实 Commit-scoped Verify。
+- COMPLETE：重复检查直接返回 PASSED，但不再次查询/修改任务状态，也不新增 Receipt。
+- FAILED：重复检查直接返回 FAILED，提示必须进入修复轮并产生新的 Commit。
+- CREATED / RUNNING / CONSTRUCTING / WAITING_CONSTRUCTION 等状态不会拿历史 Commit 直接进入 Verify，而是返回 WAITING。
+- 这使 lastCommitSha 可以继续作为历史审计字段保存，同时不再等同于“当前待验证 Commit”。
+- 本轮修改 Commit：20f72b9c018d0c818b81725a4e8ac0afcf41a061。
+- 仍未进行 Release 构建 / APK / 真机验证。
+
+
+## 2026-10-02 ConstructionLock 第十五轮检查
+
+- 发现任务记录中的 constructionHolderAiMemberId 与实际 ConstructionLock 存在短暂不一致风险：任务状态可能仍记录某 AI 为施工者，但真实 SharedPreferences 锁已经被清理或恢复失败。
+- 修复：每次 GitHub Contents updateFile 写入前，除了检查任务记录持有者，还必须调用 ConstructionLockStore.requireHolder(workspace, aiMemberId) 重新确认 Repository / Branch 的实时施工锁。
+- 因此“任务说我是施工者”不能单独获得 GitHub 写权限；只有“任务记录 + 实际 ConstructionLock”同时成立才可写入。
+- Verify 失败仍保留施工者信息，允许修复轮重新获取/确认同一施工权；Verify 成功后释放实际锁并清除任务持有者。
+- 本轮代码 Commit：01ae2970986e5b4bb4e3348002724d2659ad8eb6。
+- 仍未进行 Release 构建、APK 发布或真机验证。
+
+
+## 2026-10-02 Verify 修复轮第十六轮检查
+
+- 发现 Verify 失败后的 retryAfterVerifyFailure() 原先只检查任务记录中的 constructionHolderAiMemberId，随后就把 FAILED 改为 RUNNING。
+- 风险：实际 ConstructionLock 已被清理/丢失时，任务会进入 RUNNING，但修复轮并没有真实施工权。
+- 修复：FAILED → RUNNING 前，必须通过 ConstructionLockStore.requireHolder() 确认记录的修复者仍持有当前 Workspace + Repository + Branch 的实际施工锁。
+- 这样 Verify 失败后的修复轮不会产生“任务已恢复、施工权不存在”的中间状态。
+- 本轮代码 Commit：19468a83a8cc22b20816bb835dc7d35c52edfce2。
+
+
+## 2026-10-03 Verify 后续协作状态边界第十七轮
+
+- 发现 verifyAndContinue() 原逻辑依赖 CollaborationVerifyService 在 Verify PASS 时先写 COMPLETE，随后再改回 RUNNING。
+- 风险：如果进程恰好在两次持久化之间终止，任务恢复后会被视为 COMPLETE，但 Decision AI 后续审议尚未完成。
+- 修复：Verify PASS 后直接进入 RUNNING，再追加系统 COMMIT 并执行 Decision AI 后续轮；不再暴露“Verify 已通过但后续协作尚未完成”的 COMPLETE 中间态。
+- COMPLETE 现在只应由真正完成边界写入。
+- 本轮代码 Commit：7969f8a8e7482d3a87712a8bfeb193b43e9a0ccf。
+
+
+## 2026-10-03 协作状态机第十八轮：Verify / 写入恢复
+
+- 修正第十七轮遗留的状态机问题：Verify PASS 不再先写 COMPLETE。新增 VERIFY_PASSED 中间态，只有 Verify 后续 Decision AI 真正返回 COMPLETE 时才进入 COMPLETE。
+- 新增 CONSTRUCTION_WRITING 状态及待写入字段：path / content / commit message / 原始文件 SHA。GitHub Contents API 写入前先持久化写入意图。
+- 如果 App 在 GitHub 写入成功、但本地保存 Commit SHA 之前终止，恢复流程不会盲目再次写入；会重新读取远端文件 Blob SHA，并检查当前 Branch HEAD 的 Commit 是否包含目标文件变更，确认后恢复为 WAITING_VERIFY。
+- GitHub API 增加 Branch HEAD / Commit 查询能力，用于上述恢复核对。
+- Verify 后继续轮与 Verify 失败修复轮进入新阶段前，会清理同一 Task 下遗留的 Worker TASK / DECISION_RESPONSE，避免旧输入抢先驱动新一轮。
+- 以上属于代码级修复；当前 PR #36 仍未合并，尚未通过新的 Release Actions Run / APK / 真机验证。
+
+
+## 2026-10-03 第十八轮补充：恢复数据最小化
+
+- 写入恢复不再把待写文件正文保存到 SharedPreferences；任务只保存预期 Git Blob SHA、目标路径、原始文件 SHA 等恢复元数据。
+- 恢复时以远端 Blob SHA 为第一判断依据，避免重复 Contents API 写入；确认 Branch HEAD 包含目标文件后才恢复为 WAITING_VERIFY。
+- Workspace UI 已暴露 VERIFY_PASSED / CONSTRUCTION_WRITING 两种可恢复状态，进程在 Verify PASS 后中断或写入阶段中断时不会留下无入口状态。
+- 静态检查曾发现并已修复一次旧字段残留；当前最新开发分支头为 486413343a3f9eab521abefb72c217d706ebe69a。
+- 当前仍无该 Commit 对应的新 Actions Run，因此本轮结论仍是代码级检查，不是构建/真机验证。
+
+
+## 2026-10-03 第十八轮结构审查补充
+
+- 发现并删除重复的 `app/src/main/java/com/abridgefs/CollaborationTransport.kt`。该文件虽然目录较旧，但声明同一个 `com.abridgefs.app` package，并重复定义 CollaborationTransport / CollaborationApiConfig / CollaborationApiClient / CollaborationCoordinator；保留统一的新路径 `app/src/main/java/com/abridgefs/app/CollaborationTransport.kt`。
+- 修正 Verify PASS 后 `VERIFY_PASSED -> DECISION_RESPONSE -> Worker` 的继续路径：Decision AI 要求继续时，现在显式恢复 `RUNNING` 后再派发 Worker，避免因 Worker 调度器只接受 RUNNING / CONSTRUCTING 而静默停止。
+- 当前 PR #36 已不再包含重复 Transport 文件。
+- 最新修复仍未合并；截至本轮，最新 Commit 尚未出现新的 Android Build and Release Actions Run，因此没有把代码级结果冒充为构建验证。
+
+
+## 2026-10-03 Receipt 路由与执行权限第十九轮检查
+
+- 发现 Receipt 广播缺少 workspaceId：独立对话执行虽然在 Intent 中携带了 workspaceId，但 FileBridgeService 广播回 Activity 时没有继续传递，可能导致回执在 Activity 恢复时落入当前 Workspace。
+- 修复：FileBridgeService 的 Receipt 持久化与 Broadcast 均保留 workspaceId；V021Activity 前台接收与 pending_receipts 恢复均优先按 workspaceId，再按 conversationId 定位原始对话。
+- 权限链复核：全局 perm_* → Workspace localFileModifyEnabled → Conversation localFileModifyOverride 最终统一进入 PermissionPolicy；FileBridgeService 作为最终执行入口会再次计算权限，不依赖 UI 单次判断。
+- ai_auto_bridgefs_enabled 当前只控制独立 AI 对话自动解析并触发 BridgeFS 指令；Workspace AI 协作走独立的 Collaboration 流程，没有误用该开关。
+- 本轮仍未构建、未发布 APK、未真机验证。
+
+
+## 2026-10-03 Receipt UI 第十九轮补充
+
+- 发现并修复：Receipt 已正确写入目标 Workspace，但 Activity 当前正在查看另一个 Workspace 时，原逻辑仍会直接刷新 `WORKSPACE_CHAT`，用户会看不到目标回执，容易误判为回执丢失。
+- 现在只有当前页面确实属于目标 Workspace 时才直接刷新；如果用户正在查看其他 Workspace，则保留目标回执并提示“收到执行回执”，不强制切换用户当前工作区。
+- 消息气泡已确认：user / assistant / tool / receipt 均有独立显示路径，所有消息均提供复制入口；Receipt 不是只能通过“回执”按钮取出，而是直接进入聊天消息。
+- 本轮仍未构建、未发布 APK、未真机验证。
+
+
+## 2026-10-03 Receipt 幂等性第二十轮检查
+
+- FileBridgeService 已生成唯一 `receiptId`；此前 Workspace / standalone 的历史模型没有持久化该 ID，导致前台 Broadcast 与后台 pending recovery 缺少统一幂等键。
+- 现在 `BridgeReceiptRecord` 持久化 `receiptId`；旧历史数据加载时自动生成兼容 ID。
+- 前台 Broadcast 插入 Receipt 前按 `receiptId` 去重；后台恢复同样按 `receiptId` 去重。
+- standalone chat 与 Workspace chat 都只在用户当前确实正在查看目标对话时刷新；其他情况下只提示，不抢夺当前页面。
+- 本轮仍未构建 APK、未发布、未真机验证。

@@ -37,6 +37,18 @@ class GitHubWorkspaceService(
         return client.listBranches(owner, name, perPage)
     }
 
+    fun branchHead(): String {
+        requireRead()
+        val (owner, name) = repositoryParts()
+        return client.getBranch(owner, name, workspace.branch).optJSONObject("commit")?.optString("sha").orEmpty()
+    }
+
+    fun commit(commitSha: String): JSONObject {
+        requireRead()
+        val (owner, name) = repositoryParts()
+        return client.getCommit(owner, name, commitSha)
+    }
+
     fun file(path: String): JSONObject {
         requireRead()
         val (owner, name) = repositoryParts()

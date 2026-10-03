@@ -40,6 +40,9 @@ class V021Activity : Activity() {
     private var page = Page.WORKSPACE
     private val executor = Executors.newSingleThreadExecutor()
     private var pendingReceipt: String? = null
+    private var collaborationRunningConversationId: String? = null
+    private var standaloneSendingConversationId: String? = null
+    private var collaborationTaskActionRunningId: String? = null
     private val receiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: android.content.Context, intent: android.content.Intent) {
             val status = intent.getStringExtra("status") ?: "UNKNOWN"
@@ -47,31 +50,40 @@ class V021Activity : Activity() {
             val message = intent.getStringExtra("message") ?: ""
             val projectId = intent.getStringExtra("projectId")
             val conversationId = intent.getStringExtra("conversationId")
+            val workspaceId = intent.getStringExtra("workspaceId")
             val standaloneConversationId = intent.getStringExtra("standaloneConversationId")
-            val receipt = BridgeReceiptRecord(status, command, message)
+            val receipt = BridgeReceiptRecord(status, command, message, intent.getLongExtra("time", System.currentTimeMillis()), intent.getStringExtra("receiptId")?.takeIf { it.isNotBlank() } ?: UUID.randomUUID().toString())
             pendingReceipt = formatReceipt(receipt)
 
             if (!standaloneConversationId.isNullOrBlank()) {
                 val conversation = standaloneConversations.firstOrNull { it.id == standaloneConversationId }
                 if (conversation != null) {
-                    conversation.executions += receipt
-                    conversation.messages += BridgeChatMessage("receipt", formatReceipt(receipt))
+                    if (!conversation.executions.any { it.receiptId == receipt.receiptId }) {
+                        conversation.executions += receipt
+                        conversation.messages += BridgeChatMessage("receipt", formatReceipt(receipt), receipt.time)
+                    }
                     conversationStore.save(standaloneConversations)
-                    if (page == Page.CHAT) render()
+                    removePendingReceipt(intent.getStringExtra("receiptId"))
+                    if (page == Page.CHAT && activeStandaloneConversationId == standaloneConversationId) render()
                     else Toast.makeText(this@V021Activity, "收到执行回执：$status", Toast.LENGTH_SHORT).show()
                 }
                 return
             }
 
-            val target = projects.firstOrNull { it.id == projectId } ?: project
+            val target = projects.firstOrNull { it.id == workspaceId }
+                ?: projects.firstOrNull { it.id == projectId }
+                ?: project
             val conversation = target?.let { ws ->
                 conversationId?.let { id -> ws.conversations.firstOrNull { it.id == id } } ?: ws.activeConversation()
             }
             if (conversation != null) {
-                conversation.executions += receipt
-                conversation.messages += BridgeChatMessage("receipt", formatReceipt(receipt))
+                if (!conversation.executions.any { it.receiptId == receipt.receiptId }) {
+                    conversation.executions += receipt
+                    conversation.messages += BridgeChatMessage("receipt", formatReceipt(receipt), receipt.time)
+                }
                 store.save(projects)
-                if (page == Page.WORKSPACE_CHAT) render()
+                removePendingReceipt(intent.getStringExtra("receiptId"))
+                if (page == Page.WORKSPACE_CHAT && target?.id == project?.id) render()
                 else Toast.makeText(this@V021Activity, "收到执行回执：$status", Toast.LENGTH_SHORT).show()
             }
         }
@@ -103,7 +115,77 @@ class V021Activity : Activity() {
         prefs.edit().putString("active_workspace_id", project?.id).apply()
         apiId = project?.activeConversation()?.apiId ?: apis().firstOrNull()?.id.orEmpty()
         registerReceiver(receiver, IntentFilter("com.bridgefs.RESULT"), Context.RECEIVER_NOT_EXPORTED)
+        recoverPendingReceipt()
         buildShell()
+    }
+
+    /**
+     * Recover a receipt written by FileBridgeService before this Activity was alive.
+     * The receipt keeps its original workspace/standalone destination.
+     */
+    private fun recoverPendingReceipt() {
+        val prefsStore = getSharedPreferences("bridgefs", Context.MODE_PRIVATE)
+        val queued = org.json.JSONArray(prefsStore.getString("pending_receipts", "[]") ?: "[]")
+        val legacy = prefsStore.getString("pending_receipt", "").orEmpty()
+        val items = mutableListOf<org.json.JSONObject>()
+        for (i in 0 until queued.length()) queued.optJSONObject(i)?.let { items += it }
+        if (items.isEmpty() && legacy.isNotBlank()) runCatching { items += org.json.JSONObject(legacy) }
+        if (items.isEmpty()) return
+        val remaining = mutableListOf<org.json.JSONObject>()
+        var recoveredAny = false
+        for (obj in items) {
+            runCatching {
+                val status = obj.optString("status", "UNKNOWN")
+                val command = obj.optString("command", "")
+                val message = obj.optString("message", "")
+                val projectId = obj.optString("projectId", "").ifBlank { null }
+                val conversationId = obj.optString("conversationId", "").ifBlank { null }
+                val workspaceId = obj.optString("workspaceId", "").ifBlank { null }
+                val standaloneConversationId = obj.optString("standaloneConversationId", "").ifBlank { null }
+                val receipt = BridgeReceiptRecord(status, command, message, obj.optLong("time", System.currentTimeMillis()), obj.optString("receiptId", "").ifBlank { UUID.randomUUID().toString() })
+                if (!standaloneConversationId.isNullOrBlank()) {
+                    val conversation = standaloneConversations.firstOrNull { it.id == standaloneConversationId }
+                    if (conversation == null) { remaining += obj; return@runCatching }
+                    if (!conversation.executions.any { it.receiptId == receipt.receiptId }) {
+                        conversation.executions += receipt
+                        conversation.messages += BridgeChatMessage("receipt", formatReceipt(receipt), receipt.time)
+                    }
+                    conversationStore.save(standaloneConversations)
+                    pendingReceipt = formatReceipt(receipt)
+                    recoveredAny = true
+                } else {
+                    val target = projects.firstOrNull { it.id == workspaceId }
+                        ?: projects.firstOrNull { it.id == projectId }
+                    val conversation = target?.let { ws -> conversationId?.let { id -> ws.conversations.firstOrNull { it.id == id } } }
+                    if (conversation == null) { remaining += obj; return@runCatching }
+                    if (!conversation.executions.any { it.receiptId == receipt.receiptId }) {
+                        conversation.executions += receipt
+                        conversation.messages += BridgeChatMessage("receipt", formatReceipt(receipt), receipt.time)
+                    }
+                    store.save(projects)
+                    pendingReceipt = formatReceipt(receipt)
+                    recoveredAny = true
+                }
+            }.onFailure {
+                remaining += obj
+                AppLogger.log(this, AppLogger.Category.EXECUTION, "PENDING_RECEIPT_RECOVERY_FAILED", it.message ?: "invalid pending receipt")
+            }
+        }
+        prefsStore.edit().putString("pending_receipts", org.json.JSONArray().apply { remaining.forEach { put(it) } }.toString()).remove("pending_receipt").apply()
+        if (!recoveredAny && remaining.isNotEmpty()) AppLogger.log(this, AppLogger.Category.EXECUTION, "PENDING_RECEIPT_RECOVERY_DEFERRED", "count=${remaining.size}")
+    }
+
+    private fun removePendingReceipt(receiptId: String?) {
+        val id = receiptId?.trim().orEmpty()
+        if (id.isBlank()) return
+        val prefsStore = getSharedPreferences("bridgefs", Context.MODE_PRIVATE)
+        val queued = org.json.JSONArray(prefsStore.getString("pending_receipts", "[]") ?: "[]")
+        val remaining = org.json.JSONArray()
+        for (i in 0 until queued.length()) {
+            val item = queued.optJSONObject(i) ?: continue
+            if (item.optString("receiptId", "") != id) remaining.put(item)
+        }
+        prefsStore.edit().putString("pending_receipts", remaining.toString()).remove("pending_receipt").apply()
     }
 
     private fun buildShell() {
@@ -194,16 +276,7 @@ class V021Activity : Activity() {
         root.addView(collaborationTaskCard())
         root.addView(workspaceDirectoryCard())
         root.addView(localFilePermissionCard())
-        root.addView(sectionTitle("API"))
-        val list = apis()
-        if (list.isEmpty()) {
-            root.addView(emptyCard("还没有 API", "添加一个 API 后即可进入对话。"))
-        } else {
-            list.forEach { root.addView(apiCard(it)) }
-        }
-        root.addView(actionButton("＋ 添加 API") { editApi(null) }, LinearLayout.LayoutParams(-1, dp(46)).apply {
-            topMargin = dp(8)
-        })
+        root.addView(apiSummaryCard())
 
         val scroll = ScrollView(this)
         scroll.addView(root)
@@ -367,7 +440,7 @@ class V021Activity : Activity() {
         })
         if (task == null) {
             box.addView(TextView(this).apply {
-                text = "当前对话还没有协作任务。发送消息并启用 AI 协作后，这里会显示任务状态。"
+                text = "当前协作对话还没有任务。发送协作目标后，这里会显示分析、施工与 Verify 状态。"
                 textSize = 13f
                 setTextColor(color(R.color.bridgefs_text_secondary))
                 setPadding(0, dp(5), 0, dp(8))
@@ -381,7 +454,7 @@ class V021Activity : Activity() {
             workspace?.aiMembers?.firstOrNull { it.id == id }?.name
         }
         box.addView(TextView(this).apply {
-            text = "状态：${task.status}"
+            text = "状态：${collaborationTaskStatusLabel(task.status)}"
             textSize = 14f
             typeface = Typeface.DEFAULT_BOLD
             setPadding(0, dp(5), 0, dp(2))
@@ -404,17 +477,18 @@ class V021Activity : Activity() {
             setPadding(0, dp(2), 0, dp(8))
         })
 
-        if (task.status == CollaborationTaskRecord.STATUS_WAITING_CONSTRUCTION && memberA != null) {
-            box.addView(actionButton("AI A 申请施工锁") {
+        if (task.status == CollaborationTaskRecord.STATUS_WAITING_CONSTRUCTION && memberB != null) {
+            box.addView(actionButton("Worker AI 申请施工锁") {
                 runCatching {
                     val coordinator = CollaborationCoordinator(
                         this,
                         workspace!!.id,
                         conversation!!.id,
-                        memberA.apiProfileId.orEmpty(),
-                        memberB?.apiProfileId.orEmpty()
+                        memberA?.apiProfileId.orEmpty(),
+                        memberB.apiProfileId.orEmpty(),
+                        memberB.id
                     )
-                    coordinator.requestConstruction(task.taskId, memberA.id)
+                    coordinator.requestConstruction(task.taskId, memberB.id)
                     AppLogger.log(this, AppLogger.Category.COLLABORATION, "CONSTRUCTION_REQUESTED_UI", "taskId=${task.taskId}")
                     render()
                 }.onFailure {
@@ -423,32 +497,101 @@ class V021Activity : Activity() {
             })
         }
 
-        if (task.status == CollaborationTaskRecord.STATUS_WAITING_VERIFY) {
-            box.addView(actionButton("检查当前 Commit") {
+        if (task.status == CollaborationTaskRecord.STATUS_FAILED && !task.constructionHolderAiMemberId.isNullOrBlank()) {
+            val actionRunning = collaborationTaskActionRunningId == task.taskId
+            val repairButton = actionButton(if (actionRunning) "修复处理中…" else "根据 Verify 失败结果继续修复") {
+                if (collaborationTaskActionRunningId == task.taskId) return@actionButton
+                collaborationTaskActionRunningId = task.taskId
+                render()
                 executor.execute {
-                    runCatching {
+                    try {
                         val coordinator = CollaborationCoordinator(
                             this,
                             workspace!!.id,
                             conversation!!.id,
                             memberA?.apiProfileId.orEmpty(),
-                            memberB?.apiProfileId.orEmpty()
+                            memberB?.apiProfileId.orEmpty(),
+                            memberB?.id
                         )
-                        val result = coordinator.verifyTask(task.taskId)
+                        val result = coordinator.retryAfterVerifyFailure(
+                            task.taskId,
+                            "你是 Decision AI。上一 Commit 的 GitHub Actions Verify 已失败。请分析失败结果并给出下一步修复指令，不得直接宣布完成。",
+                            "你是 Worker AI。根据 Decision AI 的修复指令进行有限范围施工。"
+                        )
                         runOnUiThread {
                             Toast.makeText(this, result.message, Toast.LENGTH_LONG).show()
+                            collaborationTaskActionRunningId = null
                             render()
                         }
-                    }.onFailure {
+                    } catch (e: Exception) {
                         runOnUiThread {
-                            Toast.makeText(this, "Verify 失败：${it.message ?: "未知错误"}", Toast.LENGTH_LONG).show()
+                            collaborationTaskActionRunningId = null
+                            Toast.makeText(this, "修复轮启动失败：${e.message ?: "未知错误"}", Toast.LENGTH_LONG).show()
+                            render()
                         }
                     }
                 }
-            })
+            }
+            repairButton.isEnabled = !actionRunning
+            box.addView(repairButton)
         }
 
+        if (task.status == CollaborationTaskRecord.STATUS_WAITING_VERIFY ||
+            task.status == CollaborationTaskRecord.STATUS_VERIFY_PASSED ||
+            task.status == CollaborationTaskRecord.STATUS_CONSTRUCTION_WRITING
+        ) {
+            val actionRunning = collaborationTaskActionRunningId == task.taskId
+            val verifyButton = actionButton(if (actionRunning) "Verify处理中…" else "检查当前 Commit") {
+                if (collaborationTaskActionRunningId == task.taskId) return@actionButton
+                collaborationTaskActionRunningId = task.taskId
+                render()
+                executor.execute {
+                    try {
+                        val coordinator = CollaborationCoordinator(
+                            this,
+                            workspace!!.id,
+                            conversation!!.id,
+                            memberA?.apiProfileId.orEmpty(),
+                            memberB?.apiProfileId.orEmpty(),
+                            memberB?.id
+                        )
+                        val result = coordinator.verifyAndContinue(
+                            task.taskId,
+                            "你是 Decision AI。只根据真实 Verify 结果决定是否完成任务或继续施工。",
+                            "你是 Worker AI。根据 Decision AI 的施工指令执行有限范围内的下一步。"
+                        )
+                        runOnUiThread {
+                            Toast.makeText(this, result.message, Toast.LENGTH_LONG).show()
+                            collaborationTaskActionRunningId = null
+                            render()
+                        }
+                    } catch (e: Exception) {
+                        runOnUiThread {
+                            collaborationTaskActionRunningId = null
+                            Toast.makeText(this, "Verify 失败：${e.message ?: "未知错误"}", Toast.LENGTH_LONG).show()
+                            render()
+                        }
+                    }
+                }
+            }
+            verifyButton.isEnabled = !actionRunning
+            box.addView(verifyButton)
+        }
         return box
+    }
+
+    private fun collaborationTaskStatusLabel(status: String): String = when (status) {
+        CollaborationTaskRecord.STATUS_CREATED -> "已创建"
+        CollaborationTaskRecord.STATUS_RUNNING -> "协作处理中"
+        CollaborationTaskRecord.STATUS_WAITING_CONSTRUCTION -> "等待进入施工"
+        CollaborationTaskRecord.STATUS_CONSTRUCTING -> "施工中"
+        CollaborationTaskRecord.STATUS_WAITING_VERIFY -> "等待 Verify"
+        CollaborationTaskRecord.STATUS_VERIFY_PASSED -> "Verify 已通过，等待继续"
+        CollaborationTaskRecord.STATUS_CONSTRUCTION_WRITING -> "GitHub 写入恢复中"
+        CollaborationTaskRecord.STATUS_COMPLETE -> "已完成"
+        CollaborationTaskRecord.STATUS_FAILED -> "失败"
+        CollaborationTaskRecord.STATUS_CANCELLED -> "已取消"
+        else -> status
     }
 
     private fun apiCard(a:ApiProfile): View {
@@ -474,6 +617,30 @@ class V021Activity : Activity() {
             setTextColor(color(R.color.bridgefs_text_secondary))
             setPadding(0, dp(4), 0, 0)
         })
+        return box
+    }
+
+    private fun apiSummaryCard(): View {
+        val box = card()
+        val list = apis()
+        box.addView(TextView(this).apply {
+            text = "AI 与 API"
+            textSize = 16f
+            typeface = Typeface.DEFAULT_BOLD
+        })
+        box.addView(TextView(this).apply {
+            text = if (list.isEmpty()) {
+                "尚未配置 API。普通对话和 AI 协作都需要至少一个可用 API。"
+            } else {
+                "已配置 ${list.size} 个 API；当前工作区的协作 AI 从这里选择。"
+            }
+            textSize = 12f
+            setTextColor(color(R.color.bridgefs_text_secondary))
+            setPadding(0, dp(4), 0, dp(8))
+        })
+        box.addView(actionButton("管理 API") {
+            startActivity(Intent(this, ApiSettingsActivity::class.java))
+        }, LinearLayout.LayoutParams(-1, dp(42)))
         return box
     }
 
@@ -767,10 +934,16 @@ class V021Activity : Activity() {
                 pendingReceipt = null
             }
         }, LinearLayout.LayoutParams(dp(58), dp(52)).apply { marginStart = dp(6) })
-        composer.addView(actionButton("发送") {
-            sendStandalone(input, conversation)
-            input.text.clear()
-        }, LinearLayout.LayoutParams(dp(70), dp(52)).apply { marginStart = dp(6) })
+        val standaloneSendButton = actionButton(if (standaloneSendingConversationId == conversation.id) "发送中…" else "发送") {
+            if (standaloneSendingConversationId == conversation.id) {
+                Toast.makeText(this@V021Activity, "正在等待 API 回复，请稍候。", Toast.LENGTH_SHORT).show()
+            } else {
+                sendStandalone(input, conversation)
+                input.text.clear()
+            }
+        }
+        standaloneSendButton.isEnabled = standaloneSendingConversationId != conversation.id
+        composer.addView(standaloneSendButton, LinearLayout.LayoutParams(dp(78), dp(52)).apply { marginStart = dp(6) })
         root.addView(composer)
         content.addView(root)
     }
@@ -831,6 +1004,7 @@ class V021Activity : Activity() {
         root.addView(selector, LinearLayout.LayoutParams(-1, dp(64)).apply { bottomMargin = dp(6) })
 
         val profiles = collaborationProfileIds()
+        val collaborationRunning = collaborationRunningConversationId == conversation.id
         root.addView(TextView(this).apply {
             text = "协作 AI：" +
                 (apis().firstOrNull { it.id == profiles.first }?.name ?: "AI A") +
@@ -838,7 +1012,14 @@ class V021Activity : Activity() {
                 (apis().firstOrNull { it.id == profiles.second }?.name ?: "AI B")
             textSize = 13f
             setTextColor(color(R.color.bridgefs_text_secondary))
-            setPadding(dp(4), dp(2), dp(4), dp(6))
+            setPadding(dp(4), dp(2), dp(4), dp(2))
+        })
+        root.addView(TextView(this).apply {
+            val directory = workspace.workspaceDirectory.orEmpty().ifBlank { "未设置" }
+            text = "工作目录：$directory"
+            textSize = 12f
+            setTextColor(if (workspace.workspaceDirectory.isNullOrBlank()) color(R.color.bridgefs_text_secondary) else color(R.color.bridgefs_text_primary))
+            setPadding(dp(4), 0, dp(4), dp(6))
         })
 
         root.addView(textButton("＋ 新建协作对话") {
@@ -886,10 +1067,16 @@ class V021Activity : Activity() {
             setHintTextColor(color(R.color.bridgefs_text_secondary))
         }
         composer.addView(input, LinearLayout.LayoutParams(0, dp(52), 1f))
-        composer.addView(actionButton("发送") {
-            sendWorkspaceCollaboration(input, conversation)
-            input.text.clear()
-        }, LinearLayout.LayoutParams(dp(70), dp(52)).apply { marginStart = dp(6) })
+        val sendButton = actionButton(if (collaborationRunning) "处理中…" else "发送") {
+            if (collaborationRunningConversationId == conversation.id) {
+                Toast.makeText(this@V021Activity, "本轮协作还在进行，请等待结果。", Toast.LENGTH_SHORT).show()
+            } else {
+                sendWorkspaceCollaboration(input, conversation)
+                input.text.clear()
+            }
+        }
+        sendButton.isEnabled = !collaborationRunning
+        composer.addView(sendButton, LinearLayout.LayoutParams(dp(82), dp(52)).apply { marginStart = dp(6) })
         root.addView(composer)
         content.addView(root)
     }
@@ -902,6 +1089,7 @@ class V021Activity : Activity() {
                 when (m.role) {
                     "user" -> R.color.bridgefs_selected_surface
                     "receipt" -> R.color.bridgefs_button_bg
+                    "tool" -> R.color.bridgefs_button_bg
                     else -> R.color.bridgefs_input_surface
                 },
                 14
@@ -944,7 +1132,7 @@ class V021Activity : Activity() {
         })
         return FrameLayout(this).apply {
             addView(bubbleBox, FrameLayout.LayoutParams(
-                (resources.displayMetrics.widthPixels * 0.82f).toInt(), -2
+                (resources.displayMetrics.widthPixels * 0.92f).toInt(), -2
             ).apply {
                 gravity = if (m.role == "user") Gravity.RIGHT else Gravity.LEFT
                 leftMargin = dp(4); rightMargin = dp(4)
@@ -1136,16 +1324,18 @@ class V021Activity : Activity() {
     }
 
     private fun runCollaboration(current: BridgeProject, objective: String) {
+        val workspaceId = current.id
+        val conversationId = current.activeConversation().id
         executor.execute {
             runCatching {
                 val ids = collaborationProfileIds()
                 require(ids.first.isNotBlank() && ids.second.isNotBlank()) { "请先选择两个协作 AI" }
-                val conversation = current.activeConversation()
-                val coordinator = CollaborationCoordinator(this, current.id, conversation.id, ids.first, ids.second)
+                val workerMemberId = current.aiMembers.getOrNull(1)?.id
+                val coordinator = CollaborationCoordinator(this, workspaceId, conversationId, ids.first, ids.second, workerMemberId)
                 val messages = coordinator.runObjective(
                     objective = objective,
                     decisionSystemPrompt = "你是本轮协作的规划参与者。你必须只返回一个合法 JSON 对象，不要 Markdown、代码围栏或解释文字。协议版本必须为 0.1；from 只能是 decision_ai，to 只能是 worker；type 必须是 TASK。task_id 必须原样使用输入消息的 task_id。payload 必须包含 objective、scope、acceptance、autonomy、context_refs。当前阶段只负责分析、拆解与提出任务，不执行本地文件或 GitHub 操作。",
-                    workerSystemPrompt = "你是本轮协作的执行参与者。你必须只返回一个合法 JSON 对象，不要 Markdown、代码围栏或解释文字。协议版本必须为 0.1；from 只能是 worker；对 Decision AI 的回复 to 必须是 decision_ai；type 根据情况使用 DECISION_REQUEST、PROGRESS、BLOCKED、COMMIT、VERIFY 或 COMPLETE。不要使用 executor、assistant、user 等角色名。当前阶段只负责分析任务并返回执行结果或 DECISION_REQUEST，不直接修改 GitHub 或本地文件。"
+                    workerSystemPrompt = "你是本轮协作的执行参与者。你必须只返回一个合法 JSON 对象，不要 Markdown、代码围栏或解释文字。协议版本必须为 0.1；from 只能是 worker；对 Decision AI 的回复 to 必须是 decision_ai；type 只能使用 DECISION_REQUEST、PROGRESS、BLOCKED 或 FILE_CHANGE_REQUEST。COMMIT、VERIFY、COMPLETE 由 A-BridgeFS 根据真实施工与 Verify 状态产生。不要使用 executor、assistant、user 等角色名。需要实际修改文件时，必须返回 FILE_CHANGE_REQUEST，并在 payload 中提供 path、operation、content、commit_message；只能修改 TASK.scope 允许的路径和操作。不要自行调用 GitHub 或本地文件 API，实际写入由 A-BridgeFS 权限层执行。"
                 )
                 val profileStore = ApiProfileStore(this)
                 val profileByRole = mapOf(
@@ -1156,25 +1346,82 @@ class V021Activity : Activity() {
                     val profile = profileByRole[message.from]
                     BridgeChatMessage(
                         role = "assistant",
-                        content = "[协作 ${message.type.name}] ${message.from.name} → ${message.to.name}\n${message.toJson()}",
+                        content = formatCollaborationMessage(message),
                         apiId = profile?.id,
                         apiName = profile?.name?.ifBlank { "未命名 API" },
                         apiAvatar = profile?.let { it.avatar.ifBlank { it.name.trim().take(1).ifBlank { "AI" } } }
                     )
                 }
                 runOnUiThread {
-                    current.activeConversation().messages += collaborationMessages
+                    collaborationRunningConversationId = null
+                    val targetWorkspace = projects.firstOrNull { it.id == workspaceId }
+                    val target = targetWorkspace?.conversations?.firstOrNull { it.id == conversationId }
+                    if (target == null) {
+                        collaborationRunningConversationId = null
+                        render()
+                        return@runOnUiThread
+                    }
+                    val progressIndex = target.messages.indexOfLast { it.role == "tool" && it.content.startsWith("[协作进行中]") }
+                    if (progressIndex >= 0) {
+                        target.messages.removeAt(progressIndex)
+                        target.messages.add(progressIndex, BridgeChatMessage("tool", "[协作完成]\nDecision AI 与 Worker 已完成本轮协议交互。"))
+                    }
+                    target.messages += collaborationMessages
                     store.save(projects)
                     render()
                 }
             }.onFailure { e ->
                 val reason = e.message ?: e::class.simpleName ?: "未知错误"
                 AppLogger.log(this, AppLogger.Category.COLLABORATION, "ROUND_FAILED", reason)
-                runOnUiThread { current.activeConversation().messages += BridgeChatMessage("tool", "[协作错误]\n" + reason); store.save(projects); render() }
+                runOnUiThread {
+                    collaborationRunningConversationId = null
+                    val targetWorkspace = projects.firstOrNull { it.id == workspaceId }
+                    val target = targetWorkspace?.conversations?.firstOrNull { it.id == conversationId }
+                    if (target == null) {
+                        collaborationRunningConversationId = null
+                        render()
+                        return@runOnUiThread
+                    }
+                    val progressIndex = target.messages.indexOfLast { it.role == "tool" && it.content.startsWith("[协作进行中]") }
+                    if (progressIndex >= 0) {
+                        target.messages.removeAt(progressIndex)
+                        target.messages.add(progressIndex, BridgeChatMessage("tool", "[协作失败]\n" + reason))
+                    } else {
+                        target.messages += BridgeChatMessage("tool", "[协作失败]\n" + reason)
+                    }
+                    store.save(projects)
+                    render()
+                }
             }
         }
     }
 
+    private fun formatCollaborationMessage(message: CollaborationProtocol.Message): String {
+        val roleName = when (message.from) {
+            CollaborationProtocol.Role.DECISION_AI -> "Decision AI"
+            CollaborationProtocol.Role.WORKER -> "Worker"
+            CollaborationProtocol.Role.HUMAN -> "用户"
+        }
+        val targetName = when (message.to) {
+            CollaborationProtocol.Role.DECISION_AI -> "Decision AI"
+            CollaborationProtocol.Role.WORKER -> "Worker"
+            CollaborationProtocol.Role.HUMAN -> "用户"
+        }
+        val payload = message.payload
+        val detail = when (message.type) {
+            CollaborationProtocol.Type.TASK -> payload.optString("objective").ifBlank { "已生成协作任务" }
+            CollaborationProtocol.Type.DECISION_REQUEST -> payload.optString("question").ifBlank { "Worker 请求 Decision AI 决策" }
+            CollaborationProtocol.Type.DECISION_RESPONSE -> payload.optString("decision").ifBlank { "Decision AI 已返回决策" }
+            CollaborationProtocol.Type.PROGRESS -> payload.optString("message").ifBlank { payload.optString("objective").ifBlank { "协作进度更新" } }
+            CollaborationProtocol.Type.BLOCKED -> payload.optString("blocked_on").ifBlank { "Worker 暂时受阻" }
+            CollaborationProtocol.Type.COMMIT -> "Commit " + payload.optString("sha").takeIf { it.isNotBlank() }?.take(10).orEmpty()
+            CollaborationProtocol.Type.VERIFY -> "Verify：" + payload.optString("verdict").ifBlank { "待确认" }
+            CollaborationProtocol.Type.COMPLETE -> payload.optString("summary").ifBlank { "协作任务完成" }
+            CollaborationProtocol.Type.FILE_CHANGE_REQUEST -> payload.optString("path").ifBlank { "Worker 请求修改文件" }
+            CollaborationProtocol.Type.ESCALATE -> "需要用户处理"
+        }
+        return "[协作 " + message.type.name + "] " + roleName + " → " + targetName + "\n" + detail
+    }
     private fun collaborationProfileIds(): Pair<String,String> {
         val members = project?.aiMembers.orEmpty()
         return (members.getOrNull(0)?.apiProfileId.orEmpty()) to
@@ -1245,6 +1492,7 @@ class V021Activity : Activity() {
         conversation.apiId = a.id
         apiId = a.id
         conversation.messages += BridgeChatMessage("user", text)
+        standaloneSendingConversationId = conversation.id
         conversationStore.save(standaloneConversations)
         render()
 
@@ -1263,6 +1511,7 @@ class V021Activity : Activity() {
                         apiAvatar = a.avatar.ifBlank { a.name.trim().take(1).ifBlank { "AI" } }
                     )
                     conversationStore.save(standaloneConversations)
+                    standaloneSendingConversationId = null
                     render()
                     if (prefs.getBoolean("ai_auto_bridgefs_enabled", true)) {
                         executeAiCommands(answer, conversation, limit)
@@ -1277,6 +1526,7 @@ class V021Activity : Activity() {
                 }
             } catch (e: Exception) {
                 runOnUiThread {
+                    standaloneSendingConversationId = null
                     conversation.messages += BridgeChatMessage("tool", "[API 错误]\n" + (e.message ?: "未知错误"))
                     conversationStore.save(standaloneConversations)
                     render()
@@ -1299,7 +1549,8 @@ class V021Activity : Activity() {
             return
         }
         conversation.messages += BridgeChatMessage("user", text)
-        conversation.messages += BridgeChatMessage("tool", "[协作进行中]\n正在请求 Decision AI → Worker，请稍候……")
+        conversation.messages += BridgeChatMessage("tool", "[协作进行中]\nDecision AI 正在分析并生成任务，Worker 随后接收任务。")
+        collaborationRunningConversationId = conversation.id
         store.save(projects)
         render()
         runCollaboration(current, text)
@@ -1359,8 +1610,10 @@ class V021Activity : Activity() {
         val intent = Intent(this, FileBridgeService::class.java)
             .putExtra("bridgefs_external_command", command)
             .putExtra("bridgefs_root", root)
-            .putExtra("projectId", workspace?.id)
-            .putExtra("conversationId", conversation.id)
+            .putExtra("projectId", null as String?)
+            .putExtra("conversationId", null as String?)
+            .putExtra("workspaceId", workspace?.id)
+            .putExtra("standaloneConversationId", conversation.id)
 
         runCatching { startForegroundService(intent) }.onFailure {
             recordReceipt(conversation, "FAILED", "AI command", "启动 BridgeFS 执行服务失败：" + (it.message ?: "未知错误"))

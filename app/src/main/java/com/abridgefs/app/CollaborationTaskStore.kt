@@ -22,6 +22,10 @@ data class CollaborationTaskRecord(
     var constructionHolderAiMemberId: String? = null,
     var lastCommitSha: String? = null,
     var lastChangedPath: String? = null,
+    var pendingWritePath: String? = null,
+    var pendingWriteBlobSha: String? = null,
+    var pendingWriteMessage: String? = null,
+    var pendingWriteSha: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     var updatedAt: Long = System.currentTimeMillis()
 ) {
@@ -31,6 +35,8 @@ data class CollaborationTaskRecord(
         const val STATUS_WAITING_CONSTRUCTION = "WAITING_CONSTRUCTION"
         const val STATUS_CONSTRUCTING = "CONSTRUCTING"
         const val STATUS_WAITING_VERIFY = "WAITING_VERIFY"
+        const val STATUS_VERIFY_PASSED = "VERIFY_PASSED"
+        const val STATUS_CONSTRUCTION_WRITING = "CONSTRUCTION_WRITING"
         const val STATUS_COMPLETE = "COMPLETE"
         const val STATUS_FAILED = "FAILED"
         const val STATUS_CANCELLED = "CANCELLED"
@@ -121,6 +127,10 @@ class CollaborationTaskStore(private val context: Context) {
             .put("constructionHolderAiMemberId", task.constructionHolderAiMemberId)
             .put("lastCommitSha", task.lastCommitSha)
             .put("lastChangedPath", task.lastChangedPath)
+            .put("pendingWritePath", task.pendingWritePath)
+            .put("pendingWriteBlobSha", task.pendingWriteBlobSha)
+            .put("pendingWriteMessage", task.pendingWriteMessage)
+            .put("pendingWriteSha", task.pendingWriteSha)
             .put("createdAt", task.createdAt)
             .put("updatedAt", task.updatedAt)
 
@@ -135,6 +145,10 @@ class CollaborationTaskStore(private val context: Context) {
             constructionHolderAiMemberId = obj.optString("constructionHolderAiMemberId", "").ifBlank { null },
             lastCommitSha = obj.optString("lastCommitSha", "").ifBlank { null },
             lastChangedPath = obj.optString("lastChangedPath", "").ifBlank { null },
+            pendingWritePath = obj.optString("pendingWritePath", "").ifBlank { null },
+            pendingWriteBlobSha = obj.optString("pendingWriteBlobSha", "").ifBlank { null },
+            pendingWriteMessage = obj.optString("pendingWriteMessage", "").ifBlank { null },
+            pendingWriteSha = obj.optString("pendingWriteSha", "").ifBlank { null },
             createdAt = obj.optLong("createdAt", System.currentTimeMillis()),
             updatedAt = obj.optLong("updatedAt", System.currentTimeMillis())
         )

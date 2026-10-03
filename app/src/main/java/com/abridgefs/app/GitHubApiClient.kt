@@ -20,6 +20,12 @@ class GitHubApiClient(
     fun getRepository(owner: String, repo: String): JSONObject =
         get("/repos/${owner}/${repo}")
 
+    fun getBranch(owner: String, repo: String, branch: String): JSONObject =
+        get("/repos/${owner}/${repo}/branches/${java.net.URLEncoder.encode(branch, "UTF-8").replace("+", "%20")}")
+
+    fun getCommit(owner: String, repo: String, commitSha: String): JSONObject =
+        get("/repos/${owner}/${repo}/commits/${commitSha}")
+
     fun listBranches(owner: String, repo: String, perPage: Int = 100): JSONArray =
         getArray("/repos/${owner}/${repo}/branches?per_page=${perPage.coerceIn(1, 100)}")
 

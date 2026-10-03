@@ -134,15 +134,20 @@ class SettingsCategoryActivity : Activity() {
     }
 
     private fun buildFiles(box: LinearLayout) {
-        label(box, "当前工作目录")
-        val root = EditText(this).apply {
-            setText(prefs.getString("root_path", ""))
-            hint = "/storage/emulated/0/..."
-        }
-        box.addView(root, fieldParams())
-        box.addView(actionButton("保存工作目录") {
-            prefs.edit().putString("root_path", root.text.toString().trim()).apply()
-            Toast.makeText(this, "工作目录已保存", Toast.LENGTH_SHORT).show()
+        label(box, "工作区目录")
+        box.addView(TextView(this).apply {
+            text = "现在的工作目录属于具体工作区，不再由这里设置。请返回“工作区”，在“工作目录”卡片中选择目录。"
+            textSize = 14f
+            setTextColor(resources.getColor(R.color.bridgefs_text_primary))
+            setPadding(dp(12), dp(12), dp(12), dp(12))
+            background = rounded(R.color.bridgefs_input_surface, 12)
+        })
+        box.addView(actionButton("返回工作区") { finish() })
+        box.addView(TextView(this).apply {
+            text = "旧版 root_path 仍保留兼容读取，但新功能以工作区目录为准。"
+            textSize = 12f
+            setTextColor(resources.getColor(R.color.bridgefs_text_secondary))
+            setPadding(dp(4), dp(10), dp(4), dp(10))
         })
     }
 
