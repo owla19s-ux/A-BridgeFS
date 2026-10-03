@@ -64,7 +64,7 @@ class V021Activity : Activity() {
                     }
                     conversationStore.save(standaloneConversations)
                     removePendingReceipt(intent.getStringExtra("receiptId"))
-                    if (page == Page.CHAT) render()
+                    if (page == Page.CHAT && activeStandaloneConversationId == standaloneConversationId) render()
                     else Toast.makeText(this@V021Activity, "收到执行回执：$status", Toast.LENGTH_SHORT).show()
                 }
                 return
