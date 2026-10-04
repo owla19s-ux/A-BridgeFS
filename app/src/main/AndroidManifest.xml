@@ -4,30 +4,18 @@
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-    <application
-        android:name=".BridgeFSApp"
-        android:theme="@style/AppTheme"
-        android:label="@string/app_name"
-        android:allowBackup="false"
-        android:supportsRtl="true">
-        <activity android:name=".V021Activity" android:exported="true" android:windowSoftInputMode="adjustResize">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
+    <application android:name=".BridgeFSApp" android:theme="@style/AppTheme" android:label="@string/app_name" android:allowBackup="false" android:supportsRtl="true">
+        <activity android:name=".ApsActivity" android:exported="true" android:windowSoftInputMode="adjustResize">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
         </activity>
+        <activity android:name=".V021Activity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".MainActivity" android:exported="false" />
         <activity android:name=".GitHubActivity" android:exported="false" />
         <activity android:name=".ApiSettingsActivity" android:exported="false" />
         <activity android:name=".GlobalAccessActivity" android:exported="false" />
         <activity android:name=".SettingsCategoryActivity" android:exported="false" />
-        <service
-            android:name=".FileBridgeService"
-            android:exported="false"
-            android:foregroundServiceType="specialUse">
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="floating file bridge" />
+        <service android:name=".FileBridgeService" android:exported="false" android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="floating file bridge" />
         </service>
     </application>
 </manifest>
