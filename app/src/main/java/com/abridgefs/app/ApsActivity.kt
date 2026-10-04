@@ -20,6 +20,9 @@ class ApsActivity : Activity() {
     private val settingOpen = mutableSetOf<String>()
     private val pendingTaskMentions = linkedSetOf<String>()
     private var projectInput: EditText? = null
+    private var conversationGroup = "默认分组"
+    private var selectedApi = "未绑定"
+    private val conversationGroups = linkedSetOf("默认分组")
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
@@ -168,18 +171,68 @@ GitHub：未设置"
             setPadding(dp(14), dp(10), dp(14), dp(8))
         }
         content.addView(title("对话"))
-        content.addView(info("当前 API", "未绑定"))
-        content.addView(section("项目访问", true) { toast("项目访问范围将在接线阶段读取 Project 配置") })
         content.addView(card().apply {
-            addView(value("普通 AI 对话区域。
-可访问当前 Project 的授权资源。
-当前为 UI 壳。"))
+            addView(label("会话"))
+            val row = LinearLayout(this@ApsActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+            }
+            row.addView(value(conversationGroup), LinearLayout.LayoutParams(0, dp(40), 1f))
+            row.addView(Button(this@ApsActivity).apply {
+                text = "分组"
+                setOnClickListener {
+                    val next = if (conversationGroups.size == 1) "新分组" else conversationGroups.first()
+                    conversationGroups.add(next)
+                    conversationGroup = next
+                    render()
+                }
+            }, LinearLayout.LayoutParams(dp(72), dp(44)))
+            row.addView(Button(this@ApsActivity).apply {
+                text = "新建"
+                setOnClickListener {
+                    val next = "新会话 " + (conversationGroups.size + 1)
+                    conversationGroups.add(next)
+                    conversationGroup = next
+                    render()
+                }
+            }, LinearLayout.LayoutParams(dp(72), dp(44)))
+            row.addView(Button(this@ApsActivity).apply {
+                text = "删除"
+                setOnClickListener {
+                    if (conversationGroups.size > 1) {
+                        conversationGroups.remove(conversationGroup)
+                        conversationGroup = conversationGroups.first()
+                        render()
+                    } else {
+                        toast("默认会话不能删除")
+                    }
+                }
+            }, LinearLayout.LayoutParams(dp(72), dp(44)))
+            addView(row)
         })
+        content.addView(card().apply {
+            addView(label("API"))
+            addView(value("当前 API：$selectedApi"))
+            addView(Button(this@ApsActivity).apply {
+                text = "选择 API"
+                setOnClickListener {
+                    selectedApi = if (selectedApi == "未绑定") "API Profile（示例）" else "未绑定"
+                    render()
+                }
+            })
+        }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
+        content.addView(section("项目访问", true) {
+            toast("项目访问范围将在接线阶段读取 Project 配置")
+        }, LinearLayout.LayoutParams(-1, dp(52)).apply { topMargin = dp(8) })
+        content.addView(card().apply {
+            addView(value("普通 AI 对话区域。"))
+            addView(value("可访问当前 Project 的授权资源。"))
+            addView(value("当前为 UI 壳。"))
+        }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
         host.addView(ScrollView(this).apply { addView(content) },
             LinearLayout.LayoutParams(-1, 0, 1f))
         inputBar("输入消息……")
     }
-
     private fun settingsPage() {
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
