@@ -1396,13 +1396,11 @@ class V021Activity : Activity() {
                     if (runs != null) append("\nActions runs: ").append(runs.length())
                     append("\nConstructionLock: ").append(lock.holderAiMemberId)
                 }
-                lockStore.release(project, memberId)
-                runOnUiThread {
+                                runOnUiThread {
                     addProjectReceipt(conversation, "SUCCEEDED", "GitHub construction", summary)
                     continueProjectConstruction(project, conversation, conversation.executions.last())
                 }
             } catch (e: Exception) {
-                runCatching { lockStore.release(project, memberId) }
                 runOnUiThread { addProjectReceipt(conversation, "FAILED", "GitHub construction", e.message ?: "GitHub 施工失败") }
             }
         }
