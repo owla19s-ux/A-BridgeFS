@@ -451,7 +451,7 @@ class V021Activity : Activity() {
         }, LinearLayout.LayoutParams(dp(76), dp(40)))
         box.addView(row)
         box.addView(actionButton("＋ 新建项目") {
-            val input = field("项目名称", "新项目 ${workspaces.size + 1}")
+            val input = field("项目名称", "新项目 ${projects.size + 1}")
             AlertDialog.Builder(this@V021Activity)
                 .setTitle("新建项目")
                 .setView(input)
@@ -502,7 +502,7 @@ class V021Activity : Activity() {
             setTextColor(color(R.color.bridgefs_text_secondary))
             setPadding(0, dp(2), 0, dp(8))
         })
-        box.addView(actionButton("进入 GitHub") {
+        box.addView(actionButton("配置 GitHub Project Address") {
             startActivity(Intent(this, GitHubActivity::class.java).putExtra("workspaceId", project?.id))
         })
         return box
