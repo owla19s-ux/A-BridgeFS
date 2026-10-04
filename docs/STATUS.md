@@ -1,6 +1,6 @@
 # A-BridgeFS 当前状态
 
-更新时间：2026-10-02
+更新时间：2026-10-04
 
 ## 项目定位
 
@@ -427,3 +427,11 @@ Workspace + Repository + Branch
 - 前台 Broadcast 插入 Receipt 前按 `receiptId` 去重；后台恢复同样按 `receiptId` 去重。
 - standalone chat 与 Workspace chat 都只在用户当前确实正在查看目标对话时刷新；其他情况下只提示，不抢夺当前页面。
 - 本轮仍未构建 APK、未发布、未真机验证。
+
+
+## 2026-10-04 第十九轮收口与正式构建前检查
+
+- PR #36 已合并到 main，当前 main 头为 `f47bd1131d4fe6e607966bc936d083d5c911a762`。
+- 本轮已合并 Receipt 幂等、目标 Workspace 路由、Standalone 对话路由、聊天 UI 批量反馈等修复。
+- API 消息身份的数据保存与 V021 消息展示代码均已存在：AI 消息按发送时保存的 API 名称 / 头像展示；但尚无该 main Commit 对应的正式 Release Actions Run，因此仍只能标记为“代码已实现 / 待构建验证”。
+- 下一步按 `docs/BUILD-PRECHECK.md` 触发正式 `android-build.yml`，优先获得当前 main 的 Release APK / 签名 / Actions 事实，再进行真机回归。
