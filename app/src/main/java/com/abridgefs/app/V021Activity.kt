@@ -41,6 +41,9 @@ class V021Activity : Activity() {
     private val executor = Executors.newSingleThreadExecutor()
     private var pendingReceipt: String? = null
     private var standaloneSendingConversationId: String? = null
+    private var projectConstructionConversationId: String? = null
+    private var projectConstructionIterations = 0
+    private val maxProjectConstructionIterations = 8
     private val receiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: android.content.Context, intent: android.content.Intent) {
             val status = intent.getStringExtra("status") ?: "UNKNOWN"
@@ -83,6 +86,9 @@ class V021Activity : Activity() {
                 removePendingReceipt(intent.getStringExtra("receiptId"))
                 if (page == Page.WORKSPACE && target?.id == project?.id) render()
                 else Toast.makeText(this@V021Activity, "收到执行回执：$status", Toast.LENGTH_SHORT).show()
+                if (target != null && conversation != null && target.id == project?.id && conversation.id == projectConstructionConversationId && projectConstructionIterations < maxProjectConstructionIterations && status != "DENIED") {
+                    continueProjectConstruction(target, conversation, receipt)
+                }
             }
         }
     }
@@ -1349,6 +1355,8 @@ class V021Activity : Activity() {
             addProjectReceipt(conversation, "FAILED", "AI command", "当前 Project 未设置 Local Project Address，指令未执行。")
             return
         }
+        projectConstructionConversationId = conversation.id
+        projectConstructionIterations = 0
         val intent = Intent(this, FileBridgeService::class.java)
             .putExtra("bridgefs_external_command", command)
             .putExtra("bridgefs_root", root)
@@ -1367,6 +1375,67 @@ class V021Activity : Activity() {
         store.save(projects)
         pendingReceipt = formatReceipt(receipt)
         if (page == Page.WORKSPACE) render()
+    }
+
+
+    private fun continueProjectConstruction(project: BridgeProject, conversation: BridgeConversation, receipt: BridgeReceiptRecord) {
+        projectConstructionIterations += 1
+        if (projectConstructionIterations > maxProjectConstructionIterations) {
+            projectConstructionConversationId = null
+            addProjectReceipt(conversation, "STOPPED", "construction", "已达到连续施工迭代上限 " + maxProjectConstructionIterations + "，等待用户继续。")
+            return
+        }
+        val member = project.defaultMemberId?.let { id -> project.aiMembers.firstOrNull { it.id == id } }
+            ?: project.aiMembers.firstOrNull()
+        val profile = member?.apiProfileId?.let { id -> apis().firstOrNull { it.id == id } }
+        if (profile == null) {
+            projectConstructionConversationId = null
+            return
+        }
+        executor.execute {
+            try {
+                val githubRead = GitHubConversationReader(this).readForProject(project, receipt.message)
+                if (githubRead.error != null) throw IllegalStateException(githubRead.error)
+                val githubPrompt = if (githubRead.content.isNotBlank()) {
+                    "\n\n[Project GitHub 只读资料]\nRepository: " + githubRead.repository +
+                        "\nBranch: " + (githubRead.branch ?: "默认分支") + "\n" + githubRead.content
+                } else ""
+                val answer = BridgeApiClient(
+                    BridgeApiConfig(normalizeBaseUrl(profile.baseUrl), profile.key, profile.model)
+                ).chat(
+                    conversation.messages,
+                    BridgeCommandSpec.aiSystemPrompt(prefs.getInt("command_limit", 3).coerceIn(1, 20)) +
+                        "\n\n你正在继续当前 Project 的施工。上一轮执行回执如下：\n" +
+                        formatReceipt(receipt) +
+                        "\n如果工作已经完成，直接说明完成，不要输出 bridgefs 指令；如果仍需修改，请输出下一轮完整的 [bridgefs]...[/bridgefs] 指令。不要声称操作成功，必须依据回执判断。" +
+                        githubPrompt
+                )
+                runOnUiThread {
+                    conversation.messages += BridgeChatMessage(
+                        "assistant", answer,
+                        apiId = profile.id,
+                        apiName = profile.name.ifBlank { "默认 AI" },
+                        apiAvatar = profile.avatar.ifBlank { profile.name.trim().take(1).ifBlank { "AI" } }
+                    )
+                    store.save(projects)
+                    render()
+                    if (BridgeRequest.extractAll(answer).isEmpty()) {
+                        projectConstructionConversationId = null
+                        projectConstructionIterations = 0
+                    } else {
+                        executeProjectCommands(answer, project, conversation)
+                    }
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    projectConstructionConversationId = null
+                    projectConstructionIterations = 0
+                    conversation.messages += BridgeChatMessage("tool", "[施工继续失败]\n" + (e.message ?: "未知错误"))
+                    store.save(projects)
+                    render()
+                }
+            }
+        }
     }
 
     private fun sendStandalone(input: EditText, conversation: BridgeConversation) {
