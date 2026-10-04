@@ -342,6 +342,17 @@ class CollaborationCoordinator(
 
         val task = CollaborationTaskStore(context).get(taskId) ?: return result
         discardPendingWorkerInputs(taskId)
+
+        // The previous Commit has now crossed the Verify boundary. Release the
+        // Repository/Branch construction lock before asking the Decision AI
+        // whether another construction round is needed. A continuing Worker
+        // round must reacquire the lock through requestConstruction().
+        val verifiedHolder = task.constructionHolderAiMemberId?.takeIf { it.isNotBlank() }
+        if (verifiedHolder != null) {
+            val workspace = BridgeProjectStore(context).load().firstOrNull { it.id == workspaceId }
+                ?: error("工作区不存在：$workspaceId")
+            ConstructionLockStore(context).release(workspace, verifiedHolder)
+        }
         CollaborationTaskStore(context).update(taskId) {
             it.status = CollaborationTaskRecord.STATUS_RUNNING
             it.constructionHolderAiMemberId = null
