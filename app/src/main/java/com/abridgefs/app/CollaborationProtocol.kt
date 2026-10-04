@@ -5,15 +5,19 @@ import org.json.JSONObject
 import java.util.UUID
 
 /**
- * A-BridgeFS Decision AI ↔ Worker v0.1 runtime protocol.
+ * A-BridgeFS 双 AI 协作运行协议 v0.2.
+ * AI A / AI B 是参与者，不是固定的决策/施工身份。阶段角色由任务状态决定。
  *
  * This layer defines message shape and local state transitions only.
+ * AI A / AI B are participant identities; StageRole expresses the current task stage.
  * It intentionally does not bind the protocol to a transport implementation.
  */
 object CollaborationProtocol {
-    const val VERSION = "0.1"
+    const val VERSION = "0.2"
 
-    enum class Role { DECISION_AI, WORKER, HUMAN }
+    enum class Role { AI_A, AI_B, HUMAN }
+
+    enum class StageRole { PLANNER, BUILDER, REVIEWER, OBSERVER }
 
     enum class Type {
         TASK,
@@ -98,11 +102,14 @@ object CollaborationProtocol {
         if (error != null) return ValidationResult(false, error)
 
         val routeError = when (message.type) {
-            Type.TASK -> if (message.from != Role.DECISION_AI || message.to != Role.WORKER) "TASK route must be Decision AI → Worker" else null
-            Type.DECISION_REQUEST -> if (message.from != Role.WORKER || message.to != Role.DECISION_AI) "DECISION_REQUEST route must be Worker → Decision AI" else null
-            Type.DECISION_RESPONSE -> if (message.from != Role.DECISION_AI || message.to != Role.WORKER) "DECISION_RESPONSE route must be Decision AI → Worker" else null
+            Type.TASK,
+            Type.DECISION_REQUEST,
+            Type.DECISION_RESPONSE,
+            Type.FILE_CHANGE_REQUEST ->
+                if (message.from == Role.HUMAN || message.to == Role.HUMAN || message.from == message.to) {
+                    message.type.name + " must be an AI-to-AI message"
+                } else null
             Type.ESCALATE -> if (message.to != Role.HUMAN) "ESCALATE must target human" else null
-            Type.FILE_CHANGE_REQUEST -> if (message.from != Role.WORKER || message.to != Role.DECISION_AI) "FILE_CHANGE_REQUEST route must be Worker → Decision AI" else null
             Type.PROGRESS, Type.BLOCKED, Type.COMMIT, Type.VERIFY, Type.COMPLETE -> null
         }
         return if (routeError == null) ValidationResult(true) else ValidationResult(false, routeError)
@@ -157,12 +164,13 @@ object CollaborationProtocol {
             .put("no_human_in_loop", true)
 
         return Message(
-            from = Role.DECISION_AI,
-            to = Role.WORKER,
+            from = Role.AI_A,
+            to = Role.AI_B,
             taskId = taskId,
             type = Type.TASK,
             payload = JSONObject()
                 .put("objective", objective)
+                .put("stage_role", StageRole.PLANNER.name)
                 .put("scope", scope)
                 .put("acceptance", JSONArray(acceptance))
                 .put("autonomy", autonomy)
@@ -189,8 +197,8 @@ object CollaborationProtocol {
         }
 
         return Message(
-            from = Role.WORKER,
-            to = Role.DECISION_AI,
+            from = Role.AI_B,
+            to = Role.AI_A,
             taskId = taskId,
             type = Type.DECISION_REQUEST,
             payload = JSONObject()
@@ -221,8 +229,8 @@ object CollaborationProtocol {
             .put("extra_iterations", extraIterations)
 
         return Message(
-            from = Role.DECISION_AI,
-            to = Role.WORKER,
+            from = Role.AI_A,
+            to = Role.AI_B,
             taskId = taskId,
             type = Type.DECISION_RESPONSE,
             replyTo = replyTo,
@@ -246,8 +254,8 @@ object CollaborationProtocol {
         require(commitMessage.isNotBlank()) { "commitMessage is blank" }
         require(operation == "write" || operation == "edit") { "unsupported file operation: $operation" }
         return Message(
-            from = Role.WORKER,
-            to = Role.DECISION_AI,
+            from = Role.AI_B,
+            to = Role.AI_A,
             taskId = taskId,
             type = Type.FILE_CHANGE_REQUEST,
             payload = JSONObject()
@@ -265,8 +273,8 @@ object CollaborationProtocol {
         files: List<String>,
         diffStat: String
     ): Message = Message(
-        from = Role.WORKER,
-        to = Role.DECISION_AI,
+        from = Role.AI_B,
+        to = Role.AI_A,
         taskId = taskId,
         type = Type.COMMIT,
         payload = JSONObject()
@@ -292,8 +300,8 @@ object CollaborationProtocol {
                 .put("detail", detail))
         }
         return Message(
-            from = Role.WORKER,
-            to = Role.DECISION_AI,
+            from = Role.AI_B,
+            to = Role.AI_A,
             taskId = taskId,
             type = Type.VERIFY,
             payload = JSONObject()
@@ -305,14 +313,14 @@ object CollaborationProtocol {
     }
 
     private fun Role.wireName(): String = when (this) {
-        Role.DECISION_AI -> "decision_ai"
-        Role.WORKER -> "worker"
+        Role.AI_A -> "ai_a"
+        Role.AI_B -> "ai_b"
         Role.HUMAN -> "human"
     }
 
     private fun roleFromWireName(value: String): Role = when (value.lowercase()) {
-        "decision_ai" -> Role.DECISION_AI
-        "worker" -> Role.WORKER
+        "ai_a" -> Role.AI_A
+        "ai_b" -> Role.AI_B
         "human" -> Role.HUMAN
         else -> error("unknown role: $value")
     }
