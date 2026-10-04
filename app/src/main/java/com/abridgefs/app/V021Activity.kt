@@ -196,10 +196,10 @@ class V021Activity : Activity() {
 
         content = FrameLayout(this)
         ViewCompat.setOnApplyWindowInsetsListener(content) { view, insets ->
-            val ime = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
+            // The Activity uses adjustResize. The resized content area already accounts for the IME;
+            // adding IME padding here would move the composer above the keyboard and create a blank gap.
             val system = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom
-            val chatPage = page == Page.CHAT || page == Page.WORKSPACE_CHAT
-            view.setPadding(0, 0, 0, if (chatPage) ime else 0)
+            view.setPadding(0, 0, 0, 0)
             view.tag = system
             insets
         }
@@ -273,10 +273,7 @@ class V021Activity : Activity() {
         root.addView(workspaceSelectorCard())
         root.addView(workspaceCard())
         root.addView(collaborationCard())
-        root.addView(collaborationTaskCard())
         root.addView(workspaceDirectoryCard())
-        root.addView(localFilePermissionCard())
-        root.addView(apiSummaryCard())
 
         val scroll = ScrollView(this)
         scroll.addView(root)
@@ -831,7 +828,7 @@ class V021Activity : Activity() {
             gravity = Gravity.CENTER
             setTextColor(color(R.color.bridgefs_accent))
         }, LinearLayout.LayoutParams(dp(72), dp(44)))
-        root.addView(chatSelector, LinearLayout.LayoutParams(-1, dp(64)).apply { bottomMargin = dp(8) })
+        root.addView(chatSelector, LinearLayout.LayoutParams(-1, dp(56)).apply { bottomMargin = dp(5) })
 
         val apis = apis()
         val selected = apis.firstOrNull { it.id == conversation.apiId }
@@ -881,17 +878,7 @@ class V021Activity : Activity() {
             gravity = Gravity.CENTER
             setTextColor(color(R.color.bridgefs_accent))
         }, LinearLayout.LayoutParams(dp(72), dp(44)))
-        root.addView(selector, LinearLayout.LayoutParams(-1, dp(68)).apply { bottomMargin = dp(6) })
-
-        root.addView(CheckBox(this).apply {
-            text = "允许本独立对话修改本地文件"
-            textSize = 13f
-            isChecked = conversation.localFileModifyOverride == true
-            setOnCheckedChangeListener { _, checked ->
-                conversation.localFileModifyOverride = checked
-                conversationStore.save(standaloneConversations)
-            }
-        }, LinearLayout.LayoutParams(-1, dp(42)))
+        root.addView(selector, LinearLayout.LayoutParams(-1, dp(56)).apply { bottomMargin = dp(4) })
 
         root.addView(textButton("＋ 新建独立对话") {
             page = Page.NEW_CHAT
@@ -1208,22 +1195,19 @@ class V021Activity : Activity() {
         }
         root.addView(header("配置", "全局运行设置"))
         val items = listOf(
-            "AI 与 API" to "API、模型与连接",
-            "连接与访问" to "API / GitHub 全局访问",
-            "执行与权限" to "执行范围与确认策略",
-            "指令" to "指令协议与说明",
-            "文件与目录" to "工作目录与文件",
-            "通知" to "执行与回执通知",
-            "外观" to "界面显示",
-            "系统" to "后台与系统权限",
-            "日志与诊断" to "运行日志"
+            "AI 与 API" to "API、模型与连接测试",
+            "GitHub" to "GitHub 账号、Repository、Branch 与连通性测试",
+            "执行与权限" to "BridgeFS 执行范围与确认策略",
+            "文件与目录" to "工作区目录与文件访问",
+            "系统" to "后台运行与系统权限",
+            "日志与诊断" to "运行日志与诊断信息"
         )
         items.forEach { (title,summary) ->
             root.addView(configCard(title,summary) {
                 when(title) {
                     "AI 与 API" -> startActivity(Intent(this, ApiSettingsActivity::class.java))
-                    "连接与访问" -> startActivity(Intent(this, GlobalAccessActivity::class.java))
-                    else -> startActivity(Intent(this, SettingsCategoryActivity::class.java).putExtra("category", title))
+                    "GitHub" -> startActivity(Intent(this, GitHubActivity::class.java).putExtra("workspaceId", project?.id))
+                    else -> startActivity(Intent(this, SettingsCategoryActivity::class.java).putExtra("category", title).putExtra("workspaceId", project?.id))
                 }
             })
         }
