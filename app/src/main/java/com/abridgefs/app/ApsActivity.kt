@@ -85,10 +85,15 @@ GitHub：未设置"
             setTextColor(c(R.color.bridgefs_text_secondary))
             setPadding(0, dp(3), 0, dp(6))
         })
-        content.addView(Button(this).apply {
-            text = if (displayOpen) "↓  收起显示" else "↑  展开显示"
+        content.addView(TextView(this).apply {
+            text = if (displayOpen) "↓  收起内容区" else "↑  展开内容区"
+            textSize = 12f
+            gravity = Gravity.CENTER
+            setTextColor(c(R.color.bridgefs_text_secondary))
+            background = round(c(R.color.bridgefs_input_surface), dp(10))
+            setPadding(0, dp(9), 0, dp(9))
             setOnClickListener { displayOpen = !displayOpen; render() }
-        })
+        }, LinearLayout.LayoutParams(-1, dp(38)).apply { bottomMargin = dp(6) })
         content.addView(section("项目配置", projectConfigOpen) {
             projectConfigOpen = !projectConfigOpen
             render()
@@ -109,13 +114,14 @@ GitHub：未设置"
                 })
                 addView(label("API"))
                 addView(value("Default API：未绑定"))
+                addView(label("项目级配置仅在这里维护"))
                 addView(Button(this@ApsActivity).apply {
                     text = "选择 API Profile"
                     setOnClickListener { toast("API Profile 接线将在下一阶段接入") }
                 })
             })
         }
-        content.addView(card().apply {
+        if (displayOpen) content.addView(card().apply {
             addView(label("待处理任务"))
             listOf("UI 输入框问题", "构建问题", "签名冲突").forEach { task ->
                 addView(CheckBox(this@ApsActivity).apply {
@@ -134,11 +140,11 @@ GitHub：未设置"
                 })
             }
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
-        content.addView(section("项目主要对话", projectChatOpen) {
+        if (displayOpen) content.addView(section("项目主要对话", projectChatOpen) {
             projectChatOpen = !projectChatOpen
             render()
         }, LinearLayout.LayoutParams(-1, dp(52)).apply { topMargin = dp(8) })
-        if (projectChatOpen) {
+        if (displayOpen && projectChatOpen) {
             content.addView(card().apply {
                 addView(value("这里是项目历史对话区域。当前为 UI 壳，尚未连接真实消息数据。"))
             })
@@ -163,7 +169,7 @@ GitHub：未设置"
         }
         content.addView(title("对话"))
         content.addView(info("当前 API", "未绑定"))
-        content.addView(info("项目访问", "当前 Project Address：未设置"))
+        content.addView(section("项目访问", true) { toast("项目访问范围将在接线阶段读取 Project 配置") })
         content.addView(card().apply {
             addView(value("普通 AI 对话区域。
 可访问当前 Project 的授权资源。
