@@ -76,15 +76,16 @@ internal fun ApsActivity.conversationPage() {
         if (apiSelectorOpen) {
             content.addView(card().apply {
                 addView(label("选择 API Profile"))
-                apiProfiles.forEach { profile ->
+                apiProfilesStore.list().forEach { profile ->
                     addView(TextView(this).apply {
-                        text = if (profile == selectedApi) "✓  $profile" else profile
+                        text = if (profile.id == selectedApiProfileId) "✓  ${profile.name}" else profile.name
                         textSize = 13f
                         setTextColor(c(if (profile == selectedApi) R.color.bridgefs_text_primary else R.color.bridgefs_text_secondary))
                         gravity = Gravity.CENTER_VERTICAL
                         setPadding(dp(8), 0, dp(8), 0)
                         setOnClickListener {
-                            selectedApi = profile
+                            selectedApi = profile.name
+                            selectedApiProfileId = profile.id
                             apiSelectorOpen = false
                             render()
                         }
@@ -100,7 +101,8 @@ internal fun ApsActivity.conversationPage() {
 
         if (projectAccessOpen) {
             content.addView(card().apply {
-                addView(value("当前 Project Address：未设置"))
+                addView(value("当前 Project Address：${currentProject?.localAddress ?: "未设置"}"))
+                addView(value("GitHub：${currentProject?.githubAddress?.repository ?: "未设置"}"))
                 addView(value("访问范围由 Project 权限决定。"))
             }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
         }
