@@ -5,109 +5,11 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
 
-data class BridgeChatMessage(
-    val role: String,
-    val content: String,
-    val time: Long = System.currentTimeMillis(),
-    val apiId: String? = null,
-    val apiName: String? = null,
-    val apiAvatar: String? = null
-)
-data class BridgeReceiptRecord(val status: String, val command: String, val message: String, val time: Long = System.currentTimeMillis(), val receiptId: String = UUID.randomUUID().toString())
-
-data class BridgeAiMember(
-    val id: String,
-    var name: String,
-    var apiProfileId: String? = null
-)
-
 /**
- * A conversation belongs to a project.
+ * Persistence boundary for Project state.
  *
- * API selection, chat history and execution receipts are conversation state.
- * Project-level resources (address, permissions, members) stay on BridgeProject.
+ * Models live in ProjectModels.kt. This store only serializes and restores them.
  */
-data class BridgeConversation(
-    val id: String,
-    var name: String,
-    var apiId: String? = null,
-    var localFileModifyOverride: Boolean? = null,
-    val messages: MutableList<BridgeChatMessage> = mutableListOf(),
-    val executions: MutableList<BridgeReceiptRecord> = mutableListOf()
-)
-
-/**
- * Project root.
- *
- * The BridgeProject type name is retained for source compatibility during the
- * migration from the historical Workspace model.
- */
-data class BridgeProject(
-    val id: String,
-    var name: String,
-    var localFileModifyEnabled: Boolean = false,
-    /** Local Project Address. Kept under the historical storage key for migration compatibility. */
-    var workspaceDirectory: String? = null,
-    /** GitHub Project Address. GitHub is one address type, not the Project itself. */
-    var github: GitHubWorkspace = GitHubWorkspace(),
-    /** Default Project Member. Null means the project has no default AI yet. */
-    var defaultMemberId: String? = null,
-    val aiMembers: MutableList<BridgeAiMember> = mutableListOf(),
-    val conversations: MutableList<BridgeConversation> = mutableListOf(),
-    var activeConversationId: String? = null
-) {
-    fun activeConversation(): BridgeConversation {
-        val current = activeConversationId?.let { id -> conversations.firstOrNull { it.id == id } }
-        if (current != null) return current
-        val created = BridgeConversation(UUID.randomUUID().toString(), "默认对话")
-        conversations += created
-        activeConversationId = created.id
-        return created
-    }
-
-    /**
-     * Compatibility facade for the current UI. New code should address the
-     * workspace and conversation separately.
-     */
-    @Deprecated("Use activeConversation().apiId")
-    var apiId: String?
-        get() = activeConversation().apiId
-        set(value) { activeConversation().apiId = value }
-
-    @Deprecated("Use activeConversation().messages")
-    val messages: MutableList<BridgeChatMessage>
-        get() = activeConversation().messages
-
-    @Deprecated("Use activeConversation().executions")
-    val executions: MutableList<BridgeReceiptRecord>
-        get() = activeConversation().executions
-
-    @Deprecated("Use github.accountLogin")
-    var githubAccountLogin: String?
-        get() = github.accountLogin
-        set(value) { github.accountLogin = value }
-
-    @Deprecated("Use github.repository")
-    var githubRepository: String?
-        get() = github.repository
-        set(value) { github.repository = value }
-
-    @Deprecated("Use github.branch")
-    var githubBranch: String?
-        get() = github.branch
-        set(value) { github.branch = value }
-
-    @Deprecated("Use github.readEnabled")
-    var githubReadEnabled: Boolean
-        get() = github.readEnabled
-        set(value) { github.readEnabled = value }
-
-    @Deprecated("Use github.writeEnabled")
-    var githubWriteEnabled: Boolean
-        get() = github.writeEnabled
-        set(value) { github.writeEnabled = value }
-}
-
 class BridgeProjectStore(private val context: Context) {
     private val prefs = context.getSharedPreferences("bridgefs_projects", Context.MODE_PRIVATE)
     private val key = "data"
@@ -122,8 +24,8 @@ class BridgeProjectStore(private val context: Context) {
                 id = obj.getString("id"),
                 name = obj.getString("name"),
                 localFileModifyEnabled = obj.optBoolean("localFileModifyEnabled", false),
-                workspaceDirectory = obj.optString("workspaceDirectory", "").ifBlank { null },
-                github = GitHubWorkspace(
+                localAddress = obj.optString("localAddress", "").ifBlank {\n                    obj.optString("workspaceDirectory", "").ifBlank { null }\n                },
+                githubAddress = ProjectGitHubAddress(
                     accountLogin = obj.optString("githubAccount", "").ifBlank {
                         obj.optString("githubAccountLogin", "").ifBlank { null }
                     },
@@ -149,7 +51,6 @@ class BridgeProjectStore(private val context: Context) {
                 }
             }
 
-            // New format: conversations live inside the workspace.
             val conversations = obj.optJSONArray("conversations")
             if (conversations != null) {
                 for (j in 0 until conversations.length()) {
@@ -157,7 +58,6 @@ class BridgeProjectStore(private val context: Context) {
                 }
             }
 
-            // One-time compatibility migration from the previous flat project format.
             if (project.conversations.isEmpty()) {
                 val legacy = BridgeConversation(
                     id = UUID.randomUUID().toString(),
@@ -171,9 +71,6 @@ class BridgeProjectStore(private val context: Context) {
                 project.activeConversationId = legacy.id
             }
 
-            // Old versions created fixed AI A / AI B members. Do not recreate them.
-            // If an existing project has members, preserve the first usable member as
-            // the default only when no explicit default was stored yet.
             if (project.defaultMemberId == null) {
                 val legacyApiId = project.conversations.firstOrNull()?.apiId
                 project.defaultMemberId = legacyApiId?.let { apiId ->
@@ -194,15 +91,15 @@ class BridgeProjectStore(private val context: Context) {
                 .put("id", project.id)
                 .put("name", project.name)
                 .put("localFileModifyEnabled", project.localFileModifyEnabled)
-                .put("workspaceDirectory", project.workspaceDirectory.orEmpty())
+                .put("localAddress", project.localAddress.orEmpty())
                 .put("activeConversationId", project.activeConversationId.orEmpty())
                 .put("defaultMemberId", project.defaultMemberId.orEmpty())
-                .put("githubAccount", project.github.accountLogin.orEmpty())
-                .put("githubRepositoryId", project.github.repositoryId?.toString().orEmpty())
-                .put("githubRepository", project.github.repository.orEmpty())
-                .put("githubBranch", project.github.branch.orEmpty())
-                .put("githubReadEnabled", project.github.readEnabled)
-                .put("githubWriteEnabled", project.github.writeEnabled)
+                .put("githubAccount", project.githubAddress.accountLogin.orEmpty())
+                .put("githubRepositoryId", project.githubAddress.repositoryId?.toString().orEmpty())
+                .put("githubRepository", project.githubAddress.repository.orEmpty())
+                .put("githubBranch", project.githubAddress.branch.orEmpty())
+                .put("githubReadEnabled", project.githubAddress.readEnabled)
+                .put("githubWriteEnabled", project.githubAddress.writeEnabled)
 
             obj.put("aiMembers", JSONArray().apply {
                 project.aiMembers.forEach {
@@ -222,13 +119,23 @@ class BridgeProjectStore(private val context: Context) {
                         .put("localFileModifyOverride", conversation.localFileModifyOverride)
                         .put("messages", JSONArray().apply {
                             conversation.messages.forEach {
-                                put(JSONObject().put("role", it.role).put("content", it.content).put("time", it.time)
-                                .put("apiId", it.apiId.orEmpty()).put("apiName", it.apiName.orEmpty()).put("apiAvatar", it.apiAvatar.orEmpty()))
+                                put(JSONObject()
+                                    .put("role", it.role)
+                                    .put("content", it.content)
+                                    .put("time", it.time)
+                                    .put("apiId", it.apiId.orEmpty())
+                                    .put("apiName", it.apiName.orEmpty())
+                                    .put("apiAvatar", it.apiAvatar.orEmpty()))
                             }
                         })
                         .put("executions", JSONArray().apply {
                             conversation.executions.forEach {
-                                put(JSONObject().put("status", it.status).put("command", it.command).put("message", it.message).put("time", it.time).put("receiptId", it.receiptId))
+                                put(JSONObject()
+                                    .put("status", it.status)
+                                    .put("command", it.command)
+                                    .put("message", it.message)
+                                    .put("time", it.time)
+                                    .put("receiptId", it.receiptId))
                             }
                         })
                     )
@@ -240,8 +147,6 @@ class BridgeProjectStore(private val context: Context) {
     }
 
     fun newProject(name: String): BridgeProject {
-        // A new Project starts without forced AI A/B identities.
-        // Members are added explicitly and one may then be selected as Default AI.
         val project = BridgeProject(UUID.randomUUID().toString(), name)
         val conversation = BridgeConversation(UUID.randomUUID().toString(), "项目对话")
         project.conversations += conversation

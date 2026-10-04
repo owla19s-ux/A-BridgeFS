@@ -23,8 +23,8 @@ class GitHubActivity : android.app.Activity() {
         super.onCreate(state)
         projects = projectStore.load()
         if (projects.isEmpty()) projects += projectStore.newProject("默认项目")
-        val workspaceId = intent.getStringExtra("workspaceId")
-        project = projects.firstOrNull { it.id == workspaceId } ?: projects.first()
+        val projectId = intent.getStringExtra("projectId")
+        project = projects.firstOrNull { it.id == projectId } ?: projects.first()
         build()
     }
 
@@ -350,14 +350,14 @@ class GitHubActivity : android.app.Activity() {
         }
     }
 
-    private fun projectService(): GitHubWorkspaceService? {
+    private fun projectService(): ProjectGitHubService? {
         val currentProject = project ?: return null
         val token = authStore.state().accessToken
         if (token.isNullOrBlank()) {
             Toast.makeText(this, "GitHub 尚未连接", Toast.LENGTH_SHORT).show()
             return null
         }
-        return GitHubWorkspaceService(this, GitHubApiClient(this, token), currentProject.github, currentProject)
+        return ProjectGitHubService(this, GitHubApiClient(this, token), currentProject.githubAddress, currentProject)
     }
 
     private fun save() { projectStore.save(projects) }

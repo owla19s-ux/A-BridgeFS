@@ -7,76 +7,78 @@
 
 ## 1. 当前施工主线
 
-### T0 — 架构基线与旧链清理
-**状态：基本完成 / 持续审查**
+### T0 — 架构基线
+**状态：已确认**
 
 已完成：
 - Project 作为核心对象；
 - Project Address；
 - API Profile / Project Member / Default AI 边界；
 - 固定 Decision / Worker / AI A / AI B 废弃；
-- 旧 Collaboration 运行链拆除；
-- ConstructionLock 保留为 Project 施工权限基础；
-- 当前架构、规格、UI 文档已建立。
+- 当前三页 UI 架构确认；
+- “链路驱动施工 + 职责拆分”确定为当前重构方法。
 
-剩余：
-- 持续检查旧 Workspace / 双 AI 语义是否还有实际代码入口或文档残留。
+旧 Workspace 残留不再单独开一轮全面清理，而是在实际链路施工经过时迁移或拆除。
 
-### T1 — Project 主页面收口
-**状态：当前施工重点**
+### T1 — Project 主页面
+**状态：开发中**
 
 验收：
 - Project Conversation 是项目首页主要工作面；
 - ↑ / ↓ 只改变屏幕显示区域；
 - 项目配置独立点击展开 / 收起；
 - 配置收起后主要对话获得空间；
-- 不把 GitHub / API / 权限 / Verify 等内部对象全部平铺到首页；
-- 不再保留旧 Workspace 页面作为实际入口。
+- 不把 GitHub / API / 权限 / Verify 等内部对象全部平铺到首页。
 
-### T2 — Project 配置闭环
-**状态：实现基本完成，待完整闭环验证**
+### T2 — 第一条核心链路：Project → Address → API → Conversation → Permission
+**状态：当前施工重点**
 
-范围：
-- Project 名称；
-- Project Address（Local / GitHub）；
-- Default AI；
-- Project Members；
-- Member → API Profile；
-- 必要的本地修改权限。
+当前已施工：
+- Project domain models 与 ProjectStore 持久化职责拆分；
+- GitHub Address 从历史 Workspace 模型迁移为 Project Address 模型；
+- Project Conversation 的 API 调用链抽出为独立 Service；
+- PermissionPolicy 参数边界改为 Project；
+- Local Project Address 已开始从历史 `workspaceDirectory` 迁移为 `localAddress`。
 
-验收：
-```
-UI 修改
- ↓
-保存
- ↓
-离开 Project
- ↓
-重新进入
- ↓
-状态保持
-```
-
-已知实现：
-- Project Members：新增 / 编辑 / 删除 / API Profile 绑定 / Default AI；
-- Local Address：目录选择、持久化、恢复；
-- GitHub Address：Repository / Branch 配置与权限保存。
-
-### T3 — Project Conversation 闭环
-**状态：开发中**
+当前未验证：
+- 编译；
+- APK；
+- 真机；
+- Project → Address → API → Conversation → Permission 完整运行闭环。
 
 目标：
+
 ```
 Project
  ↓
 Project Address
  ↓
-Default AI
+API Profile
  ↓
-读取 / 分析
+Project Conversation
  ↓
-回答
+Permission
+ ↓
+真实访问 Project
 ```
+
+施工原则：
+- 按真实用户链路逐段打通；
+- 每经过一个旧结构，就在该位置完成职责迁移；
+- 不先做脱离链路的全仓库重构；
+- 一个文件不长期承担多个独立业务职责；
+- 能复用的底层能力保留，错误的业务语义替换；
+- 每段接通后再进入下一段。
+
+第一阶段重点：
+- Project Address 统一入口；
+- Project → API Profile / Default AI 关系接通；
+- Project Conversation 独立职责；
+- Permission 改为 Project / Conversation 边界；
+- 最终通过真实 Project Address 完成读取。
+
+### T3 — Project Conversation 完整闭环
+**状态：开发中**
 
 验收：
 - 正常问题只走 Default AI；
@@ -84,13 +86,31 @@ Default AI
 - 消息 / API 身份 / 历史记录正常保存与恢复；
 - 不恢复 Decision / Worker 模式。
 
-### T4 — Project 连续施工
-**状态：开发中 / 需要全链路验证**
+### T4 — 任务与协助链
+**状态：已设计未完整实现**
 
 目标：
+
 ```
-理解
+任务
  ↓
+勾选
+ ↓
+@任务进入输入框
+ ↓
+Project Conversation
+ ↓
+Request AI Assistance
+```
+
+协助仍是按需动作，不形成固定 AI A / B 状态机。
+
+### T5 — 连续施工
+**状态：开发中 / 待核心链路收口后继续**
+
+目标：
+
+```
 读取
  ↓
 修改
@@ -106,33 +126,33 @@ Verify
 完成
 ```
 
-已接入：
-- 本地：PermissionPolicy → FileBridgeService → Receipt → Default AI 继续判断；
-- GitHub：Project ConstructionLock + Project Member 身份执行文件创建 / 编辑 / Commit；
-- 已读取对应 Actions runs 作为 Verify 信息；
-- 已设置明确迭代上限。
+### T6 — 独立「对话」与「设置」
+**状态：UI 已确认 / 开发中**
 
-待验证：
-- 多文件 Commit / Verify 语义；
-- Actions 尚未启动时的状态判断；
-- 正式 APK + 真机连续施工闭环。
+当前正式三页：
+- 项目
+- 对话
+- 设置
 
-### T5 — Request AI Assistance
-**状态：已设计未完整实现**
+独立「对话」：
+- 可选择 / 切换 API；
+- 普通 AI 对话；
+- 在授权范围内访问当前 Project 地址。
 
-目标：
-- Default AI 主导；
-- 明确请求后才调用其他 Project Member / 临时 AI；
-- 协助完成后回到 Default AI；
-- 不形成固定 AI A / B 状态机。
+「设置」：
+- 连接
+- 权限
+- 文件
+- 执行
+- 外观
+- 通知
+- 日志
+- 系统
 
-### T6 — 独立「对话」与「配置」
-**状态：暂缓**
-
-本轮不阻塞 Project 主线。后续只做必要 UI / 可用性修正，不重新设计底层架构。
+设置采用分类展开 / 收起，维护全局资源与系统配置。
 
 ### T7 — 全链路验证
-**状态：待 T1～T5 收口后执行**
+**状态：待主链收口后执行**
 
 ```
 代码
@@ -163,20 +183,22 @@ UI
 ## 2. 当前优先级
 
 ```
-T1 Project 主页面
+T1 Project UI 收口
  ↓
-T2 Project 配置闭环验证
+T2 Project → Address → API → Conversation → Permission
  ↓
-T3 Project Conversation
+T3 Project Conversation 闭环
  ↓
-T4 连续施工
+T4 任务 / @任务 / 协助
  ↓
-T5 Request AI Assistance
+T5 连续施工
+ ↓
+T6 独立对话 / 设置闭环
  ↓
 T7 全链路验证
 ```
 
-T6 暂不阻塞。
+> 实际施工时，T1 与 T2 可在同一条代码链路中同步推进；不为了任务编号人为切断链路。
 
 ## 3. 明确不做
 
@@ -191,7 +213,10 @@ T6 暂不阻塞。
 ## 4. 任务维护规则
 
 1. 新任务先判断是否属于当前 Project 主线。
-2. 已完成任务从“当前施工重点”中移出，不重复堆进本表。
-3. 历史过程写入 STATUS 或专项历史文档。
-4. 架构决策写入 PROJECT，不在本表形成第二套规格。
-5. 每次施工后只更新实际发生变化的任务状态。
+2. 施工优先按真实链路推进，而不是按文件数量推进。
+3. 一个文件不长期承担多个独立业务职责。
+4. 旧结构在链路经过时迁移、拆分或删除，不另开一轮无目标的大规模重构。
+5. 已完成任务从“当前施工重点”中移出。
+6. 历史过程写入 STATUS 或专项历史文档。
+7. 架构决策写入 PROJECT，不在本表形成第二套规格。
+8. 每次施工后只更新实际发生变化的任务状态。

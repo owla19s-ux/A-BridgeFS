@@ -52,7 +52,6 @@ class V021Activity : Activity() {
             val message = intent.getStringExtra("message") ?: ""
             val projectId = intent.getStringExtra("projectId")
             val conversationId = intent.getStringExtra("conversationId")
-            val workspaceId = intent.getStringExtra("workspaceId")
             val standaloneConversationId = intent.getStringExtra("standaloneConversationId")
             val receipt = BridgeReceiptRecord(status, command, message, intent.getLongExtra("time", System.currentTimeMillis()), intent.getStringExtra("receiptId")?.takeIf { it.isNotBlank() } ?: UUID.randomUUID().toString())
             pendingReceipt = formatReceipt(receipt)
@@ -72,8 +71,7 @@ class V021Activity : Activity() {
                 return
             }
 
-            val target = projects.firstOrNull { it.id == workspaceId }
-                ?: projects.firstOrNull { it.id == projectId }
+            val target = projects.firstOrNull { it.id == projectId }
                 ?: project
             val conversation = target?.let { ws ->
                 conversationId?.let { id -> ws.conversations.firstOrNull { it.id == id } } ?: ws.activeConversation()
@@ -145,8 +143,7 @@ class V021Activity : Activity() {
                 val message = obj.optString("message", "")
                 val projectId = obj.optString("projectId", "").ifBlank { null }
                 val conversationId = obj.optString("conversationId", "").ifBlank { null }
-                val workspaceId = obj.optString("workspaceId", "").ifBlank { null }
-                val standaloneConversationId = obj.optString("standaloneConversationId", "").ifBlank { null }
+                                val standaloneConversationId = obj.optString("standaloneConversationId", "").ifBlank { null }
                 val receipt = BridgeReceiptRecord(status, command, message, obj.optLong("time", System.currentTimeMillis()), obj.optString("receiptId", "").ifBlank { UUID.randomUUID().toString() })
                 if (!standaloneConversationId.isNullOrBlank()) {
                     val conversation = standaloneConversations.firstOrNull { it.id == standaloneConversationId }
@@ -159,9 +156,8 @@ class V021Activity : Activity() {
                     pendingReceipt = formatReceipt(receipt)
                     recoveredAny = true
                 } else {
-                    val target = projects.firstOrNull { it.id == workspaceId }
-                        ?: projects.firstOrNull { it.id == projectId }
-                    val conversation = target?.let { ws -> conversationId?.let { id -> ws.conversations.firstOrNull { it.id == id } } }
+                    val target = projects.firstOrNull { it.id == projectId }
+                    val conversation = target?.let { current -> conversationId?.let { id -> current.conversations.firstOrNull { it.id == id } } }
                     if (conversation == null) { remaining += obj; return@runCatching }
                     if (!conversation.executions.any { it.receiptId == receipt.receiptId }) {
                         conversation.executions += receipt
@@ -341,7 +337,7 @@ class V021Activity : Activity() {
 
     private fun projectStatus(item: BridgeProject): Pair<Int, String> {
         val hasApi = item.defaultMemberId?.let { id -> item.aiMembers.firstOrNull { it.id == id }?.apiProfileId }?.isNotBlank() == true
-        val hasAddress = !item.workspaceDirectory.isNullOrBlank() || !item.github.repository.isNullOrBlank()
+        val hasAddress = !item.localAddress.isNullOrBlank() || !item.githubAddress.repository.isNullOrBlank()
         return when {
             !hasApi && !hasAddress -> R.color.bridgefs_error to "未配置"
             !hasApi -> R.color.bridgefs_warning to "缺少默认 AI"
@@ -351,8 +347,8 @@ class V021Activity : Activity() {
     }
 
     private fun projectAddressSummary(item: BridgeProject): String {
-        val local = item.workspaceDirectory?.trim().orEmpty()
-        val repo = item.github.repository?.trim().orEmpty()
+        val local = item.localAddress?.trim().orEmpty()
+        val repo = item.githubAddress.repository?.trim().orEmpty()
         return when {
             local.isNotBlank() -> "本地：" + local
             repo.isNotBlank() -> "GitHub：" + repo + " / " + item.github.branch?.ifBlank { "默认分支" } ?: "默认分支"
@@ -530,7 +526,7 @@ class V021Activity : Activity() {
             setPadding(0, dp(2), 0, dp(8))
         })
         box.addView(actionButton("配置 GitHub Project Address") {
-            startActivity(Intent(this, GitHubActivity::class.java).putExtra("workspaceId", project?.id))
+            startActivity(Intent(this, GitHubActivity::class.java).putExtra("projectId", project?.id))
         })
         return box
     }
@@ -686,7 +682,7 @@ class V021Activity : Activity() {
 
     private fun projectLocalAddressCard(): View {
         val box = card()
-        val rootPath = project?.workspaceDirectory.orEmpty().trim()
+        val rootPath = project?.localAddress.orEmpty().trim()
 
         box.addView(TextView(this).apply {
             text = "Local Project Address"
@@ -748,9 +744,9 @@ class V021Activity : Activity() {
     }
     private fun migrateLegacyWorkspaceDirectory() {
         val legacyRoot = prefs.getString("root_path", "").orEmpty().trim()
-        if (legacyRoot.isBlank() || projects.any { !it.workspaceDirectory.isNullOrBlank() }) return
+        if (legacyRoot.isBlank() || projects.any { !it.localAddress.isNullOrBlank() }) return
         val target = project ?: projects.firstOrNull() ?: return
-        target.workspaceDirectory = legacyRoot
+        target.localAddress = legacyRoot
         store.save(projects)
     }
 
@@ -789,7 +785,7 @@ class V021Activity : Activity() {
             Toast.makeText(this, "当前没有可用 Project。", Toast.LENGTH_SHORT).show()
             return
         }
-        workspace.workspaceDirectory = path
+        workspace.localAddress = path
         store.save(projects)
         Toast.makeText(this, "当前 Project Address 已设置：$path", Toast.LENGTH_SHORT).show()
         render()
@@ -1259,83 +1255,47 @@ class V021Activity : Activity() {
         val text = input.text.toString().trim()
         if (text.isBlank()) return
         val current = project ?: return
-        if (!AccessPolicy.isApiEnabled(this)) {
-            Toast.makeText(this, "API 全局访问已关闭", Toast.LENGTH_SHORT).show()
-            return
-        }
-        val member = current.defaultMemberId?.let { id -> current.aiMembers.firstOrNull { it.id == id } }
-            ?: current.aiMembers.firstOrNull()
-        val profileId = member?.apiProfileId
-        val profile = profileId?.let { id -> apis().firstOrNull { it.id == id } }
-        if (profile == null) {
-            Toast.makeText(this, "当前 Project 尚未配置默认 AI", Toast.LENGTH_SHORT).show()
-            return
-        }
 
         conversation.messages += BridgeChatMessage("user", text)
         store.save(projects)
         render()
+
         executor.execute {
-            try {
-                val address = current.workspaceDirectory?.trim().orEmpty()
-                val githubRepository = current.github.repository?.trim().orEmpty()
-                val branch = current.github.branch?.trim().orEmpty()
-                val projectInfo = buildString {
-                    append("当前 Project：").append(current.name)
-                    if (address.isNotBlank()) append("\nLocal Project Address：").append(address)
-                    if (githubRepository.isNotBlank()) {
-                        append("\nGitHub Repository：").append(githubRepository)
-                        if (branch.isNotBlank()) append("\nGitHub Branch：").append(branch)
-                    }
-                }
-                val githubRead = GitHubConversationReader(this).readForProject(current, text)
-                if (githubRead.error != null) {
-                    runOnUiThread {
-                        conversation.messages += BridgeChatMessage("tool", "[GitHub 错误]\n" + githubRead.error)
-                        store.save(projects)
-                        render()
-                    }
-                    return@execute
-                }
-                val githubPrompt = if (githubRead.content.isNotBlank()) {
-                    "\n\n[Project GitHub 只读资料]\nRepository: " + githubRead.repository +
-                        "\nBranch: " + (githubRead.branch ?: "默认分支") +
-                        "\n以下内容来自当前 Project Address，仅用于本轮回答；不要执行任何修改操作。\n\n" + githubRead.content
-                } else ""
-                val answer = BridgeApiClient(
-                    BridgeApiConfig(normalizeBaseUrl(profile.baseUrl), profile.key, profile.model)
-                ).chat(
-                    conversation.messages,
-                    BridgeCommandSpec.aiSystemPrompt(prefs.getInt("command_limit", 3).coerceIn(1, 20)) +
-                        "\n\n[Project 信息]\n" + projectInfo +
-                        githubPrompt +
-                        "\n你是当前 Project 的默认 AI。先直接回答用户问题；只有用户明确要求执行工作时，才进入后续工作流程。不要自动启动其他 AI 协作，也不要恢复已经废弃的固定阶段角色模型。"
-                )
-                runOnUiThread {
+            val result = ProjectConversationService(this).send(current, conversation, text)
+            runOnUiThread {
+                if (result.error != null) {
                     conversation.messages += BridgeChatMessage(
-                        "assistant",
-                        answer,
-                        apiId = profile.id,
-                        apiName = profile.name.ifBlank { "默认 AI" },
-                        apiAvatar = profile.avatar.ifBlank { profile.name.trim().take(1).ifBlank { "AI" } }
+                        if (result.isGithubReadError) "tool" else "tool",
+                        result.error
                     )
                     store.save(projects)
                     render()
-                    if (!executeProjectGitHubCommands(answer, current, conversation)) {
-                        executeProjectCommands(answer, current, conversation)
-                    }
+                    return@runOnUiThread
                 }
-            } catch (e: Exception) {
-                runOnUiThread {
-                    conversation.messages += BridgeChatMessage("tool", "[API 错误]\n" + (e.message ?: "未知错误"))
-                    store.save(projects)
-                    render()
+
+                val profileId = current.defaultMemberId
+                    ?.let { id -> current.aiMembers.firstOrNull { it.id == id }?.apiProfileId }
+                val profile = profileId?.let { id -> apiProfiles.find(id) }
+
+                conversation.messages += BridgeChatMessage(
+                    "assistant",
+                    result.answer.orEmpty(),
+                    apiId = profile?.id,
+                    apiName = profile?.name?.ifBlank { "默认 AI" },
+                    apiAvatar = profile?.avatar?.ifBlank {
+                        profile.name.trim().take(1).ifBlank { "AI" }
+                    }
+                )
+                store.save(projects)
+                render()
+
+                if (!executeProjectGitHubCommands(result.answer.orEmpty(), current, conversation)) {
+                    executeProjectCommands(result.answer.orEmpty(), current, conversation)
                 }
             }
         }
         input.text.clear()
     }
-
 
     private fun executeProjectCommands(answer: String, project: BridgeProject, conversation: BridgeConversation) {
         val blocks = BridgeRequest.extractAll(answer)
@@ -1388,7 +1348,7 @@ class V021Activity : Activity() {
                 val lockStore = ConstructionLockStore(this)
                 val lock = lockStore.acquire(project, memberId)
                 val token = GitHubTokenStore(this).state().accessToken?.takeIf { it.isNotBlank() } ?: error("GitHub 尚未授权")
-                val service = GitHubWorkspaceService(this, GitHubApiClient(this, token), project.github, project)
+                val service = ProjectGitHubService(this, GitHubApiClient(this, token), project.githubAddress, project)
                 var lastCommit = ""
                 for (command in commands) {
                     when (command) {
@@ -1428,7 +1388,7 @@ class V021Activity : Activity() {
         return true
     }
     private fun dispatchProjectCommand(command: String, project: BridgeProject, conversation: BridgeConversation) {
-        val root = project.workspaceDirectory?.trim().orEmpty()
+        val root = project.localAddress?.trim().orEmpty()
         if (root.isBlank()) {
             addProjectReceipt(conversation, "FAILED", "AI command", "当前 Project 未设置 Local Project Address，指令未执行。")
             return
@@ -1442,7 +1402,6 @@ class V021Activity : Activity() {
             .putExtra("bridgefs_root", root)
             .putExtra("projectId", project.id)
             .putExtra("conversationId", conversation.id)
-            .putExtra("workspaceId", project.id)
         runCatching { startForegroundService(intent) }.onFailure {
             addProjectReceipt(conversation, "FAILED", "AI command", "启动 BridgeFS 执行服务失败：" + (it.message ?: "未知错误"))
         }
@@ -1641,8 +1600,8 @@ class V021Activity : Activity() {
     }
 
     private fun dispatchToBridge(command: String, conversation: BridgeConversation) {
-        val workspace = project
-        val root = workspace?.workspaceDirectory.orEmpty().trim()
+        val currentProject = project
+        val root = currentProject?.localAddress.orEmpty().trim()
         if (root.isBlank()) {
             recordReceipt(conversation, "FAILED", "AI command", "当前 Project 未设置 Local Project Address，指令未执行。")
             return
@@ -1653,7 +1612,6 @@ class V021Activity : Activity() {
             .putExtra("bridgefs_root", root)
             .putExtra("projectId", null as String?)
             .putExtra("conversationId", null as String?)
-            .putExtra("workspaceId", workspace?.id)
             .putExtra("standaloneConversationId", conversation.id)
 
         runCatching { startForegroundService(intent) }.onFailure {
