@@ -12,7 +12,9 @@ A-BridgeFS 当前作为 **AI 协作移动端工作台 + 本地执行桥** 进行
 
 核心模型：
 
-**两个 AI 共享读取能力；施工权限独立管理，同一 Repository / Branch 同时最多一个 AI 持有修改权。**
+**AI 对话共享 GitHub 读取能力；施工权限独立管理，同一 Repository / Branch 同时最多一个 AI 持有修改权。**
+
+这里的“AI 对话”包含普通「对话」页和 Workspace 协作对话。普通对话读取 GitHub 不需要 ConstructionLock；ConstructionLock 只控制真实修改 / Commit。
 
 当前正式架构不设固定 Decision AI / Worker AI 身份。PLANNER / BUILDER / REVIEWER / OBSERVER 是动态任务阶段角色；旧 Decision / Worker 仅作为历史代码协议兼容术语，正在移除。
 
@@ -24,6 +26,7 @@ A-BridgeFS 当前作为 **AI 协作移动端工作台 + 本地执行桥** 进行
 | API / 对话 | 已实现 / 待统一验证 | API 可配置、可聊天；Chat → API 持久绑定已实现 |
 | 本地指令 / BridgeFS | 已实现 | 保留真实本地执行能力 |
 | GitHub 连接基础 | 已实现 / 待真机验证 | PAT、Keystore、账号、Repository、Branch 基础能力已落地 |
+| 普通对话 → GitHub 读取 | **阻塞 / 待施工** | 普通对话 API 链目前未完整接入 GitHub Repository / 文件读取；这是当前最高优先级之一 |
 | 工作区 | 开发中 | Workspace → Conversations 数据结构与基础 UI 已落地；本地修改权限已进入 PermissionPolicy / FileBridgeService；仍需真机验证与清理兼容 facade |
 | 双 AI 协作协议 | 已确认设计 / 尚未完整实现 | 共享读取、施工权独占且可转移 |
 | 协作消息 | 开发中 | 聊天消息已开始保存并展示实际使用 API 的名称与头像；仍待构建/真机验证，协作链仍偏旧单轮实现 |
@@ -110,12 +113,13 @@ Workspace + Repository + Branch
 
 ## 当前施工优先级
 
-1. 完成 Workspace / Conversation UI 真机验证，并继续清理兼容 facade。
-2. 修复聊天消息 API 身份显示：消息保存实际使用的 API 名称与头像（Issue #30）。
+1. **打通普通对话 → GitHub 只读链路，并进行真机验证。**
+2. 完成 Workspace / Conversation UI 真机验证，并继续清理兼容 facade。
+3. 修复聊天消息 API 身份显示：消息保存实际使用的 API 名称与头像（Issue #30）。
 3. 把工作区 / Conversation 权限真正接入 PermissionPolicy。
 4. 把 API Profile 与 AI 成员、实际权限边界分离清楚。
 5. 统一 Receipt 状态链。
-6. 完成 Repository / Branch 施工锁与 AI 施工流程接入。
+6. 完成 Repository / Branch 施工锁与 AI 施工流程接入（普通读取链路完成后再继续修改链）。
 7. 把 Worker 文件修改结果安全映射到真实 GitHub 写入 → Commit → Verify。
 8. 完成新的 Actions / APK / 真机验证。
 9. 实现双 AI 连续协作循环。
@@ -442,3 +446,36 @@ Workspace + Repository + Branch
 - 已将施工权入口改为用户选择：双 AI 均可成为当前阶段 BUILDER。
 - 用户选择施工 AI 后，系统获取或转移当前 Workspace + Repository + Branch 的 ConstructionLock。
 - 施工权与 API Profile、AI A / AI B 固定身份分离；未选择施工 AI 时保持等待施工状态。
+
+
+## 2026-10-04 当前问题重新归集
+
+### P0：普通对话 GitHub 读取链
+
+当前最直接的功能断点不是 GitHub 写入，而是：普通对话选择 API 后，AI 仍主要只经过 `BridgeApiClient`，没有稳定获得当前 GitHub Repository / Branch / 文件读取能力。
+
+目标：
+
+普通对话 → API → GitHub 全局访问 / 授权 → Repository / Branch → 文件读取 → AI
+
+本阶段只做读取，不做修改、不做 Commit、不改变 ConstructionLock。
+
+### P1：双 AI 协作运行时简化
+
+代码仍存在旧 `DECISION_AI / WORKER`、固定 A→B 路由和严格 CollaborationProtocol JSON 输出要求。它们属于迁移残留，不再扩展。
+
+尤其是 AI 输出强制协议 JSON 已出现真实失败：`No value for id`。正确方向不是继续给 AI 输出补字段，而是降低普通对话对内部协议 JSON 的依赖。
+
+### P2：现有 UI / 业务闭环
+
+Workspace、Conversation、API、GitHub、Receipt、权限等底层能力仍需逐项确认 UI 入口 → 业务调用 → 状态保存 → 状态回写 → 真机验证。
+
+### 本阶段施工顺序
+
+1. 普通对话 GitHub 读取；
+2. 构建 / 真机确认读取链；
+3. 清理旧 Decision / Worker 固定路由与严格 AI JSON 依赖；
+4. 再继续 GitHub 修改 / Commit / Verify；
+5. 最后补双 AI 连续协作闭环。
+
+**不要把 GitHub 修改链与本阶段的普通读取问题混在一起。**
