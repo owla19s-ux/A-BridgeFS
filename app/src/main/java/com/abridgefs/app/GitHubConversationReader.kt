@@ -75,7 +75,7 @@ class GitHubConversationReader(private val context: Context) {
                     requested = true,
                     repository = repository,
                     branch = branch,
-                    error = "读取 GitHub 文件失败：$path\n\${e.message ?: "未知错误"}"
+                    error = "读取 GitHub 文件失败：$path\n${e.message ?: "未知错误"}"
                 )
             }
 
