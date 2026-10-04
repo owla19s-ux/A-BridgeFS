@@ -114,14 +114,14 @@ jobs:
           APK="app/build/outputs/apk/release/app-release.apk"
           test -s "$APK"
           mkdir -p release
-          cp "$APK" release/A-BridgeFS.apk
-          test -s release/A-BridgeFS.apk
+          cp "$APK" release/APS.apk
+          test -s release/APS.apk
 
       - name: Upload canonical APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: A-BridgeFS-${{ github.sha }}
-          path: release/A-BridgeFS.apk
+          name: APS-${{ github.sha }}
+          path: release/APS.apk
           if-no-files-found: error
 
       - name: Publish latest Release
@@ -133,7 +133,7 @@ jobs:
           set -euo pipefail
           gh release delete latest --cleanup-tag --yes || true
           gh release create latest \
-            release/A-BridgeFS.apk \
+            release/APS.apk \
             --target "$GITHUB_SHA" \
-            --title "A-BridgeFS latest" \
+            --title "APS latest" \
             --notes "Automatically published from commit $GITHUB_SHA."
