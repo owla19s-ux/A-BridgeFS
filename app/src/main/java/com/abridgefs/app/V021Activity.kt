@@ -1259,83 +1259,47 @@ class V021Activity : Activity() {
         val text = input.text.toString().trim()
         if (text.isBlank()) return
         val current = project ?: return
-        if (!AccessPolicy.isApiEnabled(this)) {
-            Toast.makeText(this, "API 全局访问已关闭", Toast.LENGTH_SHORT).show()
-            return
-        }
-        val member = current.defaultMemberId?.let { id -> current.aiMembers.firstOrNull { it.id == id } }
-            ?: current.aiMembers.firstOrNull()
-        val profileId = member?.apiProfileId
-        val profile = profileId?.let { id -> apis().firstOrNull { it.id == id } }
-        if (profile == null) {
-            Toast.makeText(this, "当前 Project 尚未配置默认 AI", Toast.LENGTH_SHORT).show()
-            return
-        }
 
         conversation.messages += BridgeChatMessage("user", text)
         store.save(projects)
         render()
+
         executor.execute {
-            try {
-                val address = current.workspaceDirectory?.trim().orEmpty()
-                val githubRepository = current.github.repository?.trim().orEmpty()
-                val branch = current.github.branch?.trim().orEmpty()
-                val projectInfo = buildString {
-                    append("当前 Project：").append(current.name)
-                    if (address.isNotBlank()) append("\nLocal Project Address：").append(address)
-                    if (githubRepository.isNotBlank()) {
-                        append("\nGitHub Repository：").append(githubRepository)
-                        if (branch.isNotBlank()) append("\nGitHub Branch：").append(branch)
-                    }
-                }
-                val githubRead = GitHubConversationReader(this).readForProject(current, text)
-                if (githubRead.error != null) {
-                    runOnUiThread {
-                        conversation.messages += BridgeChatMessage("tool", "[GitHub 错误]\n" + githubRead.error)
-                        store.save(projects)
-                        render()
-                    }
-                    return@execute
-                }
-                val githubPrompt = if (githubRead.content.isNotBlank()) {
-                    "\n\n[Project GitHub 只读资料]\nRepository: " + githubRead.repository +
-                        "\nBranch: " + (githubRead.branch ?: "默认分支") +
-                        "\n以下内容来自当前 Project Address，仅用于本轮回答；不要执行任何修改操作。\n\n" + githubRead.content
-                } else ""
-                val answer = BridgeApiClient(
-                    BridgeApiConfig(normalizeBaseUrl(profile.baseUrl), profile.key, profile.model)
-                ).chat(
-                    conversation.messages,
-                    BridgeCommandSpec.aiSystemPrompt(prefs.getInt("command_limit", 3).coerceIn(1, 20)) +
-                        "\n\n[Project 信息]\n" + projectInfo +
-                        githubPrompt +
-                        "\n你是当前 Project 的默认 AI。先直接回答用户问题；只有用户明确要求执行工作时，才进入后续工作流程。不要自动启动其他 AI 协作，也不要恢复已经废弃的固定阶段角色模型。"
-                )
-                runOnUiThread {
+            val result = ProjectConversationService(this).send(current, conversation, text)
+            runOnUiThread {
+                if (result.error != null) {
                     conversation.messages += BridgeChatMessage(
-                        "assistant",
-                        answer,
-                        apiId = profile.id,
-                        apiName = profile.name.ifBlank { "默认 AI" },
-                        apiAvatar = profile.avatar.ifBlank { profile.name.trim().take(1).ifBlank { "AI" } }
+                        if (result.isGithubReadError) "tool" else "tool",
+                        result.error
                     )
                     store.save(projects)
                     render()
-                    if (!executeProjectGitHubCommands(answer, current, conversation)) {
-                        executeProjectCommands(answer, current, conversation)
-                    }
+                    return@runOnUiThread
                 }
-            } catch (e: Exception) {
-                runOnUiThread {
-                    conversation.messages += BridgeChatMessage("tool", "[API 错误]\n" + (e.message ?: "未知错误"))
-                    store.save(projects)
-                    render()
+
+                val profileId = current.defaultMemberId
+                    ?.let { id -> current.aiMembers.firstOrNull { it.id == id }?.apiProfileId }
+                val profile = profileId?.let { id -> apiProfiles.find(id) }
+
+                conversation.messages += BridgeChatMessage(
+                    "assistant",
+                    result.answer.orEmpty(),
+                    apiId = profile?.id,
+                    apiName = profile?.name?.ifBlank { "默认 AI" },
+                    apiAvatar = profile?.avatar?.ifBlank {
+                        profile.name.trim().take(1).ifBlank { "AI" }
+                    }
+                )
+                store.save(projects)
+                render()
+
+                if (!executeProjectGitHubCommands(result.answer.orEmpty(), current, conversation)) {
+                    executeProjectCommands(result.answer.orEmpty(), current, conversation)
                 }
             }
         }
         input.text.clear()
     }
-
 
     private fun executeProjectCommands(answer: String, project: BridgeProject, conversation: BridgeConversation) {
         val blocks = BridgeRequest.extractAll(answer)
