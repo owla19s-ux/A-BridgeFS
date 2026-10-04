@@ -202,7 +202,7 @@ Workspace + Repository + Branch
 
 - V021 工作区页此前只有“选择两个协作 AI / 启用 AI 协作”，没有任务状态、施工锁、Verify 的用户入口。
 - 本轮已新增“协作任务”卡片：按当前 Workspace + Conversation 展示最新 Task、状态、Commit、施工者。
-- WAITING_CONSTRUCTION 时提供“AI A 申请施工锁”入口，实际调用 CollaborationCoordinator.requestConstruction()。
+- WAITING_CONSTRUCTION / CONSTRUCTING 时由用户选择或切换施工 AI，实际调用 CollaborationCoordinator.selectConstructionHolder()，并通过 ConstructionLockStore 获取/转移 Repository / Branch 施工权。
 - WAITING_VERIFY 时提供“检查当前 Commit”入口，实际调用 CollaborationCoordinator.verifyTask()。
 - ⚠️ 当前仍有一个关键断点：`CollaborationCoordinator.updateFile()` 虽已具备真实 GitHub Contents 写入能力，但 `runObjective()` 当前 Worker 提示词仍明确禁止直接修改 GitHub，协议运行链也没有把 Worker 的文件修改结果映射到 `updateFile()`；因此“AI 自主施工 → Commit”目前仍不可达。该问题现列为下一施工节点。
 - 该断点属于 GitHub 实际写入链继续施工范围，不将本轮 UI 补口误标为完整施工链或已验证。
@@ -435,3 +435,10 @@ Workspace + Repository + Branch
 - 本轮已合并 Receipt 幂等、目标 Workspace 路由、Standalone 对话路由、聊天 UI 批量反馈等修复。
 - API 消息身份的数据保存与 V021 消息展示代码均已存在：AI 消息按发送时保存的 API 名称 / 头像展示；但尚无该 main Commit 对应的正式 Release Actions Run，因此仍只能标记为“代码已实现 / 待构建验证”。
 - 下一步按 `docs/BUILD-PRECHECK.md` 触发正式 `android-build.yml`，优先获得当前 main 的 Release APK / 签名 / Actions 事实，再进行真机回归。
+
+
+### 2026-10-04 用户施工权选择
+
+- 已将施工权入口改为用户选择：双 AI 均可成为当前阶段 BUILDER。
+- 用户选择施工 AI 后，系统获取或转移当前 Workspace + Repository + Branch 的 ConstructionLock。
+- 施工权与 API Profile、AI A / AI B 固定身份分离；未选择施工 AI 时保持等待施工状态。
