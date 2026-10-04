@@ -23,7 +23,8 @@ class ApsActivity : Activity() {
     private var externalAccess = false
     private val pendingTaskMentions = linkedSetOf<String>()
     private var projectInput: EditText? = null
-    private var conversationGroup = "新会话 1"
+    private var conversationGroup = "默认分组"
+    private var currentConversation = "新会话 1"
     private var selectedApi = "未绑定"
     private val apiProfiles = listOf("未绑定", "API Profile（示例）", "API Profile 2（示例）")
     private var apiSelectorOpen = false
@@ -188,8 +189,8 @@ GitHub：未设置"
         if (conversationManagementOpen) {
             content.addView(card().apply {
                 addView(label("当前会话"))
-                addView(value(conversationGroup))
-                addView(label("分组"))
+                addView(value(currentConversation))
+                addView(label("当前分组"))
                 val groupRow = LinearLayout(this@ApsActivity).apply {
                     orientation = LinearLayout.HORIZONTAL
                     gravity = Gravity.CENTER_VERTICAL
@@ -201,7 +202,7 @@ GitHub：未设置"
                     setOnClickListener {
                         val next = "分组 " + (conversationGroupNames.size + 1)
                         conversationGroupNames.add(next)
-                        conversationGroup = next
+                        currentConversation = next
                         render()
                     }
                 }, LinearLayout.LayoutParams(dp(94), dp(44)))
@@ -222,8 +223,8 @@ GitHub：未设置"
                     text = "删除当前"
                     setOnClickListener {
                         if (conversationNames.size > 1) {
-                            conversationNames.remove(conversationGroup)
-                            conversationGroup = conversationNames.first()
+                            conversationNames.remove(currentConversation)
+                            currentConversation = conversationNames.first()
                             render()
                         } else {
                             toast("默认会话不能删除")
