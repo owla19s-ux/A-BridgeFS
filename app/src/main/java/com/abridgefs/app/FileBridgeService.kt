@@ -116,7 +116,7 @@ Triple("FAILED",text,"执行异常："+(e.message ?: "未知错误"))
 }
 }
 
-private fun broadcastReceipt(status:String,command:String,message:String,projectId:String?,conversationId:String?,standaloneConversationId:String?){
+private fun broadcastReceipt(status:String,command:String,message:String){\nbroadcastReceipt(status,command,message,null,null,null)\n}\n\nprivate fun broadcastReceipt(status:String,command:String,message:String,projectId:String?,conversationId:String?,standaloneConversationId:String?){
 val now=System.currentTimeMillis()
 val pending=org.json.JSONObject()
     .put("receiptId",java.util.UUID.randomUUID().toString())
@@ -302,7 +302,7 @@ val cs=CommandParser.parse(raw)
 if(cs.isEmpty()){
     val message=CommandParser.lastError ?: "未发现可执行指令"
     findReceipt(box)?.let{it.text=message;it.setTextColor(Color.DKGRAY)}
-    broadcastReceipt("FAILED",raw,message,null,null,null)
+    broadcastReceipt("FAILED",raw,message)
 }else if(CommandParser.lastError!=null){
     val message=CommandParser.lastError!!
     findReceipt(box)?.let{it.text=message;it.setTextColor(Color.DKGRAY)}
@@ -318,7 +318,7 @@ if(cs.isEmpty()){
             runButton?.isEnabled=true
             log("Command","执行 "+cs.size+" 条指令："+if(status=="SUCCEEDED")"成功" else "失败")
         }
-        broadcastReceipt(status,cs.joinToString(" | "){it.toString()},message,null,null,null)
+        broadcastReceipt(status,cs.joinToString(" | "){it.toString()},message)
     }
 }
 }
