@@ -1,169 +1,116 @@
 # UI / Code 总体审查记录
 
-> 2026-10-04 第一轮总体代码与 UI 审查。
+> 2026-10-04 UI / Code 审查更新。
 
-## 结论
+## 当前结论
 
-A-BridgeFS 已具备较完整底层能力，当前主要问题已从“有没有功能”转为：**底层功能、协作运行时、UI 入口与用户可见状态尚未完全形成闭环。**
+A-BridgeFS 的 UI 正在从旧的“工作区配置集合”收口到 **Project 页面**。
 
-审查主线：
+当前正式 UI 设计已经确认：
 
-`UI → 业务状态 → Store / Service → 实际执行 → 状态回写 → UI`
+- Project 是核心页面；
+- Project Conversation 是主要内容；
+- Project 配置独立展开 / 收起；
+- 底部 ↑ / ↓ 只改变屏幕显示区域；
+- ↑ / ↓ 不控制 Project 配置展开状态；
+- 独立「对话」保持独立；
+- 「配置」负责全局资源。
 
-## 当前 UI
+因此，旧审查中的“工作区配置集合化”不再是未来设计方向，而应视为待清理的旧 UI 实现。
 
-主要新 UI 入口为 `V021Activity`，底部导航为：
+## 正式 UI 结构
 
-- 工作区
+项目页面：
+
+- 项目主要对话 ★
+- ↑ / ↓ 屏幕显示切换
+- 项目配置（独立展开 / 收起）
+
+底部一级导航：
+
+- 项目
 - 对话
 - 配置
 
-工作区当前包含：当前工作区、GitHub、AI 协作、协作任务、工作区目录、本地文件权限、API 概览。
+GitHub 不作为一级页面。
 
-对话包含独立对话与工作区对话。
+## Project 页面审查原则
 
-配置由多个 Activity / 页面承担，包括 API、GitHub、全局访问及其他设置。
+### 1. 对话优先
 
-### 结构风险
+Project 页面首先解决：
 
-`V021Activity.kt` 体量已经很大，页面、交互、状态恢复、消息发送、执行回执、协作任务及多种配置入口集中在同一个 Activity 中。暂不因此立即重构，但这是后续出现“功能存在、UI 没接通或状态没回显”的高风险来源。
+“我现在在什么项目里，以及我能不能直接问这个项目。”
 
-## 已发现问题
+不要把 GitHub、API、权限、目录、任务、Verify 等内部状态全部做成首页卡片。
 
-### 1. UI 与业务功能必须逐项核对
+### 2. 显示切换与配置展开必须解耦
 
-不能仅依据代码中存在某个 Service / Store 判断功能已经可用。每个 UI 功能都需要确认：
+底部 ↑ / ↓：
 
-1. UI 是否有入口；
-2. 入口是否调用正确业务方法；
-3. 业务方法是否真正改变状态；
-4. 状态是否持久化；
-5. 状态是否能重新读取；
-6. UI 是否能回显；
-7. 是否存在错误、等待、成功状态；
-8. 是否能够实际测试。
+- 只改变当前屏幕内容的显示区域；
+- 不改变 Project 配置的展开状态。
 
-### 2. 普通对话 GitHub 读取链未打通
+Project 配置：
 
-当前普通对话选择 API 后，主要进入 `BridgeApiClient` 的 API 对话链；GitHub 配置则主要挂在 Workspace / `GitHubWorkspaceService`。两条链目前没有形成“普通对话可读取 GitHub”的完整连接。
+- 自己点击展开；
+- 自己点击收起；
+- 不受 ↑ / ↓ 联动。
 
-因此当前存在一个明确的功能断点：
+### 3. 配置集合不等于主工作区
 
-普通对话 → API → X → GitHub Repository / 文件读取
+Project 配置属于项目设置，不等于 Project 的主要工作内容。
 
-这不是“工作区 GitHub 功能缺失”，而是**普通对话读取能力没有接入 GitHub 资源**。
+### 4. UI 不提前暴露内部复杂性
 
-第一阶段只补读取：
-- 不增加 GitHub Agent；
-- 不把普通对话变成施工模式；
-- 不开放修改；
-- 只让普通对话能够确认并读取真实 GitHub 仓库。
+用户需要看到的是项目、对话、AI、必要的状态与操作。
 
-### 3. 协作运行时仍有旧模型残留
+内部的 Store、Service、ConstructionLock、Verify Run、Receipt、API Profile 关系，只有在确实需要用户理解或操作时才进入 UI。
 
-正式架构已经取消固定 Decision AI / Worker AI。
+## 当前代码核对重点
 
-正式模型：
+源码中仍存在历史 Workspace 命名和旧卡片式页面结构，包括：
 
-```text
-AI A / AI B
-  ↓
-共享读取 / 分析 / 沟通
-  ↓
-任务 + 动态阶段角色
-  ↓
-当前需要施工的一方取得 ConstructionLock
-  ↓
-BUILDER：调查 → 修改 → 测试 → Commit
-  ↓
-WAITING_VERIFY
-  ↓
-GitHub Actions
-  ↓
-Verify
-  ↓
-释放 / 转移 ConstructionLock
-  ↓
-继续协作
-```
+- workspace selector
+- workspace card
+- workspace directory
+- API summary
+- 旧协作入口残留
 
-代码中仍存在 `DECISION_AI / WORKER`、旧提示词及固定路由方法。这些只能作为迁移残留，不得作为新功能设计基础。
+这些不能继续作为 Project UI 的正式设计依据。
 
-### 4. ConstructionLock / GitHub / Verify 底层方向正确
+下一轮代码施工应以正式 Project UI 文档为准，而不是继续给旧 Workspace 页面增加功能。
 
-目前确认：
+## 独立「对话」
 
-- ConstructionLock 按 Workspace + Repository + Branch 管理；
-- holder 是 AI Member，而不是 API Profile；
-- GitHub 写入要求 AI Member 持有施工权；
-- Commit 后进入 WAITING_VERIFY；
-- Verify 按精确 Commit SHA 查找正式 Android Build and Release workflow；
-- Verify 成功后释放实际 ConstructionLock。
+独立「对话」不需要重新设计成 Project 页面。
 
-这些是当前应保留的底层基础，不因 UI 整理重新设计。
+保持：
 
-### 5. 工作区页面存在“配置集合化”倾向
+- API 选择
+- 消息输入 / 回复
+- 历史持久化
+- 必要的读取 / 分析能力
 
-当前工作区同时展示 GitHub、AI 协作、任务、目录、权限、API 等多个卡片，更像配置总表而不是工作台。
+主要问题属于 UI 接通、显示和可用性检查。
 
-后续方向可考虑：
+## 验收
 
-```text
-工作区
-├─ 当前工作状态
-├─ AI 协作状态
-├─ 当前任务
-├─ 当前施工权
-├─ Verify 状态
-└─ 最近回执
+UI 功能必须形成：
 
-配置
-├─ AI / API
-├─ GitHub
-├─ 权限
-└─ BridgeFS
-```
+UI 入口 → 用户操作 → 业务状态 → 持久化 → 重新进入 / 恢复 → 真实功能 → UI 状态回显 → APK / 真机验证
 
-本轮不直接改 UI。
+“代码存在”或“UI 有按钮”都不能单独视为完成。
 
-### 6. Activity / 版本遗留需要继续核对
-
-当前代码同时存在 `MainActivity`、`V021Activity`、`GitHubActivity`、`ApiSettingsActivity`、`GlobalAccessActivity`、`SettingsCategoryActivity`。目前新 UI 主体明显集中在 `V021Activity`，需要继续确认其他页面哪些仍为正式入口、哪些属于历史/过渡代码。
-
-## 当前状态
+## 状态
 
 | 范围 | 状态 |
 |---|---|
-| 底层 API / Store | 已实现 |
-| GitHub Workspace | 已实现 |
-| ConstructionLock | 已实现 |
-| Commit / Verify | 已实现 |
-| 工作区 UI | 开发中 |
-| 对话 UI | 开发中 |
+| Project UI 设计 | 已确认 |
+| Project UI 文档 | 已更新 |
+| Project UI 代码 | 开发中 |
+| 独立「对话」架构 | 已确认 |
+| 独立「对话」UI | 开发中 |
 | 配置 UI | 开发中 |
-| 普通对话 → GitHub 读取 | 阻塞 / 待施工 | 当前普通对话 API 链尚未接入 GitHub 读取 |
-| UI ↔ 业务闭环 | 开发中，当前主要审查目标 |
-| 旧 Decision / Worker 路由 | 迁移中，不得继续扩展 |
-| UI 架构整理 | 已设计未施工 |
-
-## 下一轮审查
-
-不直接施工，按真实使用链路逐项检查：
-
-- 工作区：创建/切换 → 持久化 → 当前状态 → GitHub → 目录 → 权限
-- 对话：选择 AI/API → 输入 → 发送 → 请求 → 回复 → 持久化 → 回显
-- 普通对话 GitHub：API → GitHub 授权 → Repository / Branch → 文件读取 → AI 回答
-- 双 AI：两个 AI → 共享工作区 → 任务 → 动态角色 → ConstructionLock → 施工
-- GitHub：文件变更意图 → FILE_CHANGE_REQUEST → 权限 → Lock → updateFile → Commit
-- Verify：Commit → WAITING_VERIFY → Actions → 精确 SHA → PASS/FAIL → Lock 释放 → 状态回写
-- 回执：执行结果 → Receipt → Conversation / Workspace → UI 回显 → 可复制
-- 配置：API、GitHub、全局访问、权限、本地 BridgeFS 等逐项核对真实连接
-
-## 审查原则
-
-- 先查，不急着改；
-- 不以“代码存在”作为“功能完成”的依据；
-- 不重新设计已经正确的 ConstructionLock / Commit / Verify 基础；
-- 不再使用固定 Decision AI / Worker AI 作为新功能模型；
-- UI 必须与实际业务状态对应；
-- 功能完成必须能从 UI 进入、执行、看到结果并实际测试。
+| 旧 Workspace UI 清理 | 待施工 |
+| UI ↔ 业务闭环 | 开发中 |
