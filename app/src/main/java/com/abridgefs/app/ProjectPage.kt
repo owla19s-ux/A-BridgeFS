@@ -6,6 +6,10 @@ import android.widget.*
 import android.view.*
 import android.view.inputmethod.InputMethodManager
 import android.app.AlertDialog
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 
@@ -15,6 +19,7 @@ internal fun ApsActivity.projectPage() {
             setPadding(dp(14), dp(10), dp(14), dp(8))
         }
         val project = currentProject
+        val conversation = project?.activeConversation()
         content.addView(title(project?.name ?: "默认项目"))
         content.addView(TextView(this).apply {
             text = "Project Address\nLocal：${project?.localAddress ?: "未设置"}\nGitHub：${project?.githubAddress?.repository ?: "未设置"}"
@@ -130,13 +135,19 @@ internal fun ApsActivity.projectPage() {
         }, LinearLayout.LayoutParams(-1, dp(52)).apply { topMargin = dp(8) })
         if (displayOpen && projectChatOpen) {
             content.addView(card().apply {
-                addView(value("这里是项目历史对话区域。当前为 UI 壳，尚未连接真实消息数据。"))
+                if (conversation?.messages.isNullOrEmpty()) {
+                    addView(value("当前还没有项目对话。"))
+                } else {
+                    conversation?.messages?.takeLast(8)?.forEach { message ->
+                        addView(messageBubble(if (message.role == "user") "你" else "AI", message.content))
+                    }
+                }
             })
         }
         if (displayOpen) {
             content.addView(Button(this).apply {
                 text = "Request AI Assistance"
-                setOnClickListener { toast("协助链将在 Project UI 壳稳定后接入") }
+                setOnClickListener { toast("协助链将在项目对话闭环后接入") }
             }, LinearLayout.LayoutParams(-1, dp(44)).apply { topMargin = dp(8) })
         }
         host.addView(ScrollView(this).apply {
