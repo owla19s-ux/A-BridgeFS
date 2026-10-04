@@ -38,3 +38,49 @@ A-177 仍可作为真实施工实验项目，但它不是系统架构中的固�
 先完成设计文档统一，再按统一架构施工。
 
 不要先按旧 Decision AI / Worker 模型继续扩展代码。
+
+
+## 2026-10-04 — 协作架构术语再次校正
+
+### 已确认
+
+上一轮施工记录中仍使用了“Decision AI → Worker AI → Verify → Decision AI”的固定循环描述。该描述属于旧实现模型，**不再代表当前正式架构**。
+
+当前正式模型：
+
+```text
+AI A / AI B
+  ↓
+共享读取 / 分析 / 沟通
+  ↓
+形成任务与阶段角色
+  ↓
+当前需要施工的一方取得 ConstructionLock
+  ↓
+BUILDER：调查 → 修改 → 测试 → Commit
+  ↓
+WAITING_VERIFY
+  ↓
+GitHub Actions / Check Run
+  ↓
+真实 Verify
+  ↓
+释放 / 转移施工权
+  ↓
+AI A / AI B 继续协作
+```
+
+### 术语边界
+
+- 不存在固定的 Decision AI。
+- 不存在固定的 Worker AI。
+- PLANNER / BUILDER / REVIEWER / OBSERVER 是任务阶段角色。
+- 同一个 AI 可以在不同阶段承担不同角色。
+- `ConstructionLock` 决定当前哪个 AI 可以对指定 Workspace + Repository + Branch 施工。
+- `COMMIT → VERIFY`、Verify 后释放/转移施工权等底层机制继续保留。
+
+### 当前代码迁移状态
+
+代码中仍可发现 `DECISION_AI / WORKER`、旧提示词及固定路由方法；这些属于**旧实现残留 / 迁移对象**，不能继续作为新功能设计依据。
+
+后续施工必须以 `PROJECT/ARCHITECTURE/AI-COLLABORATION-V0.2.md` 为正式架构基线，先统一协作状态与角色模型，再继续补齐连续施工链。
