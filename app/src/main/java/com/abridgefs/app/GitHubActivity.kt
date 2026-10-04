@@ -63,8 +63,17 @@ class GitHubActivity : android.app.Activity() {
             setPadding(0, dp(4), 0, dp(16))
         })
 
+        root.addView(Switch(this).apply {
+            text = "允许 A-BridgeFS 访问 GitHub"
+            isChecked = AccessPolicy.isGithubEnabled(this@GitHubActivity)
+            setOnCheckedChangeListener { _, checked ->
+                AccessPolicy.setGithubEnabled(this@GitHubActivity, checked)
+                render()
+            }
+        })
+
         if (!AccessPolicy.isGithubEnabled(this)) {
-            root.addView(info("GitHub 全局访问已关闭", "请先在“配置 → 连接与访问”开启。"))
+            root.addView(info("GitHub 全局访问已关闭", "开启后才能连接账号、选择 Repository 和测试 API。"))
             return
         }
 
@@ -79,14 +88,6 @@ class GitHubActivity : android.app.Activity() {
         }
 
         root.addView(info("● 已连接", auth.login ?: "GitHub 账号"))
-        root.addView(Switch(this).apply {
-            text = "允许 A-BridgeFS 访问 GitHub"
-            isChecked = AccessPolicy.isGithubEnabled(this@GitHubActivity)
-            setOnCheckedChangeListener { _, checked ->
-                AccessPolicy.setGithubEnabled(this@GitHubActivity, checked)
-                render()
-            }
-        })
         root.addView(button("测试 GitHub API 连通性") {
             testGitHubApi()
         })
