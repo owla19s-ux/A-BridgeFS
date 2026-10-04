@@ -1402,6 +1402,7 @@ class V021Activity : Activity() {
                     continueProjectConstruction(project, conversation, conversation.executions.last())
                 }
             } catch (e: Exception) {
+                runCatching { lockStore.release(project, memberId) }
                 runOnUiThread { addProjectReceipt(conversation, "FAILED", "GitHub construction", e.message ?: "GitHub 施工失败") }
             }
         }
