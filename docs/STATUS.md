@@ -477,3 +477,10 @@ Workspace + Repository + Branch
 - 复查发现协作对话仍会把内部 `Decision AI / Worker` 角色名直接展示给用户；已改为统一显示为「AI / 协作 AI」，内部协议角色只保留在协议与系统提示中。
 - 本轮继续坚持：内部协作协议可以区分角色，但正式 UI 不暴露内部角色分类。
 - 当前状态：代码层继续收口，尚未构建/真机验证。
+
+
+## 2026-10-04 协作执行链第五轮检查
+- 发现并修复协作执行时序问题：Worker 产生 `FILE_CHANGE_REQUEST` 后，真实 GitHub Contents Commit 进入 `WAITING_VERIFY` 时，不再提前把 Commit 交给下一轮 Decision AI；必须先通过与该 Commit SHA 精确绑定的 GitHub Actions Verify。
+- `V021Activity` 已接入有界的异步 Verify/继续循环：协作页面发起一轮后，会等待 Verify，Verify 通过才继续下一轮 AI 协作；Verify 失败进入受施工锁保护的修复轮。
+- 协作页面不再无条件把存在 `WAITING_VERIFY` 的任务显示成“协作完成”，会按实际任务状态显示完成/失败/等待验证。
+- 当前协作链已形成：AI 协作入口 → 双 API Profile → 协议任务 → FILE_CHANGE_REQUEST → ConstructionLock → GitHub Contents Commit → 精确 Commit Verify → 下一轮 AI；仍需 Release 构建与真机验证。
