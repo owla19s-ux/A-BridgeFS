@@ -392,7 +392,7 @@ class V021Activity : Activity() {
         val configured = collaborationProfiles.first.isNotBlank() && collaborationProfiles.second.isNotBlank()
         box.addView(TextView(this).apply { text = "AI 协作"; textSize = 16f; typeface = Typeface.DEFAULT_BOLD })
         box.addView(TextView(this).apply {
-            text = "两个 AI 共享工作区资源；API 是连接资源，不再代表固定 Decision / Worker 身份。"
+            text = "两个 AI 共享工作区资源；具体协作过程由系统自动协调。"
             textSize = 13f
             setTextColor(color(R.color.bridgefs_text_secondary))
             setPadding(0, dp(4), 0, dp(8))
@@ -459,36 +459,6 @@ class V021Activity : Activity() {
         return box
     }
 
-    private fun localFilePermissionCard(): View {
-        val box = card()
-        val enabled = project?.localFileModifyEnabled ?: false
-
-        box.addView(TextView(this).apply {
-            text = "本地执行权限"
-            textSize = 16f
-            typeface = Typeface.DEFAULT_BOLD
-        })
-        box.addView(TextView(this).apply {
-            text = "控制当前工作区的 AI 是否可以执行需要修改本地文件的指令。"
-            textSize = 12f
-            setTextColor(color(R.color.bridgefs_text_secondary))
-            setPadding(0, dp(4), 0, dp(8))
-        })
-        box.addView(CheckBox(this).apply {
-            text = "允许当前工作区进行本地文件修改"
-            isChecked = enabled
-            setOnCheckedChangeListener { _, checked ->
-                project?.localFileModifyEnabled = checked
-                store.save(projects)
-            }
-        })
-        box.addView(TextView(this).apply {
-            text = if (enabled) "修改权限：已开启" else "修改权限：已关闭"
-            textSize = 12f
-            setTextColor(color(R.color.bridgefs_text_secondary))
-        })
-        return box
-    }
     private fun migrateLegacyWorkspaceDirectory() {
         val legacyRoot = prefs.getString("root_path", "").orEmpty().trim()
         if (legacyRoot.isBlank() || projects.any { !it.workspaceDirectory.isNullOrBlank() }) return
@@ -1051,50 +1021,6 @@ class V021Activity : Activity() {
         setTextColor(color(R.color.bridgefs_accent));setOnClickListener{action()}
     }
 
-    private fun editApi(old:ApiProfile?) {
-        val box=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(4),0,dp(4),0)}
-        val n=field("名称",old?.name)
-        val av=field("头像（文字 / Emoji）",old?.avatar)
-        val u=field("API 地址",old?.baseUrl)
-        val k=field("API Key",old?.key)
-        val m=field("模型",old?.model)
-        listOf(n,av,u,k,m).forEach{box.addView(it)}
-        AlertDialog.Builder(this).setTitle(if(old==null)"添加 API" else "修改 API").setView(box)
-            .setPositiveButton("保存"){_,_->
-                saveApi(ApiProfile(
-                    old?.id?:UUID.randomUUID().toString(),
-                    n.text.toString().trim(),
-                    u.text.toString().trim(),
-                    k.text.toString(),
-                    m.text.toString().trim(),
-                    av.text.toString().trim()
-                ))
-            }
-            .setNegativeButton("取消",null).show()
-    }
-
-    private fun removeApi(a:ApiProfile) {
-        AlertDialog.Builder(this).setTitle("移除 API").setMessage("确定移除「"+a.name+"」？")
-            .setPositiveButton("移除"){_,_->
-                projects.forEach { workspace ->
-                    workspace.conversations.forEach { conversation ->
-                        if (conversation.apiId == a.id) conversation.apiId = null
-                    }
-                    workspace.aiMembers.forEach { member ->
-                        if (member.apiProfileId == a.id) member.apiProfileId = null
-                    }
-                }
-                standaloneConversations.forEach { conversation ->
-                    if (conversation.apiId == a.id) conversation.apiId = null
-                }
-                apiProfiles.remove(a.id)
-                syncSelectedApi()
-                store.save(projects)
-                conversationStore.save(standaloneConversations)
-            }
-            .setNegativeButton("取消",null).show()
-    }
-
     private fun runCollaboration(current: BridgeProject, objective: String) {
         val workspaceId = current.id
         val conversationId = current.activeConversation().id
@@ -1321,7 +1247,7 @@ class V021Activity : Activity() {
             return
         }
         conversation.messages += BridgeChatMessage("user", text)
-        conversation.messages += BridgeChatMessage("tool", "[协作进行中]\nDecision AI 正在分析并生成任务，Worker 随后接收任务。")
+        conversation.messages += BridgeChatMessage("tool", "[协作进行中]\nAI 正在分析目标并协同处理，请等待本轮结果。")
         collaborationRunningConversationId = conversation.id
         store.save(projects)
         render()
@@ -1420,11 +1346,6 @@ class V021Activity : Activity() {
         setTextColor(color(R.color.bridgefs_text_primary))
         setHintTextColor(color(R.color.bridgefs_text_secondary))
     }
-    private fun saveApi(a:ApiProfile){
-        apiProfiles.save(a)
-        syncSelectedApi()
-    }
-
     private fun apis():List<ApiProfile> = apiProfiles.list()
 
     private fun syncSelectedApi(){
