@@ -1,6 +1,6 @@
 # Repository Guide
 
-A-BridgeFS 是 AI 协作与真实执行环境的 Android 落点。
+APS 是 AI 协作与真实执行环境的 Android 落点。
 
 **代码是实现事实；PROJECT 是正式项目资料；AI_WORKSPACE 是施工现场；GitHub 的 Commit / PR / Verify / Release 负责追踪工程事实。**
 
@@ -50,7 +50,7 @@ Project UI 以项目对话为主体。项目配置独立展开 / 收起。
 
 ## 当前实验边界
 
-A-BridgeFS
+APS
 → Project / Default AI
 → 按需 AI 协助
 → Project 权限 / 施工锁
