@@ -52,14 +52,14 @@ class GlobalAccessActivity : Activity() {
 
         box.addView(accessRow(
             "GitHub",
-            "允许 A-BridgeFS 使用 GitHub 连接。当前版本尚未接入 GitHub 登录，因此打开开关不会自动建立连接。",
+            "允许 A-BridgeFS 使用已连接的 GitHub。关闭后，普通对话和工作区都不会读取或修改 GitHub。",
             AccessPolicy.isGithubEnabled(this)
         ) { enabled ->
             AccessPolicy.setGithubEnabled(this, enabled)
         })
 
         box.addView(TextView(this).apply {
-            text = "规则：全局开关决定“能不能访问”；工作区后续决定当前使用哪个 Repository / Branch。"
+            text = "规则：全局开关只决定“能不能访问”。GitHub 账号连接、普通对话 Repository、工作区 Repository / Branch 分别独立管理。"
             textSize = 13f
             setTextColor(resources.getColor(R.color.bridgefs_text_secondary))
             setPadding(dp(4), dp(18), dp(4), dp(8))
@@ -117,8 +117,15 @@ class GlobalAccessActivity : Activity() {
     }
 
     private fun statusText() = TextView(this).apply {
-        text = "API：" + (if (AccessPolicy.isApiEnabled(this@GlobalAccessActivity)) "允许访问" else "已关闭") +
-            "\nGitHub：" + (if (AccessPolicy.isGithubEnabled(this@GlobalAccessActivity)) "允许访问" else "已关闭")
+        val apiEnabled = AccessPolicy.isApiEnabled(this@GlobalAccessActivity)
+        val githubEnabled = AccessPolicy.isGithubEnabled(this@GlobalAccessActivity)
+        val githubAuth = GitHubTokenStore(this@GlobalAccessActivity).state()
+        val githubConfig = GitHubConversationConfigStore(this@GlobalAccessActivity).state()
+        text = "API：" + (if (apiEnabled) "允许访问" else "已关闭") +
+            "\nGitHub：" + (if (githubEnabled) "允许访问" else "已关闭") +
+            "\nGitHub 账号：" + (if (!githubAuth.accessToken.isNullOrBlank()) "已连接" else "未连接") +
+            "\n普通对话 Repository：" + (githubConfig.repository ?: "未选择") +
+            "\n普通对话 Branch：" + (githubConfig.branch ?: "默认分支")
         textSize = 13f
         setTextColor(resources.getColor(R.color.bridgefs_text_primary))
         setPadding(dp(12), dp(12), dp(12), dp(12))
