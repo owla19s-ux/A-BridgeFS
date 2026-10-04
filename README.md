@@ -191,7 +191,8 @@ APS.apk
 
 - `AGENTS.md`：施工、验证与 AI 协作规则
 - `PROJECT/ARCHITECTURE/`：当前正式架构
-- `PROJECT/SPEC/`：正式项目规格
+- `PROJECT/SPEC/`：正式产品需求与行为规范
+  - `PROJECT/SPEC/APS-PRODUCT-SPEC.md`：当前唯一正式规格主文件
 - `PROJECT/UI/`：正式 UI 资料
 - `PROJECT/STATUS/`：当前状态与审计快照
 - `docs/CURRENT-TASKS.md`：当前任务与架构审查范围
