@@ -22,6 +22,8 @@ class ApsActivity : Activity() {
     private var projectInput: EditText? = null
     private var conversationGroup = "默认分组"
     private var selectedApi = "未绑定"
+    private val apiProfiles = listOf("未绑定", "API Profile（示例）", "API Profile 2（示例）")
+    private var apiSelectorOpen = false
     private var conversationManagementOpen = false
     private var projectAccessOpen = false
     private val conversationGroups = linkedSetOf("默认分组")
@@ -227,17 +229,30 @@ GitHub：未设置"
             }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
         }
 
-        content.addView(card().apply {
-            addView(label("API"))
-            addView(value("当前 API：$selectedApi"))
-            addView(Button(this@ApsActivity).apply {
-                text = "选择 API"
-                setOnClickListener {
-                    selectedApi = if (selectedApi == "未绑定") "API Profile（示例）" else "未绑定"
-                    render()
+        content.addView(section("API · $selectedApi", apiSelectorOpen) {
+            apiSelectorOpen = !apiSelectorOpen
+            render()
+        }, LinearLayout.LayoutParams(-1, dp(52)).apply { topMargin = dp(8) })
+
+        if (apiSelectorOpen) {
+            content.addView(card().apply {
+                addView(label("选择 API Profile"))
+                apiProfiles.forEach { profile ->
+                    addView(TextView(this@ApsActivity).apply {
+                        text = if (profile == selectedApi) "✓  $profile" else profile
+                        textSize = 13f
+                        setTextColor(c(if (profile == selectedApi) R.color.bridgefs_text_primary else R.color.bridgefs_text_secondary))
+                        gravity = Gravity.CENTER_VERTICAL
+                        setPadding(dp(8), 0, dp(8), 0)
+                        setOnClickListener {
+                            selectedApi = profile
+                            apiSelectorOpen = false
+                            render()
+                        }
+                    }, LinearLayout.LayoutParams(-1, dp(44)))
                 }
-            })
-        }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
+            }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
+        }
 
         content.addView(section("项目访问", projectAccessOpen) {
             projectAccessOpen = !projectAccessOpen
@@ -252,9 +267,9 @@ GitHub：未设置"
         }
 
         content.addView(card().apply {
-            addView(value("普通 AI 对话区域。"))
-            addView(value("可访问当前 Project 的授权资源。"))
-            addView(value("当前为 UI 壳。"))
+            addView(messageBubble("AI", "这里是普通 AI 对话区域。"))
+            addView(messageBubble("AI", "当前会话可以访问 Project 的授权资源。"))
+            addView(messageBubble("系统", "消息复制、真实历史记录将在接线阶段加入。"))
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
 
         host.addView(ScrollView(this).apply { addView(content) },
@@ -300,6 +315,32 @@ GitHub：未设置"
         host.addView(ScrollView(this).apply { addView(content) },
             LinearLayout.LayoutParams(-1, 0, 1f))
     }
+
+    private fun messageBubble(name: String, text: String) =
+        LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(10), dp(8), dp(10), dp(8))
+            background = round(c(R.color.bridgefs_surface), dp(12))
+            addView(TextView(this@ApsActivity).apply {
+                this.text = name
+                textSize = 11f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(c(R.color.bridgefs_text_secondary))
+            })
+            addView(TextView(this@ApsActivity).apply {
+                this.text = text
+                textSize = 13f
+                setTextColor(c(R.color.bridgefs_text_primary))
+                setPadding(0, dp(3), 0, 0)
+            })
+            addView(TextView(this@ApsActivity).apply {
+                text = "复制"
+                textSize = 11f
+                setTextColor(c(R.color.bridgefs_text_secondary))
+                setPadding(0, dp(5), 0, 0)
+                setOnClickListener { toast("复制将在消息接线阶段启用") }
+            })
+        }
 
     private fun inputBar(hint: String) {
         val bar = LinearLayout(this).apply {
