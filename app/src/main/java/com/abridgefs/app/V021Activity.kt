@@ -396,7 +396,7 @@ class V021Activity : Activity() {
         val configured = collaborationProfiles.first.isNotBlank() && collaborationProfiles.second.isNotBlank()
         box.addView(TextView(this).apply { text = "AI 协作"; textSize = 16f; typeface = Typeface.DEFAULT_BOLD })
         box.addView(TextView(this).apply {
-            text = "两个 AI 共享工作区资源；API 是连接资源，不再代表固定 Decision / Worker 身份。"
+            text = "两个 AI 共享工作区资源；API 是连接资源，不再代表固定 Decision / AI B 身份。"
             textSize = 13f
             setTextColor(color(R.color.bridgefs_text_secondary))
             setPadding(0, dp(4), 0, dp(8))
@@ -515,8 +515,8 @@ class V021Activity : Activity() {
                         )
                         val result = coordinator.retryAfterVerifyFailure(
                             task.taskId,
-                            "你是 Decision AI。上一 Commit 的 GitHub Actions Verify 已失败。请分析失败结果并给出下一步修复指令，不得直接宣布完成。",
-                            "你是 施工 AI。根据 Decision AI 的修复指令进行有限范围施工。"
+                            "你是 AI A。上一 Commit 的 GitHub Actions Verify 已失败。请分析失败结果并给出下一步修复指令，不得直接宣布完成。",
+                            "你是 施工 AI。根据 AI A 的修复指令进行有限范围施工。"
                         )
                         runOnUiThread {
                             Toast.makeText(this, result.message, Toast.LENGTH_LONG).show()
@@ -557,8 +557,8 @@ class V021Activity : Activity() {
                         )
                         val result = coordinator.verifyAndContinue(
                             task.taskId,
-                            "你是 Decision AI。只根据真实 Verify 结果决定是否完成任务或继续施工。",
-                            "你是 施工 AI。根据 Decision AI 的施工指令执行有限范围内的下一步。"
+                            "你是 AI A。只根据真实 Verify 结果决定是否完成任务或继续施工。",
+                            "你是 施工 AI。根据 AI A 的施工指令执行有限范围内的下一步。"
                         )
                         runOnUiThread {
                             Toast.makeText(this, result.message, Toast.LENGTH_LONG).show()
@@ -1364,7 +1364,7 @@ class V021Activity : Activity() {
                     val progressIndex = target.messages.indexOfLast { it.role == "tool" && it.content.startsWith("[协作进行中]") }
                     if (progressIndex >= 0) {
                         target.messages.removeAt(progressIndex)
-                        target.messages.add(progressIndex, BridgeChatMessage("tool", "[协作完成]\nDecision AI 与 Worker 已完成本轮协议交互。"))
+                        target.messages.add(progressIndex, BridgeChatMessage("tool", "[协作完成]\nAI A 与 AI B 已完成本轮协议交互。"))
                     }
                     target.messages += collaborationMessages
                     store.save(projects)
@@ -1410,14 +1410,14 @@ class V021Activity : Activity() {
         val payload = message.payload
         val detail = when (message.type) {
             CollaborationProtocol.Type.TASK -> payload.optString("objective").ifBlank { "已生成协作任务" }
-            CollaborationProtocol.Type.DECISION_REQUEST -> payload.optString("question").ifBlank { "Worker 请求 Decision AI 决策" }
-            CollaborationProtocol.Type.DECISION_RESPONSE -> payload.optString("decision").ifBlank { "Decision AI 已返回决策" }
+            CollaborationProtocol.Type.DECISION_REQUEST -> payload.optString("question").ifBlank { "AI B 请求 AI A 决策" }
+            CollaborationProtocol.Type.DECISION_RESPONSE -> payload.optString("decision").ifBlank { "AI A 已返回决策" }
             CollaborationProtocol.Type.PROGRESS -> payload.optString("message").ifBlank { payload.optString("objective").ifBlank { "协作进度更新" } }
-            CollaborationProtocol.Type.BLOCKED -> payload.optString("blocked_on").ifBlank { "Worker 暂时受阻" }
+            CollaborationProtocol.Type.BLOCKED -> payload.optString("blocked_on").ifBlank { "AI B 暂时受阻" }
             CollaborationProtocol.Type.COMMIT -> "Commit " + payload.optString("sha").takeIf { it.isNotBlank() }?.take(10).orEmpty()
             CollaborationProtocol.Type.VERIFY -> "Verify：" + payload.optString("verdict").ifBlank { "待确认" }
             CollaborationProtocol.Type.COMPLETE -> payload.optString("summary").ifBlank { "协作任务完成" }
-            CollaborationProtocol.Type.FILE_CHANGE_REQUEST -> payload.optString("path").ifBlank { "Worker 请求修改文件" }
+            CollaborationProtocol.Type.FILE_CHANGE_REQUEST -> payload.optString("path").ifBlank { "AI B 请求修改文件" }
             CollaborationProtocol.Type.ESCALATE -> "需要用户处理"
         }
         return "[协作 " + message.type.name + "] " + roleName + " → " + targetName + "\n" + detail
@@ -1549,7 +1549,7 @@ class V021Activity : Activity() {
             return
         }
         conversation.messages += BridgeChatMessage("user", text)
-        conversation.messages += BridgeChatMessage("tool", "[协作进行中]\nDecision AI 正在分析并生成任务，Worker 随后接收任务。")
+        conversation.messages += BridgeChatMessage("tool", "[协作进行中]\nAI A 正在分析并生成任务，AI B 随后接收任务。")
         collaborationRunningConversationId = conversation.id
         store.save(projects)
         render()
