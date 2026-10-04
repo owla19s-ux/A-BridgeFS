@@ -1378,6 +1378,14 @@ class V021Activity : Activity() {
         }
     }
 
+    private fun collaborationProfileIds(): Pair<String, String> {
+        val members = project?.aiMembers?.take(2).orEmpty()
+        return Pair(
+            members.getOrNull(0)?.apiProfileId.orEmpty(),
+            members.getOrNull(1)?.apiProfileId.orEmpty()
+        )
+    }
+
     private fun selectCollaborationProfiles() {
         val list = apis()
         if (list.size < 2) {
