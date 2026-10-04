@@ -207,35 +207,76 @@ Default AI 继续
 - 多项目统一调度；
 - 更复杂的 Agent 自动规划系统。
 
-## 七、当前施工顺序
+## 七、当前施工顺序（2026-10-04 重建）
 
-### P0 — Project 基础模型
+> 旧 P0 / P1 / P2 任务链停止作为施工依据。本轮以最新 Project UI 为唯一入口重新排链。
+> 普通「对话」页与「配置」页暂缓，不阻塞 Project 主线。
 
-1. 统一 Project Address；
-2. 增加 / 迁移 Default Member；
-3. 把 Project Members 从 A/B 默认值改为可管理集合；
-4. Project 创建 / 编辑 / 删除；
-5. Project Conversation 接入 Project；
-6. 保存并恢复完整 Project 状态。
+### T0 — 架构基线与旧链清理
+**状态：基本完成 / 持续审查**
+- Project 作为核心对象；
+- Project Address；
+- Default AI / Project Member / API Profile 边界；
+- 固定 Decision / Worker / A / B 已废弃；
+- Request AI Assistance 改为按需动作；
+- ConstructionLock 保留为 Project 施工权限基础；
+- 旧 Collaboration 运行链已拆除；
+- 文档已开始按新模型收口。
 
-### P1 — Project 工作
+### T1 — Project 主页面收口
+**当前施工重点**
 
-1. Default AI 读取 Project Address；
-2. Project Conversation 成为主要入口；
-3. 连续施工链；
-4. ConstructionLock 迁移到 Project 语义；
-5. Commit / Verify 接入 Project 工作链。
+目标：让代码真正符合已经确认的 Project UI，而不是继续在旧 Workspace 页面上叠功能。
 
-### P2 — Request AI Assistance
+正式结构：
+项目 → 项目主要对话 ★ → ↑ / ↓ 屏幕显示切换 → 项目配置（独立展开 / 收起）
 
-1. Project 内增加明确入口；
-2. 选择其他 Member / 临时 AI；
-3. 协助完成后回到 Default AI；
-4. 不形成固定 A/B 状态机。
+重点：
+1. 移除 Project 页面中的旧 Workspace 页面结构；
+2. Project Conversation 成为首页主要内容，而不是独立的第二级“工作区对话页”；
+3. 当前 Project 的切换 / 新建 / 重命名保留，但改成 Project 语义；
+4. ↑ / ↓ 与配置展开状态完全解耦；
+5. Project 配置折叠后必须让主要对话获得空间；
+6. 不在首页堆 GitHub / API / 权限 / Verify 等内部卡片。
 
-### P3 — 独立「对话」UI
+### T2 — Project 配置闭环
+**依赖 T1**
+- Project 名称；
+- Project Address（Local / GitHub）；
+- Default AI；
+- Project Members；
+- Member → API Profile；
+- 必要的本地修改权限。
+验收重点：UI 修改 → 保存 → 离开 Project → 重新进入 → 状态保持。
 
-只做必要 UI 优化，不重新设计底层架构。
+### T3 — Project Conversation 闭环
+**依赖 T1 / T2**
+正常项目提问必须形成：Project → Project Address → Default AI → 读取 / 分析 → 回答
+- 一个正常问题只走 Default AI；
+- 不自动召唤其他 Member；
+- 不恢复 Decision / Worker；
+- 消息、API 身份、历史记录正常保存与恢复。
+
+### T4 — Project 连续施工
+**依赖 T3**
+理解 → 读取 → 修改 → ConstructionLock → Commit → Verify → 必要时自动继续修复 → 完成
+暂停条件只包括完成、用户决策、权限 / 资源问题或达到明确的迭代边界。
+
+### T5 — Request AI Assistance
+**依赖 T3 / T4**
+- Default AI 主导；
+- 明确请求后才加入其他 Project Member / 临时 AI；
+- 协助完成后回到 Default AI；
+- 不形成固定 AI A / B 状态机。
+
+### T6 — 独立「对话」与「配置」
+**暂缓**
+本轮不作为 Project 主线阻塞项。后续只做必要 UI / 可用性修正，不重新设计底层架构。
+
+### T7 — 全链路验证
+**依赖 T1～T5**
+代码 → UI → 用户操作 → 状态保存 / 恢复 → 真实行为 → 正式签名 APK → 真机
+每项 Verify 必须记录类型、编号、Run ID、相关 Commit；没有真实验证不得标记“已验证”。
 
 ## 八、总验收
 
