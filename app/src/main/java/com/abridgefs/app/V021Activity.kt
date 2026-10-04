@@ -144,8 +144,7 @@ class V021Activity : Activity() {
                 val message = obj.optString("message", "")
                 val projectId = obj.optString("projectId", "").ifBlank { null }
                 val conversationId = obj.optString("conversationId", "").ifBlank { null }
-                val workspaceId = obj.optString("workspaceId", "").ifBlank { null }
-                val standaloneConversationId = obj.optString("standaloneConversationId", "").ifBlank { null }
+                                val standaloneConversationId = obj.optString("standaloneConversationId", "").ifBlank { null }
                 val receipt = BridgeReceiptRecord(status, command, message, obj.optLong("time", System.currentTimeMillis()), obj.optString("receiptId", "").ifBlank { UUID.randomUUID().toString() })
                 if (!standaloneConversationId.isNullOrBlank()) {
                     val conversation = standaloneConversations.firstOrNull { it.id == standaloneConversationId }
@@ -158,9 +157,8 @@ class V021Activity : Activity() {
                     pendingReceipt = formatReceipt(receipt)
                     recoveredAny = true
                 } else {
-                    val target = projects.firstOrNull { it.id == workspaceId }
-                        ?: projects.firstOrNull { it.id == projectId }
-                    val conversation = target?.let { ws -> conversationId?.let { id -> ws.conversations.firstOrNull { it.id == id } } }
+                    val target = projects.firstOrNull { it.id == projectId }
+                    val conversation = target?.let { current -> conversationId?.let { id -> current.conversations.firstOrNull { it.id == id } } }
                     if (conversation == null) { remaining += obj; return@runCatching }
                     if (!conversation.executions.any { it.receiptId == receipt.receiptId }) {
                         conversation.executions += receipt
@@ -340,7 +338,7 @@ class V021Activity : Activity() {
 
     private fun projectStatus(item: BridgeProject): Pair<Int, String> {
         val hasApi = item.defaultMemberId?.let { id -> item.aiMembers.firstOrNull { it.id == id }?.apiProfileId }?.isNotBlank() == true
-        val hasAddress = !item.workspaceDirectory.isNullOrBlank() || !item.github.repository.isNullOrBlank()
+        val hasAddress = !item.localAddress.isNullOrBlank() || !item.githubAddress.repository.isNullOrBlank()
         return when {
             !hasApi && !hasAddress -> R.color.bridgefs_error to "未配置"
             !hasApi -> R.color.bridgefs_warning to "缺少默认 AI"
@@ -529,7 +527,7 @@ class V021Activity : Activity() {
             setPadding(0, dp(2), 0, dp(8))
         })
         box.addView(actionButton("配置 GitHub Project Address") {
-            startActivity(Intent(this, GitHubActivity::class.java).putExtra("workspaceId", project?.id))
+            startActivity(Intent(this, GitHubActivity::class.java).putExtra("projectId", project?.id))
         })
         return box
     }
@@ -685,7 +683,7 @@ class V021Activity : Activity() {
 
     private fun projectLocalAddressCard(): View {
         val box = card()
-        val rootPath = project?.workspaceDirectory.orEmpty().trim()
+        val rootPath = project?.localAddress.orEmpty().trim()
 
         box.addView(TextView(this).apply {
             text = "Local Project Address"
@@ -788,7 +786,7 @@ class V021Activity : Activity() {
             Toast.makeText(this, "当前没有可用 Project。", Toast.LENGTH_SHORT).show()
             return
         }
-        workspace.workspaceDirectory = path
+        workspace.localAddress = path
         store.save(projects)
         Toast.makeText(this, "当前 Project Address 已设置：$path", Toast.LENGTH_SHORT).show()
         render()
@@ -1615,7 +1613,6 @@ class V021Activity : Activity() {
             .putExtra("bridgefs_root", root)
             .putExtra("projectId", null as String?)
             .putExtra("conversationId", null as String?)
-            .putExtra("workspaceId", workspace?.id)
             .putExtra("standaloneConversationId", conversation.id)
 
         runCatching { startForegroundService(intent) }.onFailure {
