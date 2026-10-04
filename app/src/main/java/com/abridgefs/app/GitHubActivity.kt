@@ -80,9 +80,21 @@ class GitHubActivity : android.app.Activity() {
 
         root.addView(info("● 已连接", auth.login ?: "GitHub 账号"))
         root.addView(info("凭据", auth.credentialType ?: "GitHub Token"))
-        root.addView(section("Repository"))
+        val conversationConfig = GitHubConversationConfigStore(this).state()
+        root.addView(section("普通对话 GitHub"))
+        root.addView(info(
+            conversationConfig.repository ?: "未选择 Repository",
+            "普通对话独立使用的只读 Repository"
+        ))
+        root.addView(button("切换普通对话 Repository") { chooseConversationRepository() })
+        root.addView(info(
+            conversationConfig.branch ?: "默认分支",
+            "普通对话只读 Branch"
+        ))
+
+        root.addView(section("工作区 Repository"))
         root.addView(info(workspace?.github?.displayRepository() ?: "未选择 Repository", "当前工作区 Repository"))
-        root.addView(button("切换 Repository") { chooseRepository() })
+        root.addView(button("切换工作区 Repository") { chooseRepository() })
 
         root.addView(section("Branch"))
         root.addView(info(workspace?.github?.displayBranch() ?: "未选择 Branch", "当前工作区 Branch"))
@@ -119,6 +131,7 @@ class GitHubActivity : android.app.Activity() {
             workspace?.github?.branch = null
             workspace?.github?.repositoryId = null
             workspace?.github?.writeEnabled = false
+            GitHubConversationConfigStore(this).clear()
             save()
             render()
         })
@@ -252,9 +265,55 @@ class GitHubActivity : android.app.Activity() {
                                     branch = selected.optString("default_branch").ifBlank { null }
                                     accountLogin = authStore.state().login
                                 }
+                                GitHubConversationConfigStore(this).save(
+                                    selected.optString("full_name"),
+                                    selected.optString("default_branch").ifBlank { null }
+                                )
                                 save()
                                 render()
                             }.show()
+                    }
+                }
+                .onFailure {
+                    runOnUiThread {
+                        Toast.makeText(this, "读取 Repository 失败：" + (it.message ?: "未知错误"), Toast.LENGTH_LONG).show()
+                    }
+                }
+        }
+    }
+
+    private fun chooseConversationRepository() {
+        val token = authStore.state().accessToken
+        if (token.isNullOrBlank()) {
+            Toast.makeText(this, "GitHub 尚未连接", Toast.LENGTH_SHORT).show()
+            return
+        }
+        executor.execute {
+            runCatching { GitHubApiClient(this, token).listRepositories() }
+                .onSuccess { repos ->
+                    runOnUiThread {
+                        if (repos.length() == 0) {
+                            Toast.makeText(this, "没有可访问的 Repository", Toast.LENGTH_SHORT).show()
+                            return@runOnUiThread
+                        }
+                        val items = List(repos.length()) { index ->
+                            repos.getJSONObject(index).optString("full_name")
+                        }
+                        val current = GitHubConversationConfigStore(this).state()
+                        val checked = items.indexOf(current.repository).takeIf { it >= 0 } ?: 0
+                        AlertDialog.Builder(this)
+                            .setTitle("选择普通对话 Repository")
+                            .setSingleChoiceItems(items.toTypedArray(), checked) { dialog, which ->
+                                val selected = repos.getJSONObject(which)
+                                GitHubConversationConfigStore(this).save(
+                                    selected.optString("full_name"),
+                                    selected.optString("default_branch").ifBlank { null }
+                                )
+                                dialog.dismiss()
+                                render()
+                            }
+                            .setNegativeButton("取消", null)
+                            .show()
                     }
                 }
                 .onFailure {
