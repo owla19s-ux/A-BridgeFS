@@ -35,6 +35,7 @@ class V021Activity : Activity() {
     private lateinit var navWorkspace: TextView
     private lateinit var navChat: TextView
     private lateinit var navConfig: TextView
+    private lateinit var navDisplayToggle: TextView
     private var apiId = ""
     private enum class Page { WORKSPACE, CHAT, NEW_CHAT, CONFIG }
     private var page = Page.WORKSPACE
@@ -220,6 +221,18 @@ class V021Activity : Activity() {
         nav.addView(navWorkspace, LinearLayout.LayoutParams(0, dp(58), 1f))
         nav.addView(navChat, LinearLayout.LayoutParams(0, dp(58), 1f))
         nav.addView(navConfig, LinearLayout.LayoutParams(0, dp(58), 1f))
+        navDisplayToggle = TextView(this).apply {
+            textSize = 18f
+            gravity = Gravity.CENTER
+            setTextColor(color(R.color.bridgefs_text_secondary))
+            setOnClickListener {
+                if (page == Page.WORKSPACE && projectExpanded) {
+                    projectDisplayExpanded = !projectDisplayExpanded
+                    render()
+                }
+            }
+        }
+        nav.addView(navDisplayToggle, LinearLayout.LayoutParams(dp(52), dp(58)))
         root.addView(nav)
 
         ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
@@ -264,149 +277,157 @@ class V021Activity : Activity() {
             else
                 colorDrawable(R.color.bridgefs_surface, 14)
         }
+        navDisplayToggle.visibility = if (page == Page.WORKSPACE && projectExpanded) View.VISIBLE else View.GONE
+        navDisplayToggle.text = if (projectDisplayExpanded) "↓" else "↑"
     }
 
     private var projectConfigExpanded = false
+    private var projectExpanded = false
+    private var projectDisplayExpanded = false
+    private var projectConversationExpanded = true
 
     private fun renderWorkspace() {
-        val current = project ?: return
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(14), dp(10), dp(14), dp(8))
-        }
-
-        root.addView(header("项目", "当前项目的主要对话入口"))
-
-        val projectBar = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(12), dp(8), dp(8), dp(8))
-            background = colorDrawable(R.color.bridgefs_input_surface, 14)
-        }
-        projectBar.addView(LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            addView(TextView(this@V021Activity).apply {
-                text = "当前项目"
-                textSize = 12f
-                setTextColor(color(R.color.bridgefs_text_secondary))
-            })
-            addView(TextView(this@V021Activity).apply {
-                text = current.name.ifBlank { "未命名项目" }
-                textSize = 16f
-                typeface = Typeface.DEFAULT_BOLD
-                setTextColor(color(R.color.bridgefs_text_primary))
-                setPadding(0, dp(3), 0, 0)
-            })
-        }, LinearLayout.LayoutParams(0, -2, 1f))
-        projectBar.addView(textButton("切换") {
-            val labels = projects.map { it.name.ifBlank { "未命名项目" } }.toTypedArray()
-            val index = projects.indexOfFirst { it.id == current.id }.coerceAtLeast(0)
-            AlertDialog.Builder(this@V021Activity)
-                .setTitle("切换项目")
-                .setSingleChoiceItems(labels, index) { dialog, which ->
-                    project = projects[which]
-                    prefs.edit().putString("active_project_id", project?.id).apply()
-                    apiId = project?.activeConversation()?.apiId ?: apis().firstOrNull()?.id.orEmpty()
-                    dialog.dismiss()
-                    render()
-                }
-                .setNegativeButton("取消", null)
-                .show()
-        }, LinearLayout.LayoutParams(dp(64), dp(40)))
-        root.addView(projectBar, LinearLayout.LayoutParams(-1, dp(66)).apply { bottomMargin = dp(6) })
-
-        val displayBar = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        displayBar.addView(TextView(this).apply {
-            text = "屏幕显示"
-            textSize = 12f
-            setTextColor(color(R.color.bridgefs_text_secondary))
-        }, LinearLayout.LayoutParams(0, dp(36), 1f))
-
-        val conversation = current.activeConversation()
-        val messages = ScrollView(this)
-        val messageBox = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(0, dp(6), 0, dp(8))
-        }
-        conversation.messages.forEach { m -> messageBox.addView(messageBubble(m)) }
-        messages.addView(messageBox)
-        root.addView(messages, LinearLayout.LayoutParams(-1, dp(360)))
-        messages.post { messages.fullScroll(View.FOCUS_DOWN) }
-
-        root.addView(requestAssistanceCard())
-
-        val configHeader = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(12), dp(8), dp(8), dp(8))
-            background = colorDrawable(R.color.bridgefs_input_surface, 14)
-            setOnClickListener {
-                projectConfigExpanded = !projectConfigExpanded
-                render()
-            }
-        }
-        configHeader.addView(TextView(this).apply {
-            text = "项目配置"
-            textSize = 15f
-            typeface = Typeface.DEFAULT_BOLD
-        }, LinearLayout.LayoutParams(0, dp(46), 1f))
-        configHeader.addView(TextView(this).apply {
-            text = if (projectConfigExpanded) "收起" else "展开"
-            textSize = 13f
-            setTextColor(color(R.color.bridgefs_accent))
-        }, LinearLayout.LayoutParams(dp(56), dp(46)))
-        root.addView(configHeader, LinearLayout.LayoutParams(-1, dp(62)).apply { topMargin = dp(6) })
-
-        if (projectConfigExpanded) {
-            root.addView(projectSelectorCard())
-            root.addView(projectGithubCard())
-            root.addView(projectLocalAddressCard())
-            root.addView(localFilePermissionCard())
-            root.addView(projectMembersCard())
-        }
-
-        val projectScroll = ScrollView(this).apply {
-            addView(root)
-            isFillViewport = true
-        }
-        displayBar.addView(textButton("↑") {
-            projectScroll.smoothScrollTo(0, 0)
-        }, LinearLayout.LayoutParams(dp(44), dp(36)))
-        displayBar.addView(textButton("↓") {
-            projectScroll.post { projectScroll.smoothScrollTo(0, projectScroll.getChildAt(0).measuredHeight) }
-        }, LinearLayout.LayoutParams(dp(44), dp(36)))
-
-        val composer = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.BOTTOM
-            setPadding(0, dp(6), 0, 0)
-        }
-        val input = EditText(this).apply {
-            hint = "输入问题或工作目标……"
-            textSize = 14f
-            minLines = 1
-            maxLines = 4
-            setPadding(dp(12), dp(8), dp(12), dp(8))
-            background = colorDrawable(R.color.bridgefs_input_surface, 14)
-            setTextColor(color(R.color.bridgefs_text_primary))
-            setHintTextColor(color(R.color.bridgefs_text_secondary))
-        }
-        composer.addView(input, LinearLayout.LayoutParams(0, dp(52), 1f))
-        composer.addView(actionButton("发送") { sendProjectMessage(input, conversation) },
-            LinearLayout.LayoutParams(dp(82), dp(52)).apply { marginStart = dp(6) })
-
-        val pageArea = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-        }
-        pageArea.addView(displayBar)
-        pageArea.addView(projectScroll, LinearLayout.LayoutParams(-1, 0, 1f))
-        content.addView(pageArea, LinearLayout.LayoutParams(-1, 0, 1f))
-        content.addView(composer, LinearLayout.LayoutParams(-1, dp(58)))
+        if (!projectExpanded) { renderProjectOverview(); return }
+        renderProjectWorkSurface()
     }
 
+    private fun renderProjectOverview() {
+        val scroll = ScrollView(this).apply { isFillViewport = true }
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+        }
+        root.addView(header("项目", "选择项目进入项目工作面"))
+        projects.forEach { item -> root.addView(projectOverviewItem(item)) }
+        root.addView(actionButton("＋ 新建项目") {
+            val input = field("项目名称", "新项目 " + (projects.size + 1))
+            AlertDialog.Builder(this@V021Activity).setTitle("新建项目").setView(input)
+                .setPositiveButton("创建") { _, _ ->
+                    val name = input.text.toString().trim().ifBlank { "新项目 " + (projects.size + 1) }
+                    val created = store.newProject(name)
+                    projects += created; project = created
+                    prefs.edit().putString("active_project_id", created.id).apply()
+                    apiId = created.activeConversation().apiId ?: apis().firstOrNull()?.id.orEmpty()
+                    projectExpanded = true; projectConfigExpanded = false
+                    projectConversationExpanded = true; store.save(projects); render()
+                }.setNegativeButton("取消", null).show()
+        }, LinearLayout.LayoutParams(-1, dp(52)).apply { topMargin = dp(8) })
+        scroll.addView(root)
+        content.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
+    }
+
+    private fun projectOverviewItem(item: BridgeProject): View {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(14), dp(10), dp(10), dp(10))
+            background = colorDrawable(R.color.bridgefs_input_surface, 14)
+            setOnClickListener {
+                project = item; prefs.edit().putString("active_project_id", item.id).apply()
+                apiId = item.activeConversation().apiId ?: apis().firstOrNull()?.id.orEmpty()
+                projectExpanded = true; projectConfigExpanded = false
+                projectDisplayExpanded = false; projectConversationExpanded = true; render()
+            }
+        }
+        val status = projectStatus(item)
+        row.addView(TextView(this).apply { text = "●"; textSize = 16f; setTextColor(color(status.first)); gravity = Gravity.CENTER }, LinearLayout.LayoutParams(dp(28), dp(52)))
+        row.addView(LinearLayout(this@V021Activity).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(TextView(this@V021Activity).apply { text = item.name.ifBlank { "未命名项目" }; textSize = 16f; typeface = Typeface.DEFAULT_BOLD; setTextColor(color(R.color.bridgefs_text_primary)) })
+            addView(TextView(this@V021Activity).apply { text = projectAddressSummary(item); textSize = 12f; setTextColor(color(R.color.bridgefs_text_secondary)); maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END })
+        }, LinearLayout.LayoutParams(0, -2, 1f))
+        row.addView(TextView(this).apply { text = "›"; textSize = 24f; setTextColor(color(R.color.bridgefs_text_secondary)); gravity = Gravity.CENTER }, LinearLayout.LayoutParams(dp(32), dp(52)))
+        return row.apply { layoutParams = LinearLayout.LayoutParams(-1, dp(76)).apply { bottomMargin = dp(8) } }
+    }
+
+    private fun projectStatus(item: BridgeProject): Pair<Int, String> {
+        val hasApi = item.defaultMemberId?.let { id -> item.aiMembers.firstOrNull { it.id == id }?.apiProfileId }?.isNotBlank() == true
+        val hasAddress = !item.workspaceDirectory.isNullOrBlank() || !item.github.repository.isNullOrBlank()
+        return when {
+            !hasApi && !hasAddress -> R.color.bridgefs_error to "未配置"
+            !hasApi -> R.color.bridgefs_warning to "缺少默认 AI"
+            !hasAddress -> R.color.bridgefs_orange to "缺少项目地址"
+            else -> R.color.bridgefs_success to "正常"
+        }
+    }
+
+    private fun projectAddressSummary(item: BridgeProject): String {
+        val local = item.workspaceDirectory?.trim().orEmpty()
+        val repo = item.github.repository?.trim().orEmpty()
+        return when {
+            local.isNotBlank() -> "本地：" + local
+            repo.isNotBlank() -> "GitHub：" + repo + " / " + item.github.branch.ifBlank { "默认分支" }
+            else -> "尚未设置项目地址"
+        }
+    }
+
+    private fun renderProjectWorkSurface() {
+        val current = project ?: run { projectExpanded = false; renderProjectOverview(); return }
+        val conversation = current.activeConversation()
+        val pageRoot = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(14), dp(8), dp(14), dp(8)) }
+        val topBar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        topBar.addView(TextView(this).apply {
+            text = "‹"; textSize = 28f; gravity = Gravity.CENTER; setTextColor(color(R.color.bridgefs_text_secondary))
+            setOnClickListener { projectExpanded = false; projectConfigExpanded = false; projectDisplayExpanded = false; render() }
+        }, LinearLayout.LayoutParams(dp(42), dp(48)))
+        topBar.addView(LinearLayout(this@V021Activity).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(TextView(this@V021Activity).apply { text = current.name.ifBlank { "未命名项目" }; textSize = 18f; typeface = Typeface.DEFAULT_BOLD; setTextColor(color(R.color.bridgefs_text_primary)) })
+            addView(TextView(this@V021Activity).apply { text = projectAddressSummary(current); textSize = 11f; setTextColor(color(R.color.bridgefs_text_secondary)); maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END })
+        }, LinearLayout.LayoutParams(0, dp(48), 1f))
+        topBar.addView(textButton("项目设置") { projectConfigExpanded = !projectConfigExpanded; render() }, LinearLayout.LayoutParams(dp(88), dp(40)))
+        pageRoot.addView(topBar)
+
+        if (!projectDisplayExpanded) {
+            val info = card()
+            info.addView(TextView(this).apply { text = "项目地址"; textSize = 11f; setTextColor(color(R.color.bridgefs_text_secondary)) })
+            info.addView(TextView(this).apply { text = projectAddressSummary(current); textSize = 13f; setTextColor(color(R.color.bridgefs_text_primary)); setPadding(0, dp(3), 0, 0) })
+            val member = current.defaultMemberId?.let { id -> current.aiMembers.firstOrNull { it.id == id } }
+            val apiName = member?.apiProfileId?.let { id -> apis().firstOrNull { it.id == id }?.name }.orEmpty().ifBlank { "未绑定" }
+            info.addView(TextView(this).apply { text = "当前 API：" + apiName; textSize = 12f; setTextColor(color(R.color.bridgefs_text_secondary)); setPadding(0, dp(5), 0, 0) })
+            pageRoot.addView(info, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
+        }
+
+        val pending = card()
+        pending.addView(TextView(this).apply { text = "待处理"; textSize = 15f; typeface = Typeface.DEFAULT_BOLD; setTextColor(color(R.color.bridgefs_text_primary)) })
+        pending.addView(TextView(this).apply { text = "暂无待处理任务"; textSize = 12f; setTextColor(color(R.color.bridgefs_text_secondary)); setPadding(0, dp(4), 0, 0) })
+        pageRoot.addView(pending, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
+
+        val conversationHeader = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(12), dp(4), dp(8), dp(4))
+            background = colorDrawable(R.color.bridgefs_input_surface, 14)
+            setOnClickListener { projectConversationExpanded = !projectConversationExpanded; render() }
+        }
+        conversationHeader.addView(TextView(this).apply { text = "对话"; textSize = 15f; typeface = Typeface.DEFAULT_BOLD; setTextColor(color(R.color.bridgefs_text_primary)) }, LinearLayout.LayoutParams(0, dp(42), 1f))
+        conversationHeader.addView(TextView(this).apply { text = if (projectConversationExpanded) "收起" else "展开"; textSize = 12f; setTextColor(color(R.color.bridgefs_accent)) })
+        pageRoot.addView(conversationHeader, LinearLayout.LayoutParams(-1, dp(52)).apply { topMargin = dp(6) })
+
+        val body = ScrollView(this).apply { isFillViewport = true }
+        val bodyBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(4), 0, dp(8)) }
+        if (projectConversationExpanded) {
+            if (conversation.messages.isEmpty()) bodyBox.addView(TextView(this).apply { text = "还没有对话。直接在下方输入，就可以让默认 AI 查看这个项目。"; textSize = 13f; setTextColor(color(R.color.bridgefs_text_secondary)); setPadding(dp(10), dp(18), dp(10), dp(18)) })
+            else conversation.messages.forEach { message -> bodyBox.addView(messageBubble(message)) }
+        }
+        body.addView(bodyBox)
+        pageRoot.addView(body, LinearLayout.LayoutParams(-1, 0, if (projectDisplayExpanded) 1.8f else 1f))
+        body.post { body.fullScroll(View.FOCUS_DOWN) }
+        pageRoot.addView(requestAssistanceCard(), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
+
+        if (projectConfigExpanded) {
+            val config = card()
+            config.addView(TextView(this).apply { text = "项目设置"; textSize = 15f; typeface = Typeface.DEFAULT_BOLD; setTextColor(color(R.color.bridgefs_text_primary)) })
+            config.addView(TextView(this).apply { text = "项目名称、项目地址、GitHub、权限和 AI 成员"; textSize = 12f; setTextColor(color(R.color.bridgefs_text_secondary)); setPadding(0, dp(3), 0, dp(8)) })
+            config.addView(projectSelectorCard()); config.addView(projectGithubCard()); config.addView(projectLocalAddressCard()); config.addView(localFilePermissionCard()); config.addView(projectMembersCard())
+            pageRoot.addView(config, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
+        }
+        val scroll = ScrollView(this).apply { isFillViewport = true; addView(pageRoot) }
+        content.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
+
+        val composer = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.BOTTOM; setPadding(0, dp(6), 0, 0) }
+        val input = EditText(this).apply { hint = "输入问题或工作目标……"; textSize = 14f; minLines = 1; maxLines = 4; setPadding(dp(12), dp(8), dp(12), dp(8)); background = colorDrawable(R.color.bridgefs_input_surface, 14); setTextColor(color(R.color.bridgefs_text_primary)); setHintTextColor(color(R.color.bridgefs_text_secondary)) }
+        composer.addView(input, LinearLayout.LayoutParams(0, dp(52), 1f))
+        composer.addView(actionButton("发送") { sendProjectMessage(input, conversation) }, LinearLayout.LayoutParams(dp(82), dp(52)).apply { marginStart = dp(6) })
+        content.addView(composer, LinearLayout.LayoutParams(-1, dp(58)))
+    }
     private fun projectSelectorCard(): View {
         val box = card()
         val current = project ?: return box
