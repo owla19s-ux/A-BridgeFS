@@ -58,7 +58,7 @@ class CollaborationTaskStore(private val context: Context) {
         workspaceId: String,
         conversationId: String,
         objective: String,
-        taskId: String = CollaborationProtocol.newTaskId()
+        taskId: String = UUID.randomUUID().toString()
     ): CollaborationTaskRecord {
         require(workspaceId.isNotBlank()) { "workspaceId is blank" }
         require(conversationId.isNotBlank()) { "conversationId is blank" }
