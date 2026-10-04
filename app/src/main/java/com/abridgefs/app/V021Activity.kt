@@ -1261,12 +1261,27 @@ class V021Activity : Activity() {
                         if (branch.isNotBlank()) append("\nGitHub Branch：").append(branch)
                     }
                 }
+                val github = GitHubConversationReader(this).readForProject(current, text)
+                if (github.error != null) {
+                    runOnUiThread {
+                        conversation.messages += BridgeChatMessage("tool", "[GitHub 错误]\n" + github.error)
+                        store.save(projects)
+                        render()
+                    }
+                    return@execute
+                }
+                val githubPrompt = if (github.content.isNotBlank()) {
+                    "\n\n[Project GitHub 只读资料]\nRepository: " + github.repository +
+                        "\nBranch: " + (github.branch ?: "默认分支") +
+                        "\n以下内容来自当前 Project Address，仅用于本轮回答；不要执行任何修改操作。\n\n" + github.content
+                } else ""
                 val answer = BridgeApiClient(
                     BridgeApiConfig(normalizeBaseUrl(profile.baseUrl), profile.key, profile.model)
                 ).chat(
                     conversation.messages,
                     BridgeCommandSpec.aiSystemPrompt(prefs.getInt("command_limit", 3).coerceIn(1, 20)) +
                         "\n\n[Project 信息]\n" + projectInfo +
+                        githubPrompt +
                         "\n你是当前 Project 的默认 AI。先直接回答用户问题；只有用户明确要求执行工作时，才进入后续工作流程。不要自动启动其他 AI 协作，也不要恢复已经废弃的固定阶段角色模型。"
                 )
                 runOnUiThread {
