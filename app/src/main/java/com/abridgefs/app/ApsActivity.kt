@@ -26,7 +26,8 @@ class ApsActivity : Activity() {
     internal var conversationGroup = "默认分组"
     internal var currentConversation = "新会话 1"
     internal var selectedApi = "未绑定"
-    internal val apiProfiles = listOf("未绑定", "API Profile（示例）", "API Profile 2（示例）")
+    internal var selectedApiProfileId: String? = null
+    internal val apiProfilesStore by lazy { ApiProfileStore(this) }
     internal var apiSelectorOpen = false
     internal var conversationManagementOpen = false
     internal var projectAccessOpen = false
