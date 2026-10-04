@@ -396,7 +396,7 @@ class V021Activity : Activity() {
         val current = project ?: return box
         val workspaces = projects
         box.addView(TextView(this).apply {
-            text = "当前工作区"
+            text = "当前项目"
             textSize = 12f
             setTextColor(color(R.color.bridgefs_text_secondary))
         })
@@ -405,16 +405,16 @@ class V021Activity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
         }
         row.addView(TextView(this).apply {
-            text = current.name.ifBlank { "未命名工作区" }
+            text = current.name.ifBlank { "未命名项目" }
             textSize = 17f
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(color(R.color.bridgefs_text_primary))
         }, LinearLayout.LayoutParams(0, dp(44), 1f))
         row.addView(textButton("切换") {
-            val labels = workspaces.map { it.name.ifBlank { "未命名工作区" } }.toTypedArray()
+            val labels = workspaces.map { it.name.ifBlank { "未命名项目" } }.toTypedArray()
             val index = workspaces.indexOfFirst { it.id == current.id }.coerceAtLeast(0)
             AlertDialog.Builder(this@V021Activity)
-                .setTitle("切换工作区")
+                .setTitle("切换项目")
                 .setSingleChoiceItems(labels, index) { dialog, which ->
                     project = workspaces[which]
                     prefs.edit().putString("active_workspace_id", project?.id).apply()
@@ -427,12 +427,12 @@ class V021Activity : Activity() {
                 .show()
         }, LinearLayout.LayoutParams(dp(64), dp(40)))
         row.addView(textButton("重命名") {
-            val input = field("工作区名称", current.name)
+            val input = field("项目名称", current.name)
             AlertDialog.Builder(this@V021Activity)
-                .setTitle("重命名工作区")
+                .setTitle("重命名项目")
                 .setView(input)
                 .setPositiveButton("保存") { _, _ ->
-                    current.name = input.text.toString().trim().ifBlank { "未命名工作区" }
+                    current.name = input.text.toString().trim().ifBlank { "未命名项目" }
                     store.save(projects)
                     render()
                 }
@@ -440,13 +440,13 @@ class V021Activity : Activity() {
                 .show()
         }, LinearLayout.LayoutParams(dp(76), dp(40)))
         box.addView(row)
-        box.addView(actionButton("＋ 新建工作区") {
-            val input = field("工作区名称", "新工作区 ${workspaces.size + 1}")
+        box.addView(actionButton("＋ 新建项目") {
+            val input = field("项目名称", "新项目 ${workspaces.size + 1}")
             AlertDialog.Builder(this@V021Activity)
-                .setTitle("新建工作区")
+                .setTitle("新建项目")
                 .setView(input)
                 .setPositiveButton("创建") { _, _ ->
-                    val name = input.text.toString().trim().ifBlank { "新工作区 ${projects.size + 1}" }
+                    val name = input.text.toString().trim().ifBlank { "新项目 ${projects.size + 1}" }
                     val created = store.newProject(name)
                     projects += created
                     project = created
@@ -503,6 +503,45 @@ class V021Activity : Activity() {
 
 
 
+
+    private fun projectMembersCard(): View {
+        val box = card()
+        val current = project ?: return box
+        box.addView(TextView(this).apply {
+            text = "Project Members"
+            textSize = 16f
+            typeface = Typeface.DEFAULT_BOLD
+        })
+        box.addView(TextView(this).apply {
+            val defaultName = current.defaultMemberId
+                ?.let { id -> current.aiMembers.firstOrNull { it.id == id }?.name }
+                ?.ifBlank { null }
+            text = if (defaultName != null) "默认 AI：$defaultName" else "默认 AI：未配置"
+            textSize = 12f
+            setTextColor(color(R.color.bridgefs_text_secondary))
+            setPadding(0, dp(4), 0, dp(8))
+        })
+        if (current.aiMembers.isEmpty()) {
+            box.addView(TextView(this).apply {
+                text = "当前项目尚未配置 AI Member。"
+                textSize = 12f
+                setTextColor(color(R.color.bridgefs_text_secondary))
+            })
+        } else {
+            current.aiMembers.forEach { member ->
+                val profile = member.apiProfileId?.let { id -> apis().firstOrNull { it.id == id } }
+                box.addView(TextView(this).apply {
+                    text = member.name + "  ·  " + (profile?.name ?: "未绑定 API Profile")
+                    textSize = 13f
+                    setPadding(0, dp(5), 0, dp(5))
+                })
+            }
+        }
+        box.addView(actionButton("管理成员") {
+            Toast.makeText(this, "Project Members 管理入口已接入模型，详细编辑将在 T2 完成。", Toast.LENGTH_SHORT).show()
+        }, LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(8) })
+        return box
+    }
 
     private fun apiCard(a:ApiProfile): View {
         val box = card()
