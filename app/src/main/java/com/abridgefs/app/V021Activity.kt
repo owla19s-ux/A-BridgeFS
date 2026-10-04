@@ -355,7 +355,7 @@ class V021Activity : Activity() {
         val repo = item.github.repository?.trim().orEmpty()
         return when {
             local.isNotBlank() -> "本地：" + local
-            repo.isNotBlank() -> "GitHub：" + repo + " / " + item.github.branch.ifBlank { "默认分支" }
+            repo.isNotBlank() -> "GitHub：" + repo + " / " + item.github.branch?.ifBlank { "默认分支" } ?: "默认分支"
             else -> "尚未设置项目地址"
         }
     }
