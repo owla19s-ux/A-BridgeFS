@@ -97,23 +97,23 @@ class GitHubActivity : android.app.Activity() {
         root.addView(button("切换 Project Repository") { chooseRepository() })
 
         root.addView(section("Branch"))
-        root.addView(info(workspace?.github?.displayBranch() ?: "未选择 Branch", "当前 Project Branch"))
+        root.addView(info(project?.github?.displayBranch() ?: "未选择 Branch", "当前 Project Branch"))
         root.addView(button("切换 Project Branch") { chooseBranch() })
 
         root.addView(section("访问权限"))
         root.addView(CheckBox(this).apply {
             text = "允许读取"
-            isChecked = workspace?.github?.readEnabled ?: true
+            isChecked = project?.github?.readEnabled ?: true
             setOnCheckedChangeListener { _, checked ->
-                workspace?.github?.readEnabled = checked
+                project?.github?.readEnabled = checked
                 save()
             }
         })
         root.addView(CheckBox(this).apply {
             text = "允许修改"
-            isChecked = workspace?.github?.writeEnabled ?: false
+            isChecked = project?.github?.writeEnabled ?: false
             setOnCheckedChangeListener { _, checked ->
-                workspace?.github?.writeEnabled = checked
+                project?.github?.writeEnabled = checked
                 save()
             }
         })
@@ -126,11 +126,11 @@ class GitHubActivity : android.app.Activity() {
         root.addView(section("账号"))
         root.addView(button("断开 GitHub") {
             authStore.clear()
-            workspace?.github?.accountLogin = null
-            workspace?.github?.repository = null
-            workspace?.github?.branch = null
-            workspace?.github?.repositoryId = null
-            workspace?.github?.writeEnabled = false
+            project?.github?.accountLogin = null
+            project?.github?.repository = null
+            project?.github?.branch = null
+            project?.github?.repositoryId = null
+            project?.github?.writeEnabled = false
             GitHubConversationConfigStore(this).clear()
             save()
             render()
@@ -259,7 +259,7 @@ class GitHubActivity : android.app.Activity() {
                             .setTitle("选择 Repository")
                             .setItems(items.toTypedArray()) { _, which ->
                                 val selected = repos.getJSONObject(which)
-                                workspace?.github?.apply {
+                                project?.github?.apply {
                                     repositoryId = selected.optLong("id", 0L).takeIf { it > 0L }
                                     repository = selected.optString("full_name").ifBlank { null }
                                     branch = selected.optString("default_branch").ifBlank { null }
@@ -321,8 +321,8 @@ class GitHubActivity : android.app.Activity() {
     }
 
     private fun chooseBranch() {
-        val service = workspaceService() ?: return
-        if (workspace?.github?.repository.isNullOrBlank()) {
+        val service = projectService() ?: return
+        if (project?.github?.repository.isNullOrBlank()) {
             Toast.makeText(this, "请先选择 Repository", Toast.LENGTH_SHORT).show()
             return
         }
@@ -336,7 +336,7 @@ class GitHubActivity : android.app.Activity() {
                         AlertDialog.Builder(this)
                             .setTitle("选择 Branch")
                             .setItems(items.toTypedArray()) { _, which ->
-                                workspace?.github?.branch = items[which]
+                                project?.github?.branch = items[which]
                                 save()
                                 render()
                             }.show()
