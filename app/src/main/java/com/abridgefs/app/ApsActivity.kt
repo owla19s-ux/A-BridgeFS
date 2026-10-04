@@ -18,6 +18,7 @@ class ApsActivity : Activity() {
     private var projectChatOpen = true
     private var displayOpen = true
     private val settingOpen = mutableSetOf<String>()
+    private val pendingTaskMentions = linkedSetOf<String>()
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
@@ -39,10 +40,16 @@ class ApsActivity : Activity() {
         listOf("项目", "对话", "设置").forEachIndexed { i, title ->
             nav.addView(TextView(this).apply {
                 text = title
-                textSize = 13f
+                textSize = 14f
                 gravity = Gravity.CENTER
+                typeface = if (page == i) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+                setTextColor(c(if (page == i) R.color.bridgefs_text_primary else R.color.bridgefs_text_secondary))
+                background = if (page == i) round(c(R.color.bridgefs_input_surface), dp(12)) else null
                 setOnClickListener { page = i; render() }
-            }, LinearLayout.LayoutParams(0, dp(54), 1f))
+            }, LinearLayout.LayoutParams(0, dp(54), 1f).apply {
+                marginStart = dp(3)
+                marginEnd = dp(3)
+            })
         }
         root.addView(nav)
         ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
@@ -114,7 +121,12 @@ GitHub：未设置"
                     text = task
                     textSize = 13f
                     setOnCheckedChangeListener { _, checked ->
-                        if (checked) toast("@" + task + " 已进入输入区（UI 壳）")
+                        if (checked) {
+                            pendingTaskMentions.add("@" + task)
+                            toast("@" + task + " 已加入当前输入目标")
+                        } else {
+                            pendingTaskMentions.remove("@" + task)
+                        }
                     }
                 })
             }
@@ -207,6 +219,10 @@ GitHub：未设置"
         val input = EditText(this).apply {
             this.hint = hint
             maxLines = 4
+            if (pendingTaskMentions.isNotEmpty() && hint.contains("工作目标")) {
+                setText(pendingTaskMentions.joinToString(" ") + " ")
+                setSelection(text.length)
+            }
             setPadding(dp(12), dp(8), dp(12), dp(8))
             background = round(c(R.color.bridgefs_input_surface), dp(14))
         }
@@ -215,7 +231,8 @@ GitHub：未设置"
             text = "发送"
             setOnClickListener {
                 if (input.text.toString().trim().isNotBlank()) {
-                    toast("消息输入已收到，真实 API 将在接线阶段启用")
+                    toast("输入已进入当前工作流（UI 壳）")
+                    pendingTaskMentions.clear()
                     input.setText("")
                     input.clearFocus()
                     (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
