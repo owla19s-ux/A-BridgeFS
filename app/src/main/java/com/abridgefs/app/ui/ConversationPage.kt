@@ -7,10 +7,12 @@ import android.graphics.drawable.GradientDrawable
 import android.view.*
 import android.view.inputmethod.InputMethodManager
 import android.widget.*
+import com.abridgefs.app.*
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 
-fun conversationPage(activity: Activity, host: FrameLayout) {
+fun ApsActivity.conversationPage() {
+        val activity = this
         val content = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(14), dp(10), dp(14), dp(8))
@@ -78,15 +80,15 @@ fun conversationPage(activity: Activity, host: FrameLayout) {
         if (apiSelectorOpen) {
             content.addView(card().apply {
                 addView(label("选择 API Profile"))
-                apiProfiles.forEach { profile ->
+                apiProfilesStore.list().forEach { profile ->
                     addView(TextView(activity).apply {
-                        text = if (profile == selectedApi) "✓  $profile" else profile
+                        text = if (profile.name == selectedApi) "✓  ${profile.name}" else profile.name
                         textSize = 13f
                         setTextColor(c(if (profile == selectedApi) R.color.bridgefs_text_primary else R.color.bridgefs_text_secondary))
                         gravity = Gravity.CENTER_VERTICAL
                         setPadding(dp(8), 0, dp(8), 0)
                         setOnClickListener {
-                            selectedApi = profile
+                            selectedApi = profile.name
                             apiSelectorOpen = false
                             render()
                         }
