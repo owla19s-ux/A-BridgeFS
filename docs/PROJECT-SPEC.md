@@ -1,44 +1,40 @@
 # A-BridgeFS 项目需求功能书
 
-更新时间：2026-10-02
+更新时间：2026-10-04
 
 > 记录 ≠ 确认。状态随讨论、施工和真实验证推进。
 
 ## 一、当前项目方向
 A-BridgeFS 定位为：
 
-**AI 协作移动端工作台 + 本地执行桥。**
+**AI 项目工作与真实执行环境的 Android 工作台。**
 
 核心能力：
-- 双 AI 协作
-- 工作区
-- GitHub 项目访问与施工
+- Project 项目管理
+- Project Conversation
+- Default AI / Project Members
+- 按需 AI 协助
+- Project Address（Local / GitHub）
 - BridgeFS 本地真实执行
-- 权限
-- Verify / Receipt
+- 权限 / Commit / Verify / Receipt
 
 核心关系：
 
-AI A ─┐
-      ├─ Workspace ─ GitHub / BridgeFS
-AI B ─┘
-共享读取；施工权按 Repository / Branch 独占。
+Project → Project Address → Default AI → Project Conversation
+
+需要协助时，其他 Project Member / 临时 AI 按需加入。施工权按 Project + Repository + Branch 独占。
 
 ## 二、协作需求
 
-### R-001 双 AI 连续协作
+### R-001 Project 默认 AI 连续工作
 状态：设计已确认 / 开发中
 
-两个 AI 共同参与同一个工作区：
-- 可以读取同一项目
-- 可以沟通和交换分析结果
-- 不固定谁是决策 AI、谁是施工 AI
-- 施工角色可以随任务变化
+Project 的默认 AI 负责主要工作；需要其他 AI 时通过 Request AI Assistance 按需加入。不存在固定 Decision AI / Worker AI。
 
 ### R-002 施工权
 状态：已确认 / 开发中
 
-施工权属于 Workspace + Repository + Branch。
+施工权属于 Project + Repository + Branch。
 
 同一 Repository / Branch 同时最多一个 AI 持有施工权。
 
