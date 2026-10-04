@@ -319,3 +319,12 @@ Secretary / Orchestrator
 - GitHub Project Address：Project 首页已有独立配置入口，复用 GitHub Repository / Branch 选择与权限保存链路。
 - 修复 Project UI 迁移中的旧变量引用，并统一 active project 持久化键。
 - 当前尚未进行正式 APK 构建与真机闭环验证。
+
+## 2026-10-04 T4 进度补充
+
+- Project Conversation 已接入本地连续施工：AI 指令 → PermissionPolicy → FileBridgeService → Receipt → Default AI 继续判断。
+- 新增 GitHub Project 施工协议 `[githubfs]...[/githubfs]`，支持 GitHub 文件创建 / 编辑。
+- GitHub 施工通过 Project ConstructionLock + Project Member 身份执行，不再依赖 Decision / Worker AI。
+- GitHub 文件修改会生成 Commit，并读取该 Commit 对应的 Actions runs 作为 Verify 信息。
+- 连续施工设置明确迭代上限，避免无限 Agent Loop。
+- 当前仍未进行正式 APK 构建与真机闭环验证；GitHub 直接 push 的提交目前无法从现有 workflow 查询接口取得 Actions run，因此不能标记“已验证”。
