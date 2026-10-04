@@ -261,23 +261,134 @@ class V021Activity : Activity() {
         }
     }
 
+    private var projectConfigExpanded = false
+
     private fun renderWorkspace() {
+        val current = project ?: return
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(18), dp(12), dp(18), dp(14))
+            setPadding(dp(14), dp(10), dp(14), dp(8))
         }
 
-        root.addView(header("工作区", "管理协作资源与权限"))
-        root.addView(workspaceSelectorCard())
-        root.addView(workspaceCard())
-        root.addView(requestAssistanceCard())
-        root.addView(workspaceDirectoryCard())
-        root.addView(localFilePermissionCard())
-        root.addView(apiSummaryCard())
+        root.addView(header("项目", "当前项目的主要对话入口"))
 
-        val scroll = ScrollView(this)
-        scroll.addView(root)
-        content.addView(scroll)
+        val projectBar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(12), dp(8), dp(8), dp(8))
+            background = colorDrawable(R.color.bridgefs_input_surface, 14)
+        }
+        projectBar.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(TextView(this@V021Activity).apply {
+                text = "当前项目"
+                textSize = 12f
+                setTextColor(color(R.color.bridgefs_text_secondary))
+            })
+            addView(TextView(this@V021Activity).apply {
+                text = current.name.ifBlank { "未命名项目" }
+                textSize = 16f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(color(R.color.bridgefs_text_primary))
+                setPadding(0, dp(3), 0, 0)
+            })
+        }, LinearLayout.LayoutParams(0, -2, 1f))
+        projectBar.addView(textButton("切换") {
+            val labels = projects.map { it.name.ifBlank { "未命名项目" } }.toTypedArray()
+            val index = projects.indexOfFirst { it.id == current.id }.coerceAtLeast(0)
+            AlertDialog.Builder(this@V021Activity)
+                .setTitle("切换项目")
+                .setSingleChoiceItems(labels, index) { dialog, which ->
+                    project = projects[which]
+                    prefs.edit().putString("active_workspace_id", project?.id).apply()
+                    apiId = project?.activeConversation()?.apiId ?: apis().firstOrNull()?.id.orEmpty()
+                    dialog.dismiss()
+                    render()
+                }
+                .setNegativeButton("取消", null)
+                .show()
+        }, LinearLayout.LayoutParams(dp(64), dp(40)))
+        root.addView(projectBar, LinearLayout.LayoutParams(-1, dp(66)).apply { bottomMargin = dp(6) })
+
+        val displayBar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        displayBar.addView(TextView(this).apply {
+            text = "屏幕显示"
+            textSize = 12f
+            setTextColor(color(R.color.bridgefs_text_secondary))
+        }, LinearLayout.LayoutParams(0, dp(36), 1f))
+        displayBar.addView(textButton("↑") { Toast.makeText(this, "已切换到上方显示区域", Toast.LENGTH_SHORT).show() },
+            LinearLayout.LayoutParams(dp(44), dp(36)))
+        displayBar.addView(textButton("↓") { Toast.makeText(this, "已切换到下方显示区域", Toast.LENGTH_SHORT).show() },
+            LinearLayout.LayoutParams(dp(44), dp(36)))
+        root.addView(displayBar)
+
+        val conversation = current.activeConversation()
+        val messages = ScrollView(this)
+        val messageBox = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, dp(6), 0, dp(8))
+        }
+        conversation.messages.forEach { m -> messageBox.addView(messageBubble(m)) }
+        messages.addView(messageBox)
+        root.addView(messages, LinearLayout.LayoutParams(-1, 0, 1f))
+        messages.post { messages.fullScroll(View.FOCUS_DOWN) }
+
+        root.addView(requestAssistanceCard())
+
+        val configHeader = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(12), dp(8), dp(8), dp(8))
+            background = colorDrawable(R.color.bridgefs_input_surface, 14)
+            setOnClickListener {
+                projectConfigExpanded = !projectConfigExpanded
+                render()
+            }
+        }
+        configHeader.addView(TextView(this).apply {
+            text = "项目配置"
+            textSize = 15f
+            typeface = Typeface.DEFAULT_BOLD
+        }, LinearLayout.LayoutParams(0, dp(46), 1f))
+        configHeader.addView(TextView(this).apply {
+            text = if (projectConfigExpanded) "收起" else "展开"
+            textSize = 13f
+            setTextColor(color(R.color.bridgefs_accent))
+        }, LinearLayout.LayoutParams(dp(56), dp(46)))
+        root.addView(configHeader, LinearLayout.LayoutParams(-1, dp(62)).apply { topMargin = dp(6) })
+
+        if (projectConfigExpanded) {
+            root.addView(workspaceSelectorCard())
+            root.addView(workspaceCard())
+            root.addView(workspaceDirectoryCard())
+            root.addView(localFilePermissionCard())
+            root.addView(projectMembersCard())
+        }
+
+        val composer = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.BOTTOM
+            setPadding(0, dp(6), 0, 0)
+        }
+        val input = EditText(this).apply {
+            hint = "输入问题或工作目标……"
+            textSize = 14f
+            minLines = 1
+            maxLines = 4
+            setPadding(dp(12), dp(8), dp(12), dp(8))
+            background = colorDrawable(R.color.bridgefs_input_surface, 14)
+            setTextColor(color(R.color.bridgefs_text_primary))
+            setHintTextColor(color(R.color.bridgefs_text_secondary))
+        }
+        composer.addView(input, LinearLayout.LayoutParams(0, dp(52), 1f))
+        composer.addView(actionButton("发送") { sendProjectMessage(input, conversation) },
+            LinearLayout.LayoutParams(dp(82), dp(52)).apply { marginStart = dp(6) })
+        root.addView(composer)
+
+        content.addView(root)
     }
 
     private fun workspaceSelectorCard(): View {
