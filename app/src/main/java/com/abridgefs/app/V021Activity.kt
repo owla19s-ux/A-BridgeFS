@@ -1047,7 +1047,7 @@ class V021Activity : Activity() {
                     verifyRounds++
                     task = coordinator.currentTask()
                     if (result.state == GitHubVerifyState.FAILED) {
-                        coordinator.retryAfterVerifyFailure(task?.taskId ?: break@runCatching, decisionPrompt, workerPrompt)
+                        coordinator.retryAfterVerifyFailure(requireNotNull(task?.taskId), decisionPrompt, workerPrompt)
                         task = coordinator.currentTask()
                     }
                 }
