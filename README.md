@@ -105,12 +105,28 @@ Workspace + Repository + Branch
 
 ## 当前工程闭环
 
+普通 AI 对话首先具备 GitHub 读取能力：
+
 ```
-需求
+普通对话
  ↓
-AI 分析 / 协作
+API
  ↓
-Workspace 权限判断
+GitHub 授权 / Repository / Branch
+ ↓
+读取真实项目
+ ↓
+AI 分析 / 回答
+```
+
+需要实际修改时，再进入施工权限链：
+
+```
+用户 / AI 协作
+ ↓
+选择施工 AI
+ ↓
+ConstructionLock
  ↓
 施工
  ↓
@@ -121,4 +137,15 @@ Verify
 Receipt
 ```
 
+**读取与修改是两条不同能力链。普通对话可以读 GitHub，但不因此获得修改权。**
+
 当前重点不是提前建设完整 Agent 平台，而是把 **双 AI 协作、工作区、真实执行、GitHub 施工与验证** 逐步连接成可以实际使用和验证的闭环。
+
+
+## 当前最重要的验证点
+
+当前优先验证：**普通对话能否真正读取 GitHub 仓库**。
+
+仅有 GitHub 配置页面显示“已连接”不算完成。必须让普通对话通过当前 API 实际读取 Repository / Branch / 文件，并根据真实内容回答。
+
+本阶段暂不把 GitHub 修改 / Commit 与该读取问题混在一起。
