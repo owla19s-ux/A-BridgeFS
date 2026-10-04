@@ -310,3 +310,12 @@ Secretary / Orchestrator
 ## 2026-10-04 拆除结果
 
 旧的双 AI 协作运行链已从当前代码路径拆除：不再存在固定 AI A / AI B 对话入口、Decision / Worker 协作入口或旧 CollaborationTransport 任务链。`ConstructionLock` 保留，作为未来 Project 连续施工的权限基础，而不是旧协作模式的入口。
+
+
+## 2026-10-04 T2 进度补充
+
+- Project Members：新增 / 编辑 / 删除 / API Profile 绑定 / Default AI 已实现。
+- Local Project Address：已有系统目录选择器、持久化与重新进入恢复。
+- GitHub Project Address：Project 首页已有独立配置入口，复用 GitHub Repository / Branch 选择与权限保存链路。
+- 修复 Project UI 迁移中的旧变量引用，并统一 active project 持久化键。
+- 当前尚未进行正式 APK 构建与真机闭环验证。
