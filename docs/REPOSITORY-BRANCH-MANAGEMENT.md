@@ -74,84 +74,64 @@ APS 已经从旧的固定双 AI 模型转为 **Project-centered** 模型。
 
 `main` 永久保留，是当前唯一正式施工基线。
 
-## 4. 2026-10-04 分支审查
+## 4. 当前分支状态（2026-10-04）
 
-本次检查发现仓库共有 **25 个分支**。
+当前 GitHub 实际分支状态已经收口为：
 
-当前 main：
+| 分支 | 性质 |
+|---|---|
+| `main` | 唯一正式施工主线 |
 
-`24557a08b49e6915392589e8670a5b1b6b95304f`
+此前审查中的 25 个历史分支已经完成清理，不再作为当前施工入口。
 
-### 已确认没有独有 Commit，可直接列入清理
+这意味着仓库当前不需要再维护一套“历史分支清单”。历史 Commit / PR 本身已经保留工程历史；分支本身不承担历史档案职责。
 
-| 分支 | 相对 main |
-|---|---:|
-| `docs/repository-branch-management` | ahead 0 / behind 225 |
-| `feature/current-github-workspace-boundary` | ahead 0 / behind 348 |
-| `feature/v021-ui-redesign` | ahead 0 / behind 404 |
-| `fix/chat-scroll-collaboration-feedback` | ahead 0 / behind 212 |
-| `fix/github-module-doc-legacy-key` | ahead 0 / behind 346 |
-| `fix/ui-chat-workspace-feedback-batch` | ahead 0 / behind 119 |
-| `fix/unify-release-build-flow` | ahead 0 / behind 227 |
-| `fix/v021-intent-import` | ahead 0 / behind 406 |
-| `fix/workspace-conversation-separation` | ahead 0 / behind 231 |
-| `fix/workspace-directory-ui` | ahead 0 / behind 216 |
-| `refactor/workspace-github-v02` | ahead 0 / behind 241 |
+### 后续分支规则
 
-这些分支相对当前 main 已没有独有 Commit。它们属于历史施工线，除非发现外部依赖，否则应清理。
+只有在以下情况才创建临时分支：
 
-### 仍需进一步审查再清理
+- 高风险架构修改；
+- 大型 UI 重构；
+- 构建 / 签名链修改；
+- 明确需要独立 PR 审查的实验。
 
-以下分支存在独有 Commit：
-
-- `feat/collaboration-observability` — ahead 10
-- `feature/github-module-v021` — ahead 14
-- `feature/github-pat-auth` — ahead 4
-- `feature/v0.2.1-access-controls` — ahead 9
-- `feature/v0.2.1-ui` — ahead 3
-- `feature/v021-core-collaboration-batch` — ahead 7
-- `feature/workspace-github-model` — ahead 4
-- `feature/0.2.1-two-ai-collaboration` — ahead 23
-- `fix/chat-api-binding-input-text` — ahead 5
-- `fix/chat-api-selector-ui` — ahead 2
-- `fix/github-activity-insets` — ahead 1
-- `fix/github-activity-syntax` — ahead 1
-- `fix/ui-separation-settings-github-test` — ahead 25
-
-其中旧双 AI / 协作 / Workspace 模型相关分支属于高风险历史分支，应优先判断其独有 Commit 是否已经被当前架构替代。
-
-## 5. 本次清理顺序
-
-### 第一批
-
-清理上述 **ahead=0** 的 11 个历史分支。
-
-### 第二批
-
-逐个检查 13 个仍有独有 Commit 的分支：
+任务完成后：
 
 ```
-独有 Commit
-  ↓
-是否已等价进入 main？
-  ├─ 是 → 删除
-  └─ 否
-      ↓
-是否属于当前 Project-centered 架构？
-  ├─ 否 → 作为废弃历史清理
-  └─ 是 → 迁移有效内容 → 删除旧分支
-```
-
-### 第三批
-
-最终目标：
-
-```
+临时分支
+ ↓
+检查 / Verify
+ ↓
+PR / 合并
+ ↓
 main
-└── 少量明确存在的临时/实验分支
+ ↓
+再次 Verify
+ ↓
+删除临时分支
 ```
 
-而不是几十个历史施工分支。
+## 5. 清理原则
+
+历史分支清理不能只看分支名称或 ahead 数量。
+
+判断顺序：
+
+```
+是否仍在施工？
+ ↓
+是否存在未合并 PR？
+ ↓
+独有 Commit 是否包含当前架构仍需要的内容？
+ ↓
+是否已经等价进入 main？
+ ↓
+确认无保留价值
+ ↓
+删除分支
+```
+
+**Commit 和 PR 保存历史，分支只表示仍存在的工作线。**
 
 ## 6. AI 施工注意事项
 
@@ -171,12 +151,11 @@ main
 
 ## 7. 当前清理状态
 
-状态：**清理进行中**
+状态：**已收口**
 
-- 分支总数：25
+- 当前分支总数：1
 - main：1
-- 已确认无独有 Commit：11
-- 有独有 Commit、待进一步审查：13
-- 目标：回到单一 main 主线 + 少量必要实验分支
+- 历史分支：已清理
+- 当前目标：保持单一 main 主线，只有确有需要时创建临时分支
 
 > 注意：当前 GitHub 连接提供了读取、创建和移动 Branch Ref 的能力，但没有提供安全的 Branch Delete 操作。因此本轮可以完成审查、分类和迁移判断；实际删除动作需要 GitHub 侧可用的删除分支权限/入口，不能用移动 Ref 冒充删除。
