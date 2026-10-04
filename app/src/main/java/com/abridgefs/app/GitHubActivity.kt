@@ -351,13 +351,13 @@ class GitHubActivity : android.app.Activity() {
     }
 
     private fun projectService(): GitHubWorkspaceService? {
-        val project = project ?: return null
+        val currentProject = project ?: return null
         val token = authStore.state().accessToken
         if (token.isNullOrBlank()) {
             Toast.makeText(this, "GitHub 尚未连接", Toast.LENGTH_SHORT).show()
             return null
         }
-        return GitHubWorkspaceService(this, GitHubApiClient(this, token), project.github, project)
+        return GitHubWorkspaceService(this, GitHubApiClient(this, token), currentProject.github, currentProject)
     }
 
     private fun save() { projectStore.save(projects) }
