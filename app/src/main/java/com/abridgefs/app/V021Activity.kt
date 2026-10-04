@@ -1251,29 +1251,29 @@ class V021Activity : Activity() {
         executor.execute {
             try {
                 val address = current.workspaceDirectory?.trim().orEmpty()
-                val github = current.github.repository?.trim().orEmpty()
-                val branch = current.github.branch?.trim().orEmpty()
+                val githubRepository = current.githubRead.repository?.trim().orEmpty()
+                val branch = current.githubRead.branch?.trim().orEmpty()
                 val projectInfo = buildString {
                     append("当前 Project：").append(current.name)
                     if (address.isNotBlank()) append("\nLocal Project Address：").append(address)
-                    if (github.isNotBlank()) {
-                        append("\nGitHub Repository：").append(github)
+                    if (githubRepository.isNotBlank()) {
+                        append("\nGitHub Repository：").append(githubRepository)
                         if (branch.isNotBlank()) append("\nGitHub Branch：").append(branch)
                     }
                 }
-                val github = GitHubConversationReader(this).readForProject(current, text)
-                if (github.error != null) {
+                val githubRead = GitHubConversationReader(this).readForProject(current, text)
+                if (githubRead.error != null) {
                     runOnUiThread {
-                        conversation.messages += BridgeChatMessage("tool", "[GitHub 错误]\n" + github.error)
+                        conversation.messages += BridgeChatMessage("tool", "[GitHub 错误]\n" + githubRead.error)
                         store.save(projects)
                         render()
                     }
                     return@execute
                 }
-                val githubPrompt = if (github.content.isNotBlank()) {
+                val githubPrompt = if (githubRead.content.isNotBlank()) {
                     "\n\n[Project GitHub 只读资料]\nRepository: " + github.repository +
                         "\nBranch: " + (github.branch ?: "默认分支") +
-                        "\n以下内容来自当前 Project Address，仅用于本轮回答；不要执行任何修改操作。\n\n" + github.content
+                        "\n以下内容来自当前 Project Address，仅用于本轮回答；不要执行任何修改操作。\n\n" + githubRead.content
                 } else ""
                 val answer = BridgeApiClient(
                     BridgeApiConfig(normalizeBaseUrl(profile.baseUrl), profile.key, profile.model)
@@ -1304,6 +1304,69 @@ class V021Activity : Activity() {
             }
         }
         input.text.clear()
+    }
+
+
+    private fun executeProjectCommands(answer: String, project: BridgeProject, conversation: BridgeConversation) {
+        val blocks = BridgeRequest.extractAll(answer)
+        if (blocks.isEmpty()) return
+        val commands = blocks.flatMap { CommandParser.parse(it) }
+        if (commands.isEmpty()) {
+            addProjectReceipt(conversation, "FAILED", "AI command", CommandParser.lastError ?: "未识别到 BridgeFS 指令")
+            return
+        }
+        val limit = prefs.getInt("command_limit", 3).coerceIn(1, 20)
+        if (commands.size > limit) {
+            addProjectReceipt(conversation, "DENIED", "AI command batch", "本轮指令数量 " + commands.size + " 超过限制 " + limit + "，未执行。")
+            return
+        }
+        val auth = PermissionPolicy.authorization(this, project, conversation)
+        val denied = commands.firstOrNull { PermissionPolicy.check(it, auth) == Decision.DENY }
+        if (denied != null) {
+            addProjectReceipt(conversation, "DENIED", denied.toString(), "当前 Project 权限设置禁止该操作")
+            return
+        }
+        val confirm = commands.firstOrNull { PermissionPolicy.check(it, auth) == Decision.CONFIRM }
+        if (confirm != null) {
+            AlertDialog.Builder(this)
+                .setTitle("需要确认")
+                .setMessage(blocks.joinToString("\n\n"))
+                .setPositiveButton("执行") { _, _ ->
+                    dispatchProjectCommand(blocks.joinToString("\n\n"), project, conversation)
+                }
+                .setNegativeButton("拒绝") { _, _ ->
+                    addProjectReceipt(conversation, "DENIED", confirm.toString(), "用户拒绝了本次执行")
+                }
+                .show()
+        } else {
+            dispatchProjectCommand(blocks.joinToString("\n\n"), project, conversation)
+        }
+    }
+
+    private fun dispatchProjectCommand(command: String, project: BridgeProject, conversation: BridgeConversation) {
+        val root = project.workspaceDirectory?.trim().orEmpty()
+        if (root.isBlank()) {
+            addProjectReceipt(conversation, "FAILED", "AI command", "当前 Project 未设置 Local Project Address，指令未执行。")
+            return
+        }
+        val intent = Intent(this, FileBridgeService::class.java)
+            .putExtra("bridgefs_external_command", command)
+            .putExtra("bridgefs_root", root)
+            .putExtra("projectId", project.id)
+            .putExtra("conversationId", conversation.id)
+            .putExtra("workspaceId", project.id)
+        runCatching { startForegroundService(intent) }.onFailure {
+            addProjectReceipt(conversation, "FAILED", "AI command", "启动 BridgeFS 执行服务失败：" + (it.message ?: "未知错误"))
+        }
+    }
+
+    private fun addProjectReceipt(conversation: BridgeConversation, status: String, command: String, message: String) {
+        val receipt = BridgeReceiptRecord(status, command, message)
+        conversation.executions += receipt
+        conversation.messages += BridgeChatMessage("receipt", formatReceipt(receipt), receipt.time)
+        store.save(projects)
+        pendingReceipt = formatReceipt(receipt)
+        if (page == Page.WORKSPACE) render()
     }
 
     private fun sendStandalone(input: EditText, conversation: BridgeConversation) {
