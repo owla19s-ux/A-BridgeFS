@@ -1,144 +1,283 @@
 package com.abridgefs.app
 
-import android.app.*
-import android.content.*
+import android.app.Activity
+import android.os.Bundle
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
-import android.os.Bundle
-import android.provider.DocumentsContract
 import android.view.*
+import android.view.inputmethod.InputMethodManager
+import android.content.Context
 import android.widget.*
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import java.util.UUID
 
 class ApsActivity : Activity() {
-    private val store by lazy { BridgeProjectStore(this) }
-    private val apis by lazy { ApiProfileStore(this) }
-    private val prefs by lazy { getSharedPreferences("bridgefs",0) }
     private lateinit var host: FrameLayout
-    private var projects=mutableListOf<BridgeProject>()
-    private var project: BridgeProject?=null
-    private var page=0
-    private var configOpen=false
-    private var displayOpen=false
-    private var chatOpen=true
-    private val settingOpen=mutableSetOf<String>()
+    private var page = 0
+    private var projectConfigOpen = false
+    private var projectChatOpen = true
+    private var displayOpen = true
+    private val settingOpen = mutableSetOf<String>()
 
-    override fun onCreate(b:Bundle?){
-        super.onCreate(b)
+    override fun onCreate(state: Bundle?) {
+        super.onCreate(state)
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
-        projects=store.load()
-        if(projects.isEmpty()) projects+=store.newProject("默认项目")
-        val id=prefs.getString("active_project_id",null)
-        project=projects.firstOrNull{it.id==id}?:projects.first()
-        prefs.edit().putString("active_project_id",project!!.id).apply()
-        shell()
+        buildShell()
     }
-    private fun shell(){
-        val root=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setBackgroundColor(c(R.color.bridgefs_surface))}
-        host=FrameLayout(this)
-        ViewCompat.setOnApplyWindowInsetsListener(host){v,i->v.setPadding(0,0,0,i.getInsets(WindowInsetsCompat.Type.ime()).bottom);i}
-        root.addView(host,LinearLayout.LayoutParams(-1,0,1f))
-        val nav=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL;setPadding(dp(8),dp(4),dp(8),dp(4))}
-        nav.addView(nav("项目",0),LinearLayout.LayoutParams(0,dp(54),1f))
-        nav.addView(nav("对话",1),LinearLayout.LayoutParams(0,dp(54),1f))
-        nav.addView(nav("设置",2),LinearLayout.LayoutParams(0,dp(54),1f))
+
+    private fun buildShell() {
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(c(R.color.bridgefs_surface))
+        }
+        host = FrameLayout(this)
+        root.addView(host, LinearLayout.LayoutParams(-1, 0, 1f))
+        val nav = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(dp(8), dp(4), dp(8), dp(4))
+        }
+        listOf("项目", "对话", "设置").forEachIndexed { i, title ->
+            nav.addView(TextView(this).apply {
+                text = title
+                textSize = 13f
+                gravity = Gravity.CENTER
+                setOnClickListener { page = i; render() }
+            }, LinearLayout.LayoutParams(0, dp(54), 1f))
+        }
         root.addView(nav)
-        ViewCompat.setOnApplyWindowInsetsListener(root){v,i->val x=i.getInsets(WindowInsetsCompat.Type.systemBars());v.setPadding(0,x.top,0,x.bottom);i}
-        setContentView(root);render()
+        ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(0, bars.top, 0, bars.bottom)
+            insets
+        }
+        setContentView(root)
+        render()
     }
-    private fun nav(s:String,p:Int)=TextView(this).apply{text=s;textSize=13f;gravity=Gravity.CENTER;setOnClickListener{page=p;render()}}
-    private fun render(){host.removeAllViews();when(page){0->projectPage();1->chatPage();2->settingsPage()}}
-    private fun projectPage(){
-        val p=project?:return
-        val root=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(14),dp(10),dp(14),dp(8))}
-        root.addView(TextView(this).apply{text=p.name;textSize=21f;typeface=Typeface.DEFAULT_BOLD;setTextColor(c(R.color.bridgefs_text_primary))})
-        root.addView(TextView(this).apply{text=address(p);textSize=12f;setTextColor(c(R.color.bridgefs_text_secondary));setPadding(0,dp(3),0,dp(4))})
-        root.addView(Button(this).apply{text=if(displayOpen)"↓  收起显示" else "↑  展开显示";setOnClickListener{displayOpen=!displayOpen;render()}})
-        root.addView(section("项目配置",configOpen){configOpen=!configOpen;render()})
-        if(configOpen)root.addView(config(p))
-        root.addView(card().apply{
-            addView(TextView(this@ApsActivity).apply{text="待处理任务";textSize=15f;typeface=Typeface.DEFAULT_BOLD})
-            listOf("UI 输入框问题","构建问题","签名冲突").forEach{t->addView(CheckBox(this@ApsActivity).apply{text=t;textSize=13f;setOnCheckedChangeListener{_,on->if(on)Toast.makeText(this@ApsActivity,"@$t 已加入输入区",Toast.LENGTH_SHORT).show()}})}
-        },LinearLayout.LayoutParams(-1,-2).apply{topMargin=dp(8)})
-        root.addView(section("项目主要对话",chatOpen){chatOpen=!chatOpen;render()},LinearLayout.LayoutParams(-1,dp(52)).apply{topMargin=dp(8)})
-        if(chatOpen){
-            val cv=p.activeConversation()
-            root.addView(card().apply{
-                if(cv.messages.isEmpty())addView(TextView(this@ApsActivity).apply{text="项目对话是主要工作入口。直接提问即可。";textSize=13f;setTextColor(c(R.color.bridgefs_text_secondary))})
-                cv.messages.forEach{m->addView(TextView(this@ApsActivity).apply{text=m.content;textSize=14f;setTextIsSelectable(true);setPadding(dp(10),dp(8),dp(10),dp(8))})}
+
+    private fun render() {
+        host.removeAllViews()
+        when (page) {
+            0 -> projectPage()
+            1 -> conversationPage()
+            else -> settingsPage()
+        }
+    }
+
+    private fun projectPage() {
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(14), dp(10), dp(14), dp(8))
+        }
+        content.addView(title("默认项目"))
+        content.addView(TextView(this).apply {
+            text = "Project Address
+Local：未设置
+GitHub：未设置"
+            textSize = 12f
+            setTextColor(c(R.color.bridgefs_text_secondary))
+            setPadding(0, dp(3), 0, dp(6))
+        })
+        content.addView(Button(this).apply {
+            text = if (displayOpen) "↓  收起显示" else "↑  展开显示"
+            setOnClickListener { displayOpen = !displayOpen; render() }
+        })
+        content.addView(section("项目配置", projectConfigOpen) {
+            projectConfigOpen = !projectConfigOpen
+            render()
+        })
+        if (projectConfigOpen) {
+            content.addView(card().apply {
+                addView(label("项目名称"))
+                addView(EditText(this@ApsActivity).apply {
+                    hint = "默认项目"
+                    maxLines = 1
+                })
+                addView(label("Project Address"))
+                addView(value("Local Project Address：未设置"))
+                addView(value("GitHub Project Address：未设置"))
+                addView(Button(this@ApsActivity).apply {
+                    text = "配置 Project Address"
+                    setOnClickListener { toast("Project Address 接线将在下一阶段接入") }
+                })
+                addView(label("API"))
+                addView(value("Default API：未绑定"))
+                addView(Button(this@ApsActivity).apply {
+                    text = "选择 API Profile"
+                    setOnClickListener { toast("API Profile 接线将在下一阶段接入") }
+                })
             })
         }
-        root.addView(Button(this).apply{text="Request AI Assistance";setOnClickListener{Toast.makeText(this@ApsActivity,"协助入口已建立，下一阶段接入协助链",Toast.LENGTH_SHORT).show()}},LinearLayout.LayoutParams(-1,dp(44)).apply{topMargin=dp(8)})
-        val scroll=ScrollView(this).apply{isFillViewport=true;addView(root)}
-        host.addView(scroll,LinearLayout.LayoutParams(-1,0,1f))
-        val bar=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL;setPadding(dp(10),dp(5),dp(10),dp(5))}
-        val input=EditText(this).apply{hint="输入问题或工作目标……";maxLines=4;setPadding(dp(12),dp(8),dp(12),dp(8));background=round(c(R.color.bridgefs_input_surface),dp(14))}
-        bar.addView(input,LinearLayout.LayoutParams(0,dp(52),1f))
-        bar.addView(Button(this).apply{text="发送";setOnClickListener{send(input)}},LinearLayout.LayoutParams(dp(78),dp(52)).apply{marginStart=dp(6)})
-        host.addView(bar,LinearLayout.LayoutParams(-1,dp(62)))
-    }
-    private fun config(p:BridgeProject)=card().apply{
-        val name=EditText(this@ApsActivity).apply{setText(p.name);hint="项目名称";maxLines=1}
-        addView(name)
-        addView(Button(this@ApsActivity).apply{text="保存项目名称";setOnClickListener{p.name=name.text.toString().trim().ifBlank{"未命名项目"};save();render()}})
-        addView(TextView(this@ApsActivity).apply{text="Project Address";textSize=15f;typeface=Typeface.DEFAULT_BOLD;setPadding(0,dp(10),0,dp(4))})
-        addView(TextView(this@ApsActivity).apply{text="Local：${p.localAddress?: "未设置"}";textSize=13f;setTextColor(c(R.color.bridgefs_text_secondary))})
-        addView(Button(this@ApsActivity).apply{text="选择 Local Project Address";setOnClickListener{pickLocal()}})
-        addView(TextView(this@ApsActivity).apply{text="GitHub：${p.githubAddress.repository?: "未设置"} / ${p.githubAddress.branch?: "默认分支"}";textSize=13f;setTextColor(c(R.color.bridgefs_text_secondary));setPadding(0,dp(8),0,dp(4))})
-        addView(Button(this@ApsActivity).apply{text="配置 GitHub Project Address";setOnClickListener{startActivity(Intent(this@ApsActivity,GitHubActivity::class.java).putExtra("projectId",p.id))}})
-        val m=p.defaultMemberId?.let{id->p.aiMembers.firstOrNull{it.id==id}}
-        addView(TextView(this@ApsActivity).apply{text="Default AI：${m?.name?:"未配置"}";textSize=13f;setPadding(0,dp(8),0,dp(4))})
-        addView(Button(this@ApsActivity).apply{text="选择 API Profile";setOnClickListener{chooseApi()}})
-        addView(CheckBox(this@ApsActivity).apply{text="允许当前 Project 修改本地文件";isChecked=p.localFileModifyEnabled;setOnCheckedChangeListener{_,v->p.localFileModifyEnabled=v;save()}})
-    }.also{it.layoutParams=LinearLayout.LayoutParams(-1,-2).apply{topMargin=dp(6)}}
-    private fun chatPage(){
-        val p=project?:return;val cv=p.activeConversation()
-        val root=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(14),dp(10),dp(14),dp(8))}
-        root.addView(TextView(this).apply{text="对话";textSize=21f;typeface=Typeface.DEFAULT_BOLD})
-        val m=p.defaultMemberId?.let{id->p.aiMembers.firstOrNull{it.id==id}};val an=m?.apiProfileId?.let{apis.find(it)?.name}?:"未绑定 API"
-        root.addView(info("当前 API",an));root.addView(info("项目访问",address(p)))
-        root.addView(card().apply{if(cv.messages.isEmpty())addView(TextView(this@ApsActivity).apply{text="还没有消息。";setTextColor(c(R.color.bridgefs_text_secondary))});cv.messages.forEach{addView(TextView(this@ApsActivity).apply{text=it.content;textSize=14f;setPadding(dp(8),dp(8),dp(8),dp(8))})}})
-        host.addView(ScrollView(this).apply{addView(root)},LinearLayout.LayoutParams(-1,0,1f))
-        val bar=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL;setPadding(dp(10),dp(5),dp(10),dp(5))}
-        val input=EditText(this).apply{hint="输入消息……";maxLines=4;background=round(c(R.color.bridgefs_input_surface),dp(14))}
-        bar.addView(input,LinearLayout.LayoutParams(0,dp(52),1f));bar.addView(Button(this).apply{text="发送";setOnClickListener{send(input)}},LinearLayout.LayoutParams(dp(78),dp(52)))
-        host.addView(bar,LinearLayout.LayoutParams(-1,dp(62)))
-    }
-    private fun settingsPage(){
-        val root=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(14),dp(10),dp(14),dp(14))}
-        root.addView(TextView(this).apply{text="设置";textSize=21f;typeface=Typeface.DEFAULT_BOLD;setPadding(0,0,0,dp(10))})
-        listOf("连接","权限","文件","执行","外观","通知","日志","系统").forEach{n->
-            val open=settingOpen.contains(n);root.addView(section(n,open){if(open)settingOpen.remove(n)else settingOpen.add(n);render()},LinearLayout.LayoutParams(-1,dp(52)).apply{bottomMargin=dp(4)})
-            if(open)root.addView(card().apply{
-                addView(TextView(this@ApsActivity).apply{text=when(n){"连接"->"API Profiles / GitHub / 其他连接模块";"权限"->"全局 API、GitHub 与 Project 权限";else->"系统级 ${n} 设置";};textSize=12f;setTextColor(c(R.color.bridgefs_text_secondary))})
-                if(n=="连接") {addView(Button(this@ApsActivity).apply{text="API Profiles";setOnClickListener{startActivity(Intent(this@ApsActivity,ApiSettingsActivity::class.java))}});addView(Button(this@ApsActivity).apply{text="GitHub";setOnClickListener{startActivity(Intent(this@ApsActivity,GlobalAccessActivity::class.java))}})}
-                if(n=="权限")addView(Button(this@ApsActivity).apply{text="打开权限设置";setOnClickListener{startActivity(Intent(this@ApsActivity,GlobalAccessActivity::class.java))}})
+        content.addView(card().apply {
+            addView(label("待处理任务"))
+            listOf("UI 输入框问题", "构建问题", "签名冲突").forEach { task ->
+                addView(CheckBox(this@ApsActivity).apply {
+                    text = task
+                    textSize = 13f
+                    setOnCheckedChangeListener { _, checked ->
+                        if (checked) toast("@" + task + " 已进入输入区（UI 壳）")
+                    }
+                })
+            }
+        }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
+        content.addView(section("项目主要对话", projectChatOpen) {
+            projectChatOpen = !projectChatOpen
+            render()
+        }, LinearLayout.LayoutParams(-1, dp(52)).apply { topMargin = dp(8) })
+        if (projectChatOpen) {
+            content.addView(card().apply {
+                addView(value("这里是项目历史对话区域。当前为 UI 壳，尚未连接真实消息数据。"))
             })
         }
-        host.addView(ScrollView(this).apply{addView(root)},LinearLayout.LayoutParams(-1,0,1f))
+        if (displayOpen) {
+            content.addView(Button(this).apply {
+                text = "Request AI Assistance"
+                setOnClickListener { toast("协助链将在 Project UI 壳稳定后接入") }
+            }, LinearLayout.LayoutParams(-1, dp(44)).apply { topMargin = dp(8) })
+        }
+        host.addView(ScrollView(this).apply {
+            isFillViewport = true
+            addView(content)
+        }, LinearLayout.LayoutParams(-1, 0, 1f))
+        inputBar("输入工作目标……")
     }
-    private fun send(input:EditText){
-        val text=input.text.toString().trim();if(text.isBlank())return
-        val p=project?:return;val cv=p.activeConversation();cv.messages+=BridgeChatMessage("user",text);input.setText("");save();render()
-        Thread{val r=ProjectConversationService(this).send(p,cv,text);runOnUiThread{r.answer?.let{cv.messages+=BridgeChatMessage("assistant",it)};r.error?.let{cv.messages+=BridgeChatMessage("system",it)};save();render()}}.start()
+
+    private fun conversationPage() {
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(14), dp(10), dp(14), dp(8))
+        }
+        content.addView(title("对话"))
+        content.addView(info("当前 API", "未绑定"))
+        content.addView(info("项目访问", "当前 Project Address：未设置"))
+        content.addView(card().apply {
+            addView(value("普通 AI 对话区域。
+可访问当前 Project 的授权资源。
+当前为 UI 壳。"))
+        })
+        host.addView(ScrollView(this).apply { addView(content) },
+            LinearLayout.LayoutParams(-1, 0, 1f))
+        inputBar("输入消息……")
     }
-    private fun chooseApi(){
-        val p=project?:return;val list=apis.list();if(list.isEmpty()){Toast.makeText(this,"请先在设置 → 连接 → API Profiles 添加 API",Toast.LENGTH_SHORT).show();return}
-        AlertDialog.Builder(this).setTitle("选择 Default AI API").setItems(list.map{it.name.ifBlank{"未命名 API"}}.toTypedArray()){_,i->
-            val a=list[i];val m=p.defaultMemberId?.let{id->p.aiMembers.firstOrNull{it.id==id}}
-            if(m!=null)m.apiProfileId=a.id else {val x=BridgeAiMember(UUID.randomUUID().toString(),a.name.ifBlank{"默认 AI"},a.id);p.aiMembers+=x;p.defaultMemberId=x.id};save();render()
-        }.show()
+
+    private fun settingsPage() {
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(14), dp(10), dp(14), dp(14))
+        }
+        content.addView(title("设置"))
+        listOf("连接", "权限", "文件", "执行", "外观", "通知", "日志", "系统").forEach { name ->
+            val open = settingOpen.contains(name)
+            content.addView(section(name, open) {
+                if (open) settingOpen.remove(name) else settingOpen.add(name)
+                render()
+            }, LinearLayout.LayoutParams(-1, dp(52)).apply { bottomMargin = dp(4) })
+            if (open) {
+                content.addView(card().apply {
+                    addView(value(if (name == "连接") "API Profiles / GitHub / 其他连接模块"
+                        else if (name == "权限") "全局 API、GitHub 与 Project 权限"
+                        else "系统级 " + name + " 设置"))
+                    if (name == "连接") {
+                        addView(Button(this@ApsActivity).apply {
+                            text = "API Profiles"
+                            setOnClickListener { toast("API Profiles 页面将在接线阶段恢复") }
+                        })
+                        addView(Button(this@ApsActivity).apply {
+                            text = "GitHub"
+                            setOnClickListener { toast("GitHub 设置将在接线阶段恢复") }
+                        })
+                    }
+                    if (name == "权限") {
+                        addView(Button(this@ApsActivity).apply {
+                            text = "权限设置"
+                            setOnClickListener { toast("权限控制将在接线阶段恢复") }
+                        })
+                    }
+                })
+            }
+        }
+        host.addView(ScrollView(this).apply { addView(content) },
+            LinearLayout.LayoutParams(-1, 0, 1f))
     }
-    private fun pickLocal(){startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION),3101)}
-    @Suppress("DEPRECATION") override fun onActivityResult(r:Int,result:Int,data:Intent?){super.onActivityResult(r,result,data);if(r!=3101||result!=RESULT_OK)return;val id=DocumentsContract.getTreeDocumentId(data?.data?:return);val s=id.indexOf(':');if(s<=0)return;val rel=id.substring(s+1).trim('/');project?.localAddress=if(rel.isBlank())"/storage/emulated/0" else "/storage/emulated/0/$rel";save();render()}
-    private fun save(){store.save(projects)}
-    private fun address(p:BridgeProject):String{val l=p.localAddress.orEmpty();val g=p.githubAddress.repository.orEmpty();return when{l.isNotBlank()&&g.isNotBlank()->"Local：$l\nGitHub：$g / ${p.githubAddress.branch?: "默认分支"}";l.isNotBlank()->"Local：$l";g.isNotBlank()->"GitHub：$g / ${p.githubAddress.branch?: "默认分支"}";else->"尚未设置 Project Address"}}
-    private fun section(s:String,o:Boolean,f:()->Unit)=TextView(this).apply{text="$s    ${if(o)"▴"else"▾"}";textSize=15f;typeface=Typeface.DEFAULT_BOLD;gravity=Gravity.CENTER_VERTICAL;setPadding(dp(14),0,dp(14),0);background=round(c(R.color.bridgefs_input_surface),dp(12));setOnClickListener{f()}}
-    private fun info(a:String,b:String)=card().apply{addView(TextView(this@ApsActivity).apply{text=a;textSize=11f;setTextColor(c(R.color.bridgefs_text_secondary))});addView(TextView(this@ApsActivity).apply{text=b;textSize=14f})}
-    private fun card()=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(12),dp(10),dp(12),dp(10));background=round(c(R.color.bridgefs_input_surface),dp(14))}
-    private fun dp(v:Int)=(v*resources.displayMetrics.density).toInt()
-    private fun c(id:Int)=resources.getColor(id,theme)
-    private fun round(c:Int,r:Int)=GradientDrawable().apply{setColor(c);cornerRadius=r.toFloat()}
+
+    private fun inputBar(hint: String) {
+        val bar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(dp(10), dp(5), dp(10), dp(5))
+        }
+        val input = EditText(this).apply {
+            this.hint = hint
+            maxLines = 4
+            setPadding(dp(12), dp(8), dp(12), dp(8))
+            background = round(c(R.color.bridgefs_input_surface), dp(14))
+        }
+        bar.addView(input, LinearLayout.LayoutParams(0, dp(52), 1f))
+        bar.addView(Button(this).apply {
+            text = "发送"
+            setOnClickListener {
+                if (input.text.toString().trim().isNotBlank()) {
+                    toast("消息输入已收到，真实 API 将在接线阶段启用")
+                    input.setText("")
+                    input.clearFocus()
+                    (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
+                        .hideSoftInputFromWindow(input.windowToken, 0)
+                }
+            }
+        }, LinearLayout.LayoutParams(dp(78), dp(52)).apply { marginStart = dp(6) })
+        ViewCompat.setOnApplyWindowInsetsListener(bar) { v, insets ->
+            v.translationY = -insets.getInsets(WindowInsetsCompat.Type.ime()).bottom.toFloat()
+            insets
+        }
+        host.addView(bar, LinearLayout.LayoutParams(-1, dp(62)))
+    }
+
+    private fun title(text: String) = TextView(this).apply {
+        this.text = text
+        textSize = 21f
+        typeface = Typeface.DEFAULT_BOLD
+        setTextColor(c(R.color.bridgefs_text_primary))
+        setPadding(0, 0, 0, dp(8))
+    }
+
+    private fun section(text: String, open: Boolean, click: () -> Unit) =
+        TextView(this).apply {
+            this.text = text + "    " + if (open) "▴" else "▾"
+            textSize = 15f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(14), 0, dp(14), 0)
+            background = round(c(R.color.bridgefs_input_surface), dp(12))
+            setOnClickListener { click() }
+        }
+
+    private fun info(name: String, value: String) = card().apply {
+        addView(label(name))
+        addView(value(value))
+    }
+
+    private fun card() = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(dp(12), dp(10), dp(12), dp(10))
+        background = round(c(R.color.bridgefs_input_surface), dp(14))
+    }
+
+    private fun label(text: String) = TextView(this).apply {
+        this.text = text
+        textSize = 11f
+        setTextColor(c(R.color.bridgefs_text_secondary))
+    }
+
+    private fun value(text: String) = TextView(this).apply {
+        this.text = text
+        textSize = 13f
+        setTextColor(c(R.color.bridgefs_text_secondary))
+        setPadding(0, dp(4), 0, dp(4))
+    }
+
+    private fun toast(text: String) = Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
+    private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+    private fun c(id: Int) = resources.getColor(id, theme)
+    private fun round(color: Int, radius: Int) = GradientDrawable().apply {
+        setColor(color)
+        cornerRadius = radius.toFloat()
+    }
 }
