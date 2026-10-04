@@ -1277,7 +1277,7 @@ class V021Activity : Activity() {
                     return@execute
                 }
                 val githubPrompt = if (githubRead.content.isNotBlank()) {
-                    "\n\n[Project GitHub 只读资料]\nRepository: " + github.repository +
+                    "\n\n[Project GitHub 只读资料]\nRepository: " + githubRead.repository +
                         "\nBranch: " + (githubRead.branch ?: "默认分支") +
                         "\n以下内容来自当前 Project Address，仅用于本轮回答；不要执行任何修改操作。\n\n" + githubRead.content
                 } else ""
