@@ -153,3 +153,26 @@ UI 入口 → 用户操作 → 业务状态 → 持久化 → 重新进入 / 恢
 - 不因为代码中存在 Workspace 命名就立即删除所有兼容字段；
 - 不在 T1 阶段提前施工连续 Agent 循环。
 
+
+## T1 施工进度更新
+
+截至 Commit `6deb337`：
+
+- Project 首页已成为主要项目对话入口；
+- 旧 `WORKSPACE_CHAT` 页面枚举、路由与渲染函数已移除；
+- Project 配置保持独立展开 / 收起；
+- ↑ / ↓ 已接入 Project 页面滚动显示，不再控制配置展开；
+- Project composer 固定在页面底部；
+- Project UI 内部主要 Workspace 命名已改为 Project 语义；
+- active project 持久化键已迁移为 `active_project_id`；
+- Project Members 已从现有模型接入配置显示。
+
+### 仍未完成
+
+- Project Members 的新增 / 删除 / 修改 / Default AI 设置；
+- Project Address 的完整编辑闭环；
+- GitHub Address 的 Project 级配置闭环；
+- T1 真机 UI 验证；
+- 正式 APK / Actions Build 验证。
+
+因此 T1 仍标记为 **开发中**，不能标记为已验证。
