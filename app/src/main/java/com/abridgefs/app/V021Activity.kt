@@ -403,7 +403,7 @@ class V021Activity : Activity() {
                 "参与 AI：" + (apis().firstOrNull { it.id == collaborationProfiles.first }?.name ?: "AI A") +
                     " ↔ " + (apis().firstOrNull { it.id == collaborationProfiles.second }?.name ?: "AI B")
             } else {
-                "请先选择两个不同的 API Profile 作为本轮协作参与者"
+                "尚未配置协作 AI；进入协作对话后可以选择两个 API Profile"
             }
             textSize = 13f
             setTextColor(color(R.color.bridgefs_text_secondary))
