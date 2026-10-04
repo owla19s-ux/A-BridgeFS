@@ -2,120 +2,100 @@
 
 更新时间：2026-10-04
 
-> 本轮目标：按已确认的 Project 模型与 Project UI 收口。普通「对话」不承担 Project 工作职责。
+> 本文件只维护**当前仍需施工 / 验收的任务**。
+> 产品模型、架构原则、UI 正式设计和仓库操作规则分别由 PROJECT 与对应 docs 负责，本文件不重复定义。
 
-## 一、当前架构基线
+## 1. 当前施工主线
 
-### Project UI 已确认
+### T0 — 架构基线与旧链清理
+**状态：基本完成 / 持续审查**
 
-```text
-项目
-├─ 项目主要对话 ★
-├─ ↑ / ↓ 屏幕显示切换
-└─ 项目配置
-    └─ 独立点击展开 / 收起
+已完成：
+- Project 作为核心对象；
+- Project Address；
+- API Profile / Project Member / Default AI 边界；
+- 固定 Decision / Worker / AI A / AI B 废弃；
+- 旧 Collaboration 运行链拆除；
+- ConstructionLock 保留为 Project 施工权限基础；
+- 当前架构、规格、UI 文档已建立。
+
+剩余：
+- 持续检查旧 Workspace / 双 AI 语义是否还有实际代码入口或文档残留。
+
+### T1 — Project 主页面收口
+**状态：当前施工重点**
+
+验收：
+- Project Conversation 是项目首页主要工作面；
+- ↑ / ↓ 只改变屏幕显示区域；
+- 项目配置独立点击展开 / 收起；
+- 配置收起后主要对话获得空间；
+- 不把 GitHub / API / 权限 / Verify 等内部对象全部平铺到首页；
+- 不再保留旧 Workspace 页面作为实际入口。
+
+### T2 — Project 配置闭环
+**状态：实现基本完成，待完整闭环验证**
+
+范围：
+- Project 名称；
+- Project Address（Local / GitHub）；
+- Default AI；
+- Project Members；
+- Member → API Profile；
+- 必要的本地修改权限。
+
+验收：
 ```
-
-↑ / ↓ 只改变屏幕显示区域，不控制项目配置展开状态。
-
-### Project 是核心
-
-```
-项目
-│
-├─ 项目基本信息
-├─ 项目地址
-│   ├─ 本地
-│   ├─ GitHub
-│   └─ future other storage
-├─ 默认 AI
-├─ AI 成员
-├─ 请求 AI 协助
-└─ 对话 ★
-```
-
-进入项目后的主要行为是：
-
-**查看项目 → 提问 → 默认 AI 读取 / 分析 / 工作。**
-
-### 独立「对话」是额外工具
-
-```
-对话
-├─ 选择 API
-├─ 普通问答
-├─ 读取 / 分析
-└─ 不默认拥有项目施工权
-```
-
-它与 Project 独立，目前不需要大改架构，主要优化 UI。
-
-## 二、Project 成员模型
-
-当前目标模型：
-
-```
-Project
-├─ id
-├─ name
-├─ address
-├─ defaultMemberId
-└─ members[]
-      ├─ id
-      ├─ name
-      └─ apiProfileId
-```
-
-### API Profile
-
-API Profile 是连接资源：
-
-```
-API Profile
-├─ Base URL
-├─ API Key
-├─ Model
-└─ ...
-```
-
-### Project Member
-
-Project Member 是项目关系：
-
-- 可以添加；
-- 可以删除；
-- 可以修改名称；
-- 可以更换 API Profile；
-- 可以成为 Default AI。
-
-**不要再把 AI A / AI B 当作成员模型。**
-
-## 三、Project 工作链
-
-正常：
-
-```
-用户
+UI 修改
  ↓
+保存
+ ↓
+离开 Project
+ ↓
+重新进入
+ ↓
+状态保持
+```
+
+已知实现：
+- Project Members：新增 / 编辑 / 删除 / API Profile 绑定 / Default AI；
+- Local Address：目录选择、持久化、恢复；
+- GitHub Address：Repository / Branch 配置与权限保存。
+
+### T3 — Project Conversation 闭环
+**状态：开发中**
+
+目标：
+```
 Project
  ↓
 Project Address
  ↓
 Default AI
  ↓
-读取 / 分析 / 工作
+读取 / 分析
  ↓
-完成
+回答
 ```
 
-连续施工：
+验收：
+- 正常问题只走 Default AI；
+- 不自动召唤其他 Member；
+- 消息 / API 身份 / 历史记录正常保存与恢复；
+- 不恢复 Decision / Worker 模式。
 
+### T4 — Project 连续施工
+**状态：开发中 / 需要全链路验证**
+
+目标：
 ```
 理解
  ↓
 读取
  ↓
 修改
+ ↓
+ConstructionLock
  ↓
 Commit
  ↓
@@ -126,205 +106,92 @@ Verify
 完成
 ```
 
-“继续”不是正常步骤，只用于暂停、阻塞或需要用户决策的情况。
+已接入：
+- 本地：PermissionPolicy → FileBridgeService → Receipt → Default AI 继续判断；
+- GitHub：Project ConstructionLock + Project Member 身份执行文件创建 / 编辑 / Commit；
+- 已读取对应 Actions runs 作为 Verify 信息；
+- 已设置明确迭代上限。
 
-## 四、Request AI Assistance
-
-这是 Project 中的一个动作：
-
-```
-Default AI
- ↓
-需要协助
- ↓
-请求 AI 协助
- ↓
-其他 Project Member / 临时 AI
- ↓
-协助完成
- ↓
-Default AI 继续
-```
-
-不再设计成固定的 AI A / AI B 对话循环。
-
-## 五、独立「对话」页
-
-当前判断：
-
-**架构基本没问题，主要做 UI 优化。**
-
-保留：
-
-- 独立 API 选择；
-- 独立消息历史；
-- 普通 AI 对话；
-- 允许的只读资源访问。
-
-不承担：
-
-- Project 主工作流；
-- Project Default AI；
-- Project Member 协作状态；
-- 自动多 AI 讨论；
-- Project ConstructionLock；
-- Project Commit / Verify。
-
-## 六、旧架构审查范围
-
-### 重构
-
-- BridgeProject / Workspace 语义；
-- Project Address；
-- Default AI 数据绑定；
-- Conversation 与 Project 的关系；
-- ConstructionLock 的 Workspace → Project 语义；
-- Project UI。
-
-### 保留语义、重构实现
-
-- `aiMembers` → Project Members；
-- API Profile；
-- Conversation；
-- Receipt / Log；
-- GitHub 读取；
-- GitHub 修改 / Commit / Verify；
-- PermissionPolicy。
-
-### 已废弃 / 已拆除
-
-- 固定 AI A / AI B 默认成员；
-- Decision AI / Worker AI；
-- CollaborationProtocol / CollaborationTransport / CollaborationTaskStore / CollaborationVerifyService；
-- 普通对话独立 GitHub 地址绑定；
-- Workspace GitHub 与 Conversation GitHub 两套长期业务概念；
-- 普通项目提问自动多 AI 讨论；
-- 复杂 Project Dashboard。
-
-### 暂不施工
-
-- Secretary / Orchestrator；
-- 多项目统一调度；
-- 更复杂的 Agent 自动规划系统。
-
-## 七、当前施工顺序（2026-10-04 重建）
-
-> 旧 P0 / P1 / P2 任务链停止作为施工依据。本轮以最新 Project UI 为唯一入口重新排链。
-> 普通「对话」页与「配置」页暂缓，不阻塞 Project 主线。
-
-### T0 — 架构基线与旧链清理
-**状态：基本完成 / 持续审查**
-- Project 作为核心对象；
-- Project Address；
-- Default AI / Project Member / API Profile 边界；
-- 固定 Decision / Worker / A / B 已废弃；
-- Request AI Assistance 改为按需动作；
-- ConstructionLock 保留为 Project 施工权限基础；
-- 旧 Collaboration 运行链已拆除；
-- 文档已开始按新模型收口。
-
-### T1 — Project 主页面收口
-**当前施工重点**
-
-目标：让代码真正符合已经确认的 Project UI，而不是继续在旧 Workspace 页面上叠功能。
-
-正式结构：
-项目 → 项目主要对话 ★ → ↑ / ↓ 屏幕显示切换 → 项目配置（独立展开 / 收起）
-
-重点：
-1. 移除 Project 页面中的旧 Workspace 页面结构；
-2. Project Conversation 成为首页主要内容，而不是独立的第二级“工作区对话页”；
-3. 当前 Project 的切换 / 新建 / 重命名保留，但改成 Project 语义；
-4. ↑ / ↓ 与配置展开状态完全解耦；
-5. Project 配置折叠后必须让主要对话获得空间；
-6. 不在首页堆 GitHub / API / 权限 / Verify 等内部卡片。
-
-### T2 — Project 配置闭环
-**依赖 T1**
-- Project 名称；
-- Project Address（Local / GitHub）；
-- Default AI；
-- Project Members；
-- Member → API Profile；
-- 必要的本地修改权限。
-验收重点：UI 修改 → 保存 → 离开 Project → 重新进入 → 状态保持。
-
-### T3 — Project Conversation 闭环
-**依赖 T1 / T2**
-正常项目提问必须形成：Project → Project Address → Default AI → 读取 / 分析 → 回答
-- 一个正常问题只走 Default AI；
-- 不自动召唤其他 Member；
-- 不恢复 Decision / Worker；
-- 消息、API 身份、历史记录正常保存与恢复。
-
-### T4 — Project 连续施工
-**依赖 T3**
-理解 → 读取 → 修改 → ConstructionLock → Commit → Verify → 必要时自动继续修复 → 完成
-暂停条件只包括完成、用户决策、权限 / 资源问题或达到明确的迭代边界。
+待验证：
+- 多文件 Commit / Verify 语义；
+- Actions 尚未启动时的状态判断；
+- 正式 APK + 真机连续施工闭环。
 
 ### T5 — Request AI Assistance
-**依赖 T3 / T4**
+**状态：已设计未完整实现**
+
+目标：
 - Default AI 主导；
-- 明确请求后才加入其他 Project Member / 临时 AI；
+- 明确请求后才调用其他 Project Member / 临时 AI；
 - 协助完成后回到 Default AI；
 - 不形成固定 AI A / B 状态机。
 
 ### T6 — 独立「对话」与「配置」
-**暂缓**
-本轮不作为 Project 主线阻塞项。后续只做必要 UI / 可用性修正，不重新设计底层架构。
+**状态：暂缓**
+
+本轮不阻塞 Project 主线。后续只做必要 UI / 可用性修正，不重新设计底层架构。
 
 ### T7 — 全链路验证
-**依赖 T1～T5**
-代码 → UI → 用户操作 → 状态保存 / 恢复 → 真实行为 → 正式签名 APK → 真机
-每项 Verify 必须记录类型、编号、Run ID、相关 Commit；没有真实验证不得标记“已验证”。
-
-## 八、总验收
+**状态：待 T1～T5 收口后执行**
 
 ```
 代码
-→ UI
-→ 用户操作
-→ 状态保存 / 恢复
-→ 真实行为
-→ APK
-→ 真机
+ ↓
+UI
+ ↓
+用户操作
+ ↓
+状态保存 / 恢复
+ ↓
+真实行为
+ ↓
+正式签名 APK
+ ↓
+真机
 ```
 
-每个功能都必须经过完整链路，不能以“代码存在”代替已完成。
+每项 Verify 必须记录：
+- Type
+- Number
+- Run ID
+- Commit
+- Job（如适用）
+- Result
 
-## 九、未来
+没有真实验证不得标记“已验证”。
 
-多项目、多 API 真正形成并行工作需求后，再考虑：
+## 2. 当前优先级
 
 ```
-Secretary / Orchestrator
-        │
- ┌──────┼──────┐
- ↓      ↓      ↓
-项目 A 项目 B 项目 C
+T1 Project 主页面
+ ↓
+T2 Project 配置闭环验证
+ ↓
+T3 Project Conversation
+ ↓
+T4 连续施工
+ ↓
+T5 Request AI Assistance
+ ↓
+T7 全链路验证
 ```
 
-它属于未来调度层，不改变 Project 本身的核心模型。
+T6 暂不阻塞。
 
+## 3. 明确不做
 
-## 2026-10-04 拆除结果
+- 固定 Decision AI / Worker AI；
+- 固定 AI A / AI B；
+- 普通 Project 问题自动多 AI；
+- 复杂 Project Dashboard；
+- 无限 Agent Loop；
+- GitHub 第二套 Workspace 模型；
+- 现在提前建设 Secretary / Orchestrator。
 
-旧的双 AI 协作运行链已从当前代码路径拆除：不再存在固定 AI A / AI B 对话入口、Decision / Worker 协作入口或旧 CollaborationTransport 任务链。`ConstructionLock` 保留，作为未来 Project 连续施工的权限基础，而不是旧协作模式的入口。
+## 4. 任务维护规则
 
-
-## 2026-10-04 T2 进度补充
-
-- Project Members：新增 / 编辑 / 删除 / API Profile 绑定 / Default AI 已实现。
-- Local Project Address：已有系统目录选择器、持久化与重新进入恢复。
-- GitHub Project Address：Project 首页已有独立配置入口，复用 GitHub Repository / Branch 选择与权限保存链路。
-- 修复 Project UI 迁移中的旧变量引用，并统一 active project 持久化键。
-- 当前尚未进行正式 APK 构建与真机闭环验证。
-
-## 2026-10-04 T4 进度补充
-
-- Project Conversation 已接入本地连续施工：AI 指令 → PermissionPolicy → FileBridgeService → Receipt → Default AI 继续判断。
-- 新增 GitHub Project 施工协议 `[githubfs]...[/githubfs]`，支持 GitHub 文件创建 / 编辑。
-- GitHub 施工通过 Project ConstructionLock + Project Member 身份执行，不再依赖 Decision / Worker AI。
-- GitHub 文件修改会生成 Commit，并读取该 Commit 对应的 Actions runs 作为 Verify 信息。
-- 连续施工设置明确迭代上限，避免无限 Agent Loop。
-- 当前仍未进行正式 APK 构建与真机闭环验证；GitHub 直接 push 的提交目前无法从现有 workflow 查询接口取得 Actions run，因此不能标记“已验证”。
+1. 新任务先判断是否属于当前 Project 主线。
+2. 已完成任务从“当前施工重点”中移出，不重复堆进本表。
+3. 历史过程写入 STATUS 或专项历史文档。
+4. 架构决策写入 PROJECT，不在本表形成第二套规格。
+5. 每次施工后只更新实际发生变化的任务状态。
