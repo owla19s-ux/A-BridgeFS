@@ -9,7 +9,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 
 class ApsActivity : Activity() {
-    private lateinit var host: FrameLayout
+    internal lateinit var host: FrameLayout
     private var page = 0
     internal var projectConfigOpen = false
     internal var projectChatOpen = true
@@ -82,7 +82,7 @@ class ApsActivity : Activity() {
         render()
     }
 
-    private fun render() {
+    internal fun render() {
         host.removeAllViews()
         when (page) {
             0 -> projectPage()
