@@ -435,3 +435,21 @@ Workspace + Repository + Branch
 - 本轮已合并 Receipt 幂等、目标 Workspace 路由、Standalone 对话路由、聊天 UI 批量反馈等修复。
 - API 消息身份的数据保存与 V021 消息展示代码均已存在：AI 消息按发送时保存的 API 名称 / 头像展示；但尚无该 main Commit 对应的正式 Release Actions Run，因此仍只能标记为“代码已实现 / 待构建验证”。
 - 下一步按 `docs/BUILD-PRECHECK.md` 触发正式 `android-build.yml`，优先获得当前 main 的 Release APK / 签名 / Actions 事实，再进行真机回归。
+
+
+## 2026-10-04 第二十一轮 UI 信息架构检查
+
+### 已发现并处理
+- 对话页与工作区协作对话继续保持两个独立入口；工作区不再直接承载协作任务详情与执行按钮。
+- 工作区协作卡片收缩为状态 + 进入协作对话；协作 AI 选择移动到协作对话内部。
+- 独立对话页移除本地文件修改开关，避免把执行权限配置塞进聊天页面。
+- 配置首页由 9 项压缩为 6 项，并直接串到真实设置页面；GitHub 从“连接与访问”独立入口进入 GitHub 页面。
+- API 全局访问开关移动到 API 设置页；GitHub 全局访问开关移动到 GitHub 设置页，减少跨页面寻找开关。
+- GitHub 页面新增“测试 GitHub API 连通性”，会实际调用账号、Repository API，用于手机端验证 API 是否真的可访问 GitHub。
+- 聊天页面使用 adjustResize 时不再额外给内容区叠加 IME bottom padding，避免输入框高于输入法并产生空白/遮挡。
+
+### 待验证
+- Android 真机验证普通对话输入框是否随输入法正确上移。
+- Android 真机验证协作对话输入框是否紧贴输入法顶部。
+- Android 真机验证 GitHub API 连通性按钮的成功/失败反馈。
+- Android 真机验证配置首页 → API / GitHub / 执行 / 文件 / 系统 / 日志各入口是否形成完整返回链路。
