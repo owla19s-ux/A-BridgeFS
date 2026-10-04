@@ -353,36 +353,29 @@ class V021Activity : Activity() {
         val box = card()
         val auth = GitHubTokenStore(this).state()
         val connected = AccessPolicy.isGithubEnabled(this) && !auth.accessToken.isNullOrBlank()
+        val repo = project?.github?.displayRepository() ?: "未选择 Repository"
+        val branchName = project?.github?.displayBranch() ?: "未选择 Branch"
+
         box.addView(TextView(this).apply {
-            text = project?.name ?: "默认工作区"
-            textSize = 18f
+            text = "GitHub"
+            textSize = 16f
             typeface = Typeface.DEFAULT_BOLD
         })
         box.addView(TextView(this).apply {
-            text = "GitHub"
-            textSize = 12f
-            setTextColor(color(R.color.bridgefs_text_secondary))
-            setPadding(0, dp(10), 0, dp(2))
-        })
-        box.addView(TextView(this).apply {
-            text = if (connected) "● 已连接 · " + (auth.login ?: "GitHub") else "○ 未连接"
-            textSize = 14f
+            text = if (connected) "● " + (auth.login ?: "GitHub") + " · " + repo else "○ 未连接 · " + repo
+            textSize = 13f
             setTextColor(if (connected) color(R.color.bridgefs_accent) else color(R.color.bridgefs_text_secondary))
+            setPadding(0, dp(5), 0, dp(2))
         })
         box.addView(TextView(this).apply {
-            text = project?.github?.displayRepository() ?: "未选择 Repository"
-            textSize = 14f
-            setPadding(0, dp(4), 0, dp(2))
-        })
-        box.addView(TextView(this).apply {
-            text = "Branch  ·  " + (project?.github?.displayBranch() ?: "未选择")
+            text = "Branch · " + branchName
             textSize = 12f
             setTextColor(color(R.color.bridgefs_text_secondary))
-            setPadding(0, dp(2), 0, dp(8))
+            setPadding(0, 0, 0, dp(7))
         })
         box.addView(actionButton("进入 GitHub") {
             startActivity(Intent(this, GitHubActivity::class.java).putExtra("workspaceId", project?.id))
-        })
+        }, LinearLayout.LayoutParams(-1, dp(42)))
         return box
     }
 
