@@ -53,18 +53,20 @@ internal fun ApsActivity.conversationPage() {
                         render()
                     }
                 }, LinearLayout.LayoutParams(0, dp(44), 1f))
-                actionRow.addView(Button(this@conversationPage).apply {
-                    text = "删除当前"
-                    setOnClickListener {
-                        if (conversationNames.size > 1) {
-                            conversationNames.remove(currentConversation)
-                            currentConversation = conversationNames.first()
-                            render()
-                        } else {
-                            toast("默认会话不能删除")
-                        }
+                val deleteButton = Button(this@conversationPage)
+                deleteButton.text = "删除当前"
+                deleteButton.setOnClickListener {
+                    if (conversationNames.size > 1) {
+                        conversationNames.remove(currentConversation)
+                        currentConversation = conversationNames.first()
+                        render()
+                    } else {
+                        toast("默认会话不能删除")
                     }
-                }, LinearLayout.LayoutParams(0, dp(44), 1f).apply { marginStart = dp(6) })
+                }
+                actionRow.addView(deleteButton, LinearLayout.LayoutParams(0, dp(44), 1f).apply {
+                    marginStart = dp(6)
+                })
                 addView(actionRow)
             }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
         }
