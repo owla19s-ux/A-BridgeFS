@@ -22,7 +22,7 @@
 ## 二、当前施工顺序
 
 ### P0 — 普通对话 GitHub 只读链
-**状态：阻塞 / 待施工**
+**状态：开发中 / Actions 构建验证中**
 
 目标：
 
@@ -37,6 +37,10 @@
 5. 读取不会获得修改权限。
 
 **当前不做 GitHub 修改。**
+
+已施工第一版：普通对话发送前读取当前工作区绑定的 Repository / Branch；用户明确给出仓库文件路径时读取对应文件，仓库类问题未给路径时默认读取 `README.md`；读取内容以只读资料注入 API system prompt，不进入 ConstructionLock，也不调用写入接口。
+
+当前 Commit：`910ebcba2254f62eb978449781937ab98d09061d`；Actions Run #299 正在验证。
 
 ### P1 — Workspace / Conversation UI 闭环
 **状态：开发中 / 待真机验证**
