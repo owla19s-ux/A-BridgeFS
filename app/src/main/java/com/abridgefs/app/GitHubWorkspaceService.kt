@@ -98,6 +98,11 @@ class GitHubWorkspaceService(
         }
     }
 
+    fun createFile(path: String, content: String, message: String, aiMemberId: String): JSONObject {
+        requireWritePermission(aiMemberId)
+        val (owner, name) = repositoryParts()
+        return client.createFile(owner, name, path, content, message, workspace.branch)
+    }
     fun updateFile(
         path: String,
         content: String,
