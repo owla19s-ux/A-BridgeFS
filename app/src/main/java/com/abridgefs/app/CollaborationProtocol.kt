@@ -77,7 +77,7 @@ object CollaborationProtocol {
         companion object {
             fun fromJson(json: JSONObject): Message {
                 val version = json.optString("v")
-                require(version == VERSION) { "unsupported protocol version: $version" }
+                require(version == VERSION || version == "0.1") { "unsupported protocol version: $version" }
                 return Message(
                     id = json.getString("id"),
                     ts = json.getString("ts"),
@@ -319,8 +319,8 @@ object CollaborationProtocol {
     }
 
     private fun roleFromWireName(value: String): Role = when (value.lowercase()) {
-        "ai_a" -> Role.AI_A
-        "ai_b" -> Role.AI_B
+        "ai_a", "decision_ai" -> Role.AI_A
+        "ai_b", "worker" -> Role.AI_B
         "human" -> Role.HUMAN
         else -> error("unknown role: $value")
     }
