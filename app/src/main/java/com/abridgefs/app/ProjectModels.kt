@@ -41,19 +41,16 @@ data class BridgeConversation(
 /**
  * Project root.
  *
- * The BridgeProject type name is retained temporarily for source/storage
- * compatibility while the application moves from the historical Workspace
- * model to the Project model.
+ * Project Address is represented explicitly by Local and GitHub address fields.
+ * Historical workspace names remain only as deprecated source-compatibility
+ * accessors while callers migrate along the real Project chain.
  */
 data class BridgeProject(
     val id: String,
     var name: String,
     var localFileModifyEnabled: Boolean = false,
-    /** Local Project Address. Kept under the historical storage key for migration compatibility. */
-    var workspaceDirectory: String? = null,
-    /** GitHub Project Address. GitHub is one address type, not the Project itself. */
-    var github: GitHubWorkspace = GitHubWorkspace(),
-    /** Default Project Member. Null means the project has no default AI yet. */
+    var localAddress: String? = null,
+    var githubAddress: ProjectGitHubAddress = ProjectGitHubAddress(),
     var defaultMemberId: String? = null,
     val aiMembers: MutableList<BridgeAiMember> = mutableListOf(),
     val conversations: MutableList<BridgeConversation> = mutableListOf(),
@@ -81,28 +78,38 @@ data class BridgeProject(
     val executions: MutableList<BridgeReceiptRecord>
         get() = activeConversation().executions
 
-    @Deprecated("Use github.accountLogin")
+    @Deprecated("Use localAddress")
+    var workspaceDirectory: String?
+        get() = localAddress
+        set(value) { localAddress = value }
+
+    @Deprecated("Use githubAddress")
+    var github: ProjectGitHubAddress
+        get() = githubAddress
+        set(value) { githubAddress = value }
+
+    @Deprecated("Use githubAddress.accountLogin")
     var githubAccountLogin: String?
-        get() = github.accountLogin
-        set(value) { github.accountLogin = value }
+        get() = githubAddress.accountLogin
+        set(value) { githubAddress.accountLogin = value }
 
-    @Deprecated("Use github.repository")
+    @Deprecated("Use githubAddress.repository")
     var githubRepository: String?
-        get() = github.repository
-        set(value) { github.repository = value }
+        get() = githubAddress.repository
+        set(value) { githubAddress.repository = value }
 
-    @Deprecated("Use github.branch")
+    @Deprecated("Use githubAddress.branch")
     var githubBranch: String?
-        get() = github.branch
-        set(value) { github.branch = value }
+        get() = githubAddress.branch
+        set(value) { githubAddress.branch = value }
 
-    @Deprecated("Use github.readEnabled")
+    @Deprecated("Use githubAddress.readEnabled")
     var githubReadEnabled: Boolean
-        get() = github.readEnabled
-        set(value) { github.readEnabled = value }
+        get() = githubAddress.readEnabled
+        set(value) { githubAddress.readEnabled = value }
 
-    @Deprecated("Use github.writeEnabled")
+    @Deprecated("Use githubAddress.writeEnabled")
     var githubWriteEnabled: Boolean
-        get() = github.writeEnabled
-        set(value) { github.writeEnabled = value }
+        get() = githubAddress.writeEnabled
+        set(value) { githubAddress.writeEnabled = value }
 }
