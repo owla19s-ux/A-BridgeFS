@@ -362,26 +362,6 @@ class V021Activity : Activity() {
             root.addView(projectMembersCard())
         }
 
-        val composer = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.BOTTOM
-            setPadding(0, dp(6), 0, 0)
-        }
-        val input = EditText(this).apply {
-            hint = "输入问题或工作目标……"
-            textSize = 14f
-            minLines = 1
-            maxLines = 4
-            setPadding(dp(12), dp(8), dp(12), dp(8))
-            background = colorDrawable(R.color.bridgefs_input_surface, 14)
-            setTextColor(color(R.color.bridgefs_text_primary))
-            setHintTextColor(color(R.color.bridgefs_text_secondary))
-        }
-        composer.addView(input, LinearLayout.LayoutParams(0, dp(52), 1f))
-        composer.addView(actionButton("发送") { sendProjectMessage(input, conversation) },
-            LinearLayout.LayoutParams(dp(82), dp(52)).apply { marginStart = dp(6) })
-        root.addView(composer)
-
         val projectScroll = ScrollView(this).apply {
             addView(root)
             isFillViewport = true
