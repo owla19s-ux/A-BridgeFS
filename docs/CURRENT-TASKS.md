@@ -33,6 +33,19 @@
 ### T2 — 第一条核心链路：Project → Address → API → Conversation → Permission
 **状态：当前施工重点**
 
+当前已施工：
+- Project domain models 与 ProjectStore 持久化职责拆分；
+- GitHub Address 从历史 Workspace 模型迁移为 Project Address 模型；
+- Project Conversation 的 API 调用链抽出为独立 Service；
+- PermissionPolicy 参数边界改为 Project；
+- Local Project Address 已开始从历史 `workspaceDirectory` 迁移为 `localAddress`。
+
+当前未验证：
+- 编译；
+- APK；
+- 真机；
+- Project → Address → API → Conversation → Permission 完整运行闭环。
+
 目标：
 
 ```
