@@ -1,12 +1,12 @@
-# A-BridgeFS 仓库操作使用手册
+# APS 仓库操作使用手册
 
 更新时间：2026-10-04
 
-> 本手册不是通用 Git 教程，而是按 A-BridgeFS 当前项目结构、AI 协作方式和 GitHub 工作流定制的实际操作规则。
+> 本手册不是通用 Git 教程，而是按 APS 当前项目结构、AI 协作方式和 GitHub 工作流定制的实际操作规则。
 
 ## 1. 核心定位
 
-仓库：owla19s-ux/A-BridgeFS
+仓库：owla19s-ux/APS
 
 长期分支只有 main。main 是当前唯一正式施工基线，也是代码、文档、构建和验证判断的主要基准。
 
@@ -65,7 +65,7 @@ GitHub 官方说明：Workflow Run 对应触发它的 Commit/Ref；Run 中可以
 
 ## 7. 构建与 APK
 
-A-BridgeFS 当前尚无公开发行版本，因此内部构建统一使用正式签名身份，不再人为区分测试签名与正式签名。
+APS 当前尚无公开发行版本，因此内部构建统一使用正式签名身份，不再人为区分测试签名与正式签名。
 
 标准链路：main → GitHub Actions → 正式 Release 签名构建 → Artifact/APK → 安装 → 真机验证。
 
