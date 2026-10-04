@@ -46,6 +46,13 @@ class ApiSettingsActivity : Activity() {
         }, LinearLayout.LayoutParams(0, dp(52), 1f))
         root.addView(header)
 
+        root.addView(Switch(this).apply {
+            text = "允许 A-BridgeFS 访问外部 API"
+            isChecked = AccessPolicy.isApiEnabled(this@ApiSettingsActivity)
+            setOnCheckedChangeListener { _, checked ->
+                AccessPolicy.setApiEnabled(this@ApiSettingsActivity, checked)
+            }
+        })
         root.addView(sectionLabel("当前 API"))
         val provider = EditText(this).apply {
             hint = "API 名称（例如 DeepSeek / OpenAI）"
