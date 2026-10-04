@@ -1055,7 +1055,7 @@ class V021Activity : Activity() {
                     val progressIndex = target.messages.indexOfLast { it.role == "tool" && it.content.startsWith("[协作进行中]") }
                     if (progressIndex >= 0) {
                         target.messages.removeAt(progressIndex)
-                        target.messages.add(progressIndex, BridgeChatMessage("tool", "[协作完成]\nDecision AI 与 Worker 已完成本轮协议交互。"))
+                        target.messages.add(progressIndex, BridgeChatMessage("tool", "[协作完成]\n本轮 AI 协作协议交互已完成。"))
                     }
                     target.messages += collaborationMessages
                     store.save(projects)
@@ -1089,13 +1089,13 @@ class V021Activity : Activity() {
 
     private fun formatCollaborationMessage(message: CollaborationProtocol.Message): String {
         val roleName = when (message.from) {
-            CollaborationProtocol.Role.DECISION_AI -> "Decision AI"
-            CollaborationProtocol.Role.WORKER -> "Worker"
+            CollaborationProtocol.Role.DECISION_AI -> "AI"
+            CollaborationProtocol.Role.WORKER -> "AI"
             CollaborationProtocol.Role.HUMAN -> "用户"
         }
         val targetName = when (message.to) {
-            CollaborationProtocol.Role.DECISION_AI -> "Decision AI"
-            CollaborationProtocol.Role.WORKER -> "Worker"
+            CollaborationProtocol.Role.DECISION_AI -> "AI"
+            CollaborationProtocol.Role.WORKER -> "AI"
             CollaborationProtocol.Role.HUMAN -> "用户"
         }
         val payload = message.payload
