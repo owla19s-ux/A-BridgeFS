@@ -299,7 +299,7 @@ class V021Activity : Activity() {
                 .setTitle("切换项目")
                 .setSingleChoiceItems(labels, index) { dialog, which ->
                     project = projects[which]
-                    prefs.edit().putString("active_workspace_id", project?.id).apply()
+                    prefs.edit().putString("active_project_id", project?.id).apply()
                     apiId = project?.activeConversation()?.apiId ?: apis().firstOrNull()?.id.orEmpty()
                     dialog.dismiss()
                     render()
@@ -318,11 +318,6 @@ class V021Activity : Activity() {
             textSize = 12f
             setTextColor(color(R.color.bridgefs_text_secondary))
         }, LinearLayout.LayoutParams(0, dp(36), 1f))
-        displayBar.addView(textButton("↑") { Toast.makeText(this, "已切换到上方显示区域", Toast.LENGTH_SHORT).show() },
-            LinearLayout.LayoutParams(dp(44), dp(36)))
-        displayBar.addView(textButton("↓") { Toast.makeText(this, "已切换到下方显示区域", Toast.LENGTH_SHORT).show() },
-            LinearLayout.LayoutParams(dp(44), dp(36)))
-        root.addView(displayBar)
 
         val conversation = current.activeConversation()
         val messages = ScrollView(this)
@@ -332,7 +327,7 @@ class V021Activity : Activity() {
         }
         conversation.messages.forEach { m -> messageBox.addView(messageBubble(m)) }
         messages.addView(messageBox)
-        root.addView(messages, LinearLayout.LayoutParams(-1, 0, 1f))
+        root.addView(messages, LinearLayout.LayoutParams(-1, dp(360)))
         messages.post { messages.fullScroll(View.FOCUS_DOWN) }
 
         root.addView(requestAssistanceCard())
@@ -387,7 +382,43 @@ class V021Activity : Activity() {
             LinearLayout.LayoutParams(dp(82), dp(52)).apply { marginStart = dp(6) })
         root.addView(composer)
 
-        content.addView(root)
+        val projectScroll = ScrollView(this).apply {
+            addView(root)
+            isFillViewport = true
+        }
+        displayBar.addView(textButton("↑") {
+            projectScroll.smoothScrollTo(0, 0)
+        }, LinearLayout.LayoutParams(dp(44), dp(36)))
+        displayBar.addView(textButton("↓") {
+            projectScroll.post { smoothScrollTo(0, getChildAt(0).measuredHeight) }
+        }, LinearLayout.LayoutParams(dp(44), dp(36)))
+
+        val composer = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.BOTTOM
+            setPadding(0, dp(6), 0, 0)
+        }
+        val input = EditText(this).apply {
+            hint = "输入问题或工作目标……"
+            textSize = 14f
+            minLines = 1
+            maxLines = 4
+            setPadding(dp(12), dp(8), dp(12), dp(8))
+            background = colorDrawable(R.color.bridgefs_input_surface, 14)
+            setTextColor(color(R.color.bridgefs_text_primary))
+            setHintTextColor(color(R.color.bridgefs_text_secondary))
+        }
+        composer.addView(input, LinearLayout.LayoutParams(0, dp(52), 1f))
+        composer.addView(actionButton("发送") { sendProjectMessage(input, conversation) },
+            LinearLayout.LayoutParams(dp(82), dp(52)).apply { marginStart = dp(6) })
+
+        val pageArea = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+        pageArea.addView(displayBar)
+        pageArea.addView(projectScroll, LinearLayout.LayoutParams(-1, 0, 1f))
+        content.addView(pageArea, LinearLayout.LayoutParams(-1, 0, 1f))
+        content.addView(composer, LinearLayout.LayoutParams(-1, dp(58)))
     }
 
     private fun workspaceSelectorCard(): View {
@@ -416,7 +447,7 @@ class V021Activity : Activity() {
                 .setTitle("切换项目")
                 .setSingleChoiceItems(labels, index) { dialog, which ->
                     project = workspaces[which]
-                    prefs.edit().putString("active_workspace_id", project?.id).apply()
+                    prefs.edit().putString("active_project_id", project?.id).apply()
                     apiId = project?.activeConversation()?.apiId ?: apis().firstOrNull()?.id.orEmpty()
                     store.save(projects)
                     dialog.dismiss()
