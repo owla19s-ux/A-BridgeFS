@@ -4,7 +4,7 @@ import android.widget.*
 import android.view.*
 
 internal fun ApsActivity.settingsPage() {
-    val content = LinearLayout(this@SettingsPage).apply {
+    val content = LinearLayout(this@settingsPage).apply {
         orientation = LinearLayout.VERTICAL
         setPadding(dp(14), dp(10), dp(14), dp(14))
     }
@@ -32,7 +32,7 @@ internal fun ApsActivity.settingsPage() {
                             addView(label("全局连接"))
                             addView(value("连接资源集中管理；具体权限归属到对应模块。"))
 
-                            addView(Button(this@SettingsPage).apply {
+                            addView(Button(this@settingsPage).apply {
                                 text = "API Profiles"
                                 setOnClickListener {
                                     toast("API Profiles：连接、模型与 API 内部权限")
@@ -41,11 +41,12 @@ internal fun ApsActivity.settingsPage() {
                                 topMargin = dp(6)
                             })
 
-                            addView(Button(this@SettingsPage).apply {
+                            addView(Button(this@settingsPage).apply {
                                 text = "GitHub"
                                 setOnClickListener {
                                     toast("GitHub：账号、Repository、Branch 与 GitHub 内部权限")
-                                }, LinearLayout.LayoutParams(-1, dp(44)).apply {
+                                })
+                            }, LinearLayout.LayoutParams(-1, dp(44)).apply {
                                 topMargin = dp(6)
                             })
                         }
@@ -78,7 +79,7 @@ internal fun ApsActivity.settingsPage() {
     }
 
     host.addView(
-        ScrollView(this@SettingsPage).apply {
+        ScrollView(this@settingsPage).apply {
             addView(content)
         },
         LinearLayout.LayoutParams(-1, 0, 1f)
