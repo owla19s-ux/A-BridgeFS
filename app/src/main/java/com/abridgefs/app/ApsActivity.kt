@@ -22,6 +22,8 @@ class ApsActivity : Activity() {
     private var projectInput: EditText? = null
     private var conversationGroup = "默认分组"
     private var selectedApi = "未绑定"
+    private var conversationManagementOpen = false
+    private var projectAccessOpen = false
     private val conversationGroups = linkedSetOf("默认分组")
 
     override fun onCreate(state: Bundle?) {
@@ -171,45 +173,60 @@ GitHub：未设置"
             setPadding(dp(14), dp(10), dp(14), dp(8))
         }
         content.addView(title("对话"))
-        content.addView(card().apply {
-            addView(label("会话"))
-            val row = LinearLayout(this@ApsActivity).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-            }
-            row.addView(value(conversationGroup), LinearLayout.LayoutParams(0, dp(40), 1f))
-            row.addView(Button(this@ApsActivity).apply {
-                text = "分组"
-                setOnClickListener {
-                    val next = if (conversationGroups.size == 1) "新分组" else conversationGroups.first()
-                    conversationGroups.add(next)
-                    conversationGroup = next
-                    render()
-                }
-            }, LinearLayout.LayoutParams(dp(72), dp(44)))
-            row.addView(Button(this@ApsActivity).apply {
-                text = "新建"
-                setOnClickListener {
-                    val next = "新会话 " + (conversationGroups.size + 1)
-                    conversationGroups.add(next)
-                    conversationGroup = next
-                    render()
-                }
-            }, LinearLayout.LayoutParams(dp(72), dp(44)))
-            row.addView(Button(this@ApsActivity).apply {
-                text = "删除"
-                setOnClickListener {
-                    if (conversationGroups.size > 1) {
-                        conversationGroups.remove(conversationGroup)
-                        conversationGroup = conversationGroups.first()
-                        render()
-                    } else {
-                        toast("默认会话不能删除")
-                    }
-                }
-            }, LinearLayout.LayoutParams(dp(72), dp(44)))
-            addView(row)
+
+        content.addView(section("会话管理", conversationManagementOpen) {
+            conversationManagementOpen = !conversationManagementOpen
+            render()
         })
+
+        if (conversationManagementOpen) {
+            content.addView(card().apply {
+                addView(label("当前会话"))
+                addView(value(conversationGroup))
+                addView(label("分组"))
+                val groupRow = LinearLayout(this@ApsActivity).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                }
+                groupRow.addView(value(conversationGroups.joinToString("  ·  ")),
+                    LinearLayout.LayoutParams(0, dp(40), 1f))
+                groupRow.addView(Button(this@ApsActivity).apply {
+                    text = "新建分组"
+                    setOnClickListener {
+                        val next = "分组 " + (conversationGroups.size + 1)
+                        conversationGroups.add(next)
+                        conversationGroup = next
+                        render()
+                    }
+                }, LinearLayout.LayoutParams(dp(94), dp(44)))
+                addView(groupRow)
+                val actionRow = LinearLayout(this@ApsActivity).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                }
+                actionRow.addView(Button(this@ApsActivity).apply {
+                    text = "新建会话"
+                    setOnClickListener {
+                        val next = "新会话 " + (conversationGroups.size + 1)
+                        conversationGroups.add(next)
+                        conversationGroup = next
+                        render()
+                    }
+                }, LinearLayout.LayoutParams(0, dp(44), 1f))
+                actionRow.addView(Button(this@ApsActivity).apply {
+                    text = "删除当前"
+                    setOnClickListener {
+                        if (conversationGroups.size > 1) {
+                            conversationGroups.remove(conversationGroup)
+                            conversationGroup = conversationGroups.first()
+                            render()
+                        } else {
+                            toast("默认会话不能删除")
+                        }
+                    }, LinearLayout.LayoutParams(0, dp(44), 1f).apply { marginStart = dp(6) })
+                addView(actionRow)
+            }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
+        }
+
         content.addView(card().apply {
             addView(label("API"))
             addView(value("当前 API：$selectedApi"))
@@ -221,14 +238,25 @@ GitHub：未设置"
                 }
             })
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
-        content.addView(section("项目访问", true) {
-            toast("项目访问范围将在接线阶段读取 Project 配置")
+
+        content.addView(section("项目访问", projectAccessOpen) {
+            projectAccessOpen = !projectAccessOpen
+            render()
         }, LinearLayout.LayoutParams(-1, dp(52)).apply { topMargin = dp(8) })
+
+        if (projectAccessOpen) {
+            content.addView(card().apply {
+                addView(value("当前 Project Address：未设置"))
+                addView(value("访问范围由 Project 权限决定。"))
+            }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
+        }
+
         content.addView(card().apply {
             addView(value("普通 AI 对话区域。"))
             addView(value("可访问当前 Project 的授权资源。"))
             addView(value("当前为 UI 壳。"))
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
+
         host.addView(ScrollView(this).apply { addView(content) },
             LinearLayout.LayoutParams(-1, 0, 1f))
         inputBar("输入消息……")
