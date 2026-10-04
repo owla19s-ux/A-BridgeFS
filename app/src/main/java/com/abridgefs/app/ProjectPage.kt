@@ -5,6 +5,7 @@ import android.graphics.Typeface
 import android.widget.*
 import android.view.*
 import android.view.inputmethod.InputMethodManager
+import android.app.AlertDialog
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 
@@ -13,7 +14,8 @@ internal fun ApsActivity.projectPage() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(14), dp(10), dp(14), dp(8))
         }
-        content.addView(title("默认项目"))
+        val project = currentProject
+        content.addView(title(project?.name ?: "默认项目"))
         content.addView(TextView(this).apply {
             text = "Project Address
 Local：未设置
@@ -43,19 +45,35 @@ GitHub：未设置"
                     maxLines = 1
                 })
                 addView(label("Project Address"))
-                addView(value("Local Project Address：未设置"))
-                addView(value("GitHub Project Address：未设置"))
+                addView(value("Local Project Address：${project?.localAddress ?: "未设置"}"))
+                addView(value("GitHub Project Address：${project?.githubAddress?.repository ?: "未设置"}"))
                 addView(Button(this).apply {
                     text = "配置 Project Address"
-                    setOnClickListener { toast("Project Address 接线将在下一阶段接入") }
+                    setOnClickListener {
+                        val p = currentProject ?: return@setOnClickListener
+                        val local = EditText(this@projectPage).apply { hint = "Local Project Address"; setText(p.localAddress.orEmpty()) }
+                        val github = EditText(this@projectPage).apply { hint = "GitHub Repository（owner/repo）"; setText(p.githubAddress.repository.orEmpty()) }
+                        val branch = EditText(this@projectPage).apply { hint = "GitHub Branch"; setText(p.githubAddress.branch.orEmpty()) }
+                        val box = LinearLayout(this@projectPage).apply {
+                            orientation = LinearLayout.VERTICAL
+                            setPadding(dp(20), dp(4), dp(20), 0)
+                            addView(local); addView(github); addView(branch)
+                        }
+                        AlertDialog.Builder(this@projectPage).setTitle("Project Address").setView(box)
+                            .setPositiveButton("保存") { _, _ ->
+                                p.localAddress = local.text.toString().trim().ifBlank { null }
+                                p.githubAddress.repository = github.text.toString().trim().ifBlank { null }
+                                p.githubAddress.branch = branch.text.toString().trim().ifBlank { null }
+                                projectStore.save(projects); render()
+                            }.setNegativeButton("取消", null).show()
+                    }
                 })
                 addView(label("API"))
-                addView(value("Default API：未绑定"))
+                val member = project?.defaultMemberId?.let { id -> project.aiMembers.firstOrNull { it.id == id } }
+                val profile = member?.apiProfileId?.let { ApiProfileStore(this@projectPage).find(it) }
+                addView(value("Default API：${profile?.name ?: "未绑定"}"))
                 addView(label("项目级配置仅在这里维护"))
-                addView(Button(this).apply {
-                    text = "选择 API Profile"
-                    setOnClickListener { toast("API Profile 接线将在下一阶段接入") }
-                })
+                addView(Button(this).apply { text = "选择 API Profile"; setOnClickListener { toast("API Profile 连接将在下一段接线") } })
             })
         }
         if (displayOpen) content.addView(card().apply {
