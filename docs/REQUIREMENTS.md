@@ -1,4 +1,4 @@
-# A-BridgeFS 当前需求板
+# APS 当前需求板
 
 更新时间：2026-10-04
 
@@ -6,7 +6,7 @@
 
 ### 1. Project 是核心对象
 
-Project 是 A-BridgeFS 的主要工作单元。
+Project 是 APS 的主要工作单元。
 
 一个 Project 至少包含：
 
