@@ -6,7 +6,7 @@ import org.json.JSONObject
 import java.security.MessageDigest
 
 /**
- * Minimal transport boundary for Decision AI ↔ Worker.
+ * Minimal transport boundary for 双 AI 协作.
  *
  * Persistence is intentionally local for v0.1. The protocol does not depend on
  * GitHub Issues, files, or any specific network transport.
@@ -70,7 +70,7 @@ class CollaborationTransport(
  * Runtime API connection for one AI participant.
  *
  * API profiles are reusable connection resources. The collaboration stage
- * chooses which two profiles participate; there is no persistent Decision/Worker
+ * chooses which two profiles participate; there is no persistent Decision/AI B
  * API configuration.
  */
 data class CollaborationApiConfig(
@@ -127,23 +127,23 @@ class CollaborationApiClient(private val config: CollaborationApiConfig) {
  * Minimal coordinator used by later UI/service integration.
  *
  * It provides the first real boundary between:
- * Decision AI API → protocol transport → Worker API.
+ * AI A API → protocol transport → AI B API.
  * It deliberately does not execute GitHub work yet.
  */
 class CollaborationCoordinator(
     private val context: Context,
     private val workspaceId: String,
     private val conversationId: String,
-    private val firstProfileId: String,
-    private val secondProfileId: String,
-    private val workerAiMemberId: String? = null
+    private val aiAProfileId: String,
+    private val aiBProfileId: String,
+    private val constructionAiMemberId: String? = null
 ) {
     private val transport = CollaborationTransport(context, workspaceId, conversationId)
 
     fun submitTask(task: CollaborationProtocol.Message) {
         require(task.type == CollaborationProtocol.Type.TASK) { "submitTask requires TASK" }
-        require(task.from == CollaborationProtocol.Role.DECISION_AI)
-        require(task.to == CollaborationProtocol.Role.WORKER)
+        require(task.from == CollaborationProtocol.Role.AI_A)
+        require(task.to == CollaborationProtocol.Role.AI_B)
         require(CollaborationProtocol.validate(task).valid)
         transport.append(task)
     }
@@ -321,8 +321,8 @@ class CollaborationCoordinator(
         return digest.digest(header + bytes).joinToString("") { "%02x".format(it) }
     }
 
-    private fun discardPendingWorkerInputs(taskId: String) {
-        transport.pendingFor(CollaborationProtocol.Role.WORKER)
+    private fun discardPendingAI BInputs(taskId: String) {
+        transport.pendingFor(CollaborationProtocol.Role.AI_B)
             .filter {
                 it.taskId == taskId &&
                     (it.type == CollaborationProtocol.Type.TASK ||
@@ -333,15 +333,15 @@ class CollaborationCoordinator(
 
     /**
      * Verifies the current Commit and, when it passes, starts one bounded
-     * Decision AI -> Worker continuation round. The next Worker file change,
+     * AI A → AI B continuation round. The next AI B file change,
      * if any, must reacquire the ConstructionLock through the normal path.
      */
-    fun verifyAndContinue(taskId: String, decisionSystemPrompt: String, workerSystemPrompt: String): GitHubVerifyResult {
+    fun verifyAndContinue(taskId: String, aiASystemPrompt: String, aiBSystemPrompt: String): GitHubVerifyResult {
         val result = verifyTask(taskId)
         if (result.state != GitHubVerifyState.PASSED) return result
 
         val task = CollaborationTaskStore(context).get(taskId) ?: return result
-        discardPendingWorkerInputs(taskId)
+        discardPendingAI BInputs(taskId)
         CollaborationTaskStore(context).update(taskId) {
             it.status = CollaborationTaskRecord.STATUS_RUNNING
             it.constructionHolderAiMemberId = null
@@ -356,33 +356,33 @@ class CollaborationCoordinator(
         )
         transport.append(commitMessage)
 
-        val decisionPrompt = decisionSystemPrompt +
-            "\n这是系统确认通过的 Commit。请决定任务是否完成；若未完成，必须返回合法 JSON，from=decision_ai,to=worker,type=DECISION_RESPONSE，并给出下一步施工指令。"
-        val decision = parseProtocolResponseWithRetry(callDecisionAi(commitMessage, decisionPrompt)) {
-            callDecisionAi(commitMessage, decisionPrompt + compactRetryPrompt(CollaborationProtocol.Role.DECISION_AI, false))
+        val aiAPrompt = aiASystemPrompt +
+            "\n这是系统确认通过的 Commit。请决定任务是否完成；若未完成，必须返回合法 JSON，from=decision_ai,to=aiB,type=DECISION_RESPONSE，并给出下一步施工指令。"
+        val aiA = parseProtocolResponseWithRetry(callAiA(commitMessage, aiAPrompt)) {
+            callAiA(commitMessage, aiAPrompt + compactRetryPrompt(CollaborationProtocol.Role.AI_A, false))
         }
-        validateResponse(decision, CollaborationProtocol.Role.DECISION_AI)
-        transport.append(decision)
+        validateResponse(aiA, CollaborationProtocol.Role.AI_A)
+        transport.append(aiA)
 
-        if (decision.type == CollaborationProtocol.Type.COMPLETE) {
+        if (aiA.type == CollaborationProtocol.Type.COMPLETE) {
             CollaborationTaskStore(context).update(taskId) {
                 it.status = CollaborationTaskRecord.STATUS_COMPLETE
             }
             return result
         }
 
-        require(decision.type == CollaborationProtocol.Type.DECISION_RESPONSE) {
-            "Verify 通过后的 Decision AI 必须返回 DECISION_RESPONSE 或 COMPLETE"
+        require(aiA.type == CollaborationProtocol.Type.DECISION_RESPONSE) {
+            "Verify 通过后的 AI A 必须返回 DECISION_RESPONSE 或 COMPLETE"
         }
 
         // Verify_PASSED is an explicit boundary. A DECISION_RESPONSE means the
-        // task is continuing, so reopen the bounded Worker round explicitly.
-        // This avoids dispatchOneWorkerRound() silently rejecting the persisted
+        // task is continuing, so reopen the bounded AI B round explicitly.
+        // This avoids dispatchOneAI BRound() silently rejecting the persisted
         // VERIFY_PASSED state.
         CollaborationTaskStore(context).update(taskId) {
             it.status = CollaborationTaskRecord.STATUS_RUNNING
         }
-        dispatchOneWorkerRound(workerSystemPrompt, decisionSystemPrompt)
+        dispatchOneAI BRound(aiBSystemPrompt, aiASystemPrompt)
         return result
     }
 
@@ -391,7 +391,7 @@ class CollaborationCoordinator(
      * construction holder is intentionally retained so another AI cannot
      * modify the same Repository/Branch while the failure is being repaired.
      */
-    fun retryAfterVerifyFailure(taskId: String, decisionSystemPrompt: String, workerSystemPrompt: String): GitHubVerifyResult {
+    fun retryAfterVerifyFailure(taskId: String, aiASystemPrompt: String, aiBSystemPrompt: String): GitHubVerifyResult {
         val task = CollaborationTaskStore(context).get(taskId) ?: error("协作任务不存在：$taskId")
         require(task.workspaceId == workspaceId && task.conversationId == conversationId) {
             "协作任务不属于当前工作区 / 对话"
@@ -409,7 +409,7 @@ class CollaborationCoordinator(
         // repair round. Do not transition FAILED -> RUNNING unless the actual
         // Repository/Branch lock is still held by the recorded repair owner.
         ConstructionLockStore(context).requireHolder(workspace, repairHolder)
-        discardPendingWorkerInputs(taskId)
+        discardPendingAI BInputs(taskId)
 
         CollaborationTaskStore(context).update(taskId) {
             it.status = CollaborationTaskRecord.STATUS_RUNNING
@@ -417,22 +417,22 @@ class CollaborationCoordinator(
 
         val failureNotice = CollaborationProtocol.Message(
             from = CollaborationProtocol.Role.HUMAN,
-            to = CollaborationProtocol.Role.DECISION_AI,
+            to = CollaborationProtocol.Role.AI_A,
             taskId = taskId,
             type = CollaborationProtocol.Type.PROGRESS,
             payload = JSONObject()
                 .put("objective", task.objective)
                 .put("instruction", "上一 Commit 的 GitHub Actions Verify 失败，请分析失败结果并决定下一步修复；不得直接宣布任务完成。")
         )
-        val decision = parseProtocolResponseWithRetry(callDecisionAi(failureNotice, decisionSystemPrompt)) {
-            callDecisionAi(failureNotice, decisionSystemPrompt + compactRetryPrompt(CollaborationProtocol.Role.DECISION_AI, false))
+        val aiA = parseProtocolResponseWithRetry(callAiA(failureNotice, aiASystemPrompt)) {
+            callAiA(failureNotice, aiASystemPrompt + compactRetryPrompt(CollaborationProtocol.Role.AI_A, false))
         }
-        validateResponse(decision, CollaborationProtocol.Role.DECISION_AI)
-        require(decision.type == CollaborationProtocol.Type.DECISION_RESPONSE) {
-            "Verify 失败后的 Decision AI 必须返回 DECISION_RESPONSE"
+        validateResponse(aiA, CollaborationProtocol.Role.AI_A)
+        require(aiA.type == CollaborationProtocol.Type.DECISION_RESPONSE) {
+            "Verify 失败后的 AI A 必须返回 DECISION_RESPONSE"
         }
-        transport.append(decision)
-        dispatchOneWorkerRound(workerSystemPrompt, decisionSystemPrompt)
+        transport.append(aiA)
+        dispatchOneAI BRound(aiBSystemPrompt, aiASystemPrompt)
         return GitHubVerifyResult(
             GitHubVerifyState.FAILED,
             task.lastCommitSha.orEmpty(),
@@ -446,20 +446,20 @@ class CollaborationCoordinator(
     fun currentTask(): CollaborationTaskRecord? =
         CollaborationTaskStore(context).latest(workspaceId, conversationId)
 
-    fun callDecisionAi(message: CollaborationProtocol.Message, systemPrompt: String): String {
-        require(message.to == CollaborationProtocol.Role.DECISION_AI)
-        return CollaborationApiClient(CollaborationApiConfig.fromProfile(context, firstProfileId)).invoke(message, systemPrompt)
+    fun callAiA(message: CollaborationProtocol.Message, systemPrompt: String): String {
+        require(message.to == CollaborationProtocol.Role.AI_A)
+        return CollaborationApiClient(CollaborationApiConfig.fromProfile(context, aiAProfileId)).invoke(message, systemPrompt)
     }
 
-    fun callWorker(message: CollaborationProtocol.Message, systemPrompt: String): String {
-        require(message.to == CollaborationProtocol.Role.WORKER)
-        return CollaborationApiClient(CollaborationApiConfig.fromProfile(context, secondProfileId)).invoke(message, systemPrompt)
+    fun callAI B(message: CollaborationProtocol.Message, systemPrompt: String): String {
+        require(message.to == CollaborationProtocol.Role.AI_B)
+        return CollaborationApiClient(CollaborationApiConfig.fromProfile(context, aiBProfileId)).invoke(message, systemPrompt)
     }
 
     fun runObjective(
         objective: String,
-        decisionSystemPrompt: String,
-        workerSystemPrompt: String
+        aiASystemPrompt: String,
+        aiBSystemPrompt: String
     ): List<CollaborationProtocol.Message> {
         require(objective.isNotBlank()) { "objective is blank" }
         val taskRecord = CollaborationTaskStore(context).create(
@@ -473,20 +473,20 @@ class CollaborationCoordinator(
         }
         val humanMessage = CollaborationProtocol.Message(
             from = CollaborationProtocol.Role.HUMAN,
-            to = CollaborationProtocol.Role.DECISION_AI,
+            to = CollaborationProtocol.Role.AI_A,
             taskId = taskId,
             type = CollaborationProtocol.Type.PROGRESS,
             payload = JSONObject().put("objective", objective)
         )
         AppLogger.log(context, AppLogger.Category.COLLABORATION, "HUMAN_OBJECTIVE", "taskId=" + taskId)
-        val rawTask = callDecisionAi(humanMessage, decisionSystemPrompt)
+        val rawTask = callAiA(humanMessage, aiASystemPrompt)
         val task = parseProtocolResponseWithRetry(rawTask) {
-            callDecisionAi(humanMessage, decisionSystemPrompt + compactRetryPrompt(CollaborationProtocol.Role.DECISION_AI))
+            callAiA(humanMessage, aiASystemPrompt + compactRetryPrompt(CollaborationProtocol.Role.AI_A))
         }
-        require(task.type == CollaborationProtocol.Type.TASK) { "Decision AI did not return TASK" }
-        require(task.taskId == taskId) { "Decision AI changed task_id; collaboration task state cannot be recovered safely" }
-        require(task.from == CollaborationProtocol.Role.DECISION_AI && task.to == CollaborationProtocol.Role.WORKER) {
-            "Decision AI TASK route is invalid"
+        require(task.type == CollaborationProtocol.Type.TASK) { "AI A did not return TASK" }
+        require(task.taskId == taskId) { "AI A changed task_id; collaboration task state cannot be recovered safely" }
+        require(task.from == CollaborationProtocol.Role.AI_A && task.to == CollaborationProtocol.Role.AI_B) {
+            "AI A TASK route is invalid"
         }
         submitTask(task)
         CollaborationTaskStore(context).update(taskId) {
@@ -497,15 +497,15 @@ class CollaborationCoordinator(
         var rounds = 0
         val maxIterations = task.payload.optJSONObject("autonomy")?.optInt("max_iterations", 20)?.coerceIn(1, 20) ?: 20
         while (rounds < maxIterations) {
-            val round = dispatchOneWorkerRound(workerSystemPrompt, decisionSystemPrompt)
+            val round = dispatchOneAI BRound(aiBSystemPrompt, aiASystemPrompt)
             if (round.isEmpty()) break
             messages += round
             rounds++
-            val decision = round.lastOrNull { it.from == CollaborationProtocol.Role.DECISION_AI }
+            val aiA = round.lastOrNull { it.from == CollaborationProtocol.Role.AI_A }
             val state = CollaborationTaskStore(context).get(taskId)?.status
-            if (decision?.type == CollaborationProtocol.Type.COMPLETE ||
-                decision?.type == CollaborationProtocol.Type.BLOCKED ||
-                decision?.type == CollaborationProtocol.Type.ESCALATE ||
+            if (aiA?.type == CollaborationProtocol.Type.COMPLETE ||
+                aiA?.type == CollaborationProtocol.Type.BLOCKED ||
+                aiA?.type == CollaborationProtocol.Type.ESCALATE ||
                 state == CollaborationTaskRecord.STATUS_WAITING_VERIFY ||
                 state == CollaborationTaskRecord.STATUS_COMPLETE ||
                 state == CollaborationTaskRecord.STATUS_FAILED) break
@@ -517,8 +517,8 @@ class CollaborationCoordinator(
         return messages
     }
 
-    /** Execute exactly one Worker -> Decision AI round. */
-    fun dispatchOneWorkerRound(workerSystemPrompt: String, decisionSystemPrompt: String): List<CollaborationProtocol.Message> {
+    /** Execute exactly one AI B → AI A round. */
+    fun dispatchOneAI BRound(aiBSystemPrompt: String, aiASystemPrompt: String): List<CollaborationProtocol.Message> {
         val current = currentTask() ?: return emptyList()
         // A persisted TASK/DECISION_RESPONSE may remain unhandled after a process
         // restart. Never replay it after a real Commit has already moved the task
@@ -527,45 +527,45 @@ class CollaborationCoordinator(
             current.status != CollaborationTaskRecord.STATUS_CONSTRUCTING
         ) return emptyList()
 
-        val task = transport.pendingFor(CollaborationProtocol.Role.WORKER)
+        val task = transport.pendingFor(CollaborationProtocol.Role.AI_B)
             .firstOrNull {
                 it.taskId == current.taskId &&
                     (it.type == CollaborationProtocol.Type.TASK || it.type == CollaborationProtocol.Type.DECISION_RESPONSE)
             } ?: return emptyList()
-        val workerMessage = parseProtocolResponseWithRetry(callWorker(task, workerSystemPrompt)) {
-            callWorker(task, workerSystemPrompt + compactRetryPrompt(CollaborationProtocol.Role.WORKER))
+        val aiBMessage = parseProtocolResponseWithRetry(callAI B(task, aiBSystemPrompt)) {
+            callAI B(task, aiBSystemPrompt + compactRetryPrompt(CollaborationProtocol.Role.AI_B))
         }
-        validateResponse(workerMessage, CollaborationProtocol.Role.WORKER)
-        require(workerMessage.type in setOf(CollaborationProtocol.Type.DECISION_REQUEST, CollaborationProtocol.Type.PROGRESS, CollaborationProtocol.Type.BLOCKED, CollaborationProtocol.Type.FILE_CHANGE_REQUEST)) {
-            "Worker 只能返回 DECISION_REQUEST / PROGRESS / BLOCKED / FILE_CHANGE_REQUEST；Commit / Verify / Complete 必须由系统状态产生"
+        validateResponse(aiBMessage, CollaborationProtocol.Role.AI_B)
+        require(aiBMessage.type in setOf(CollaborationProtocol.Type.DECISION_REQUEST, CollaborationProtocol.Type.PROGRESS, CollaborationProtocol.Type.BLOCKED, CollaborationProtocol.Type.FILE_CHANGE_REQUEST)) {
+            "AI B 只能返回 DECISION_REQUEST / PROGRESS / BLOCKED / FILE_CHANGE_REQUEST；Commit / Verify / Complete 必须由系统状态产生"
         }
-        transport.append(workerMessage)
+        transport.append(aiBMessage)
         transport.markHandled(task.id)
 
-        val messages = mutableListOf(workerMessage)
-        val decisionInput = if (workerMessage.type == CollaborationProtocol.Type.FILE_CHANGE_REQUEST) {
-            val commit = executeFileChangeRequest(task, workerMessage)
+        val messages = mutableListOf(aiBMessage)
+        val aiAInput = if (aiBMessage.type == CollaborationProtocol.Type.FILE_CHANGE_REQUEST) {
+            val commit = executeFileChangeRequest(task, aiBMessage)
             transport.append(commit)
             messages += commit
             commit
         } else {
-            workerMessage
+            aiBMessage
         }
-        if (decisionInput.to != CollaborationProtocol.Role.DECISION_AI) return messages
-        val decisionPrompt = if (decisionInput.type == CollaborationProtocol.Type.COMMIT) {
-            decisionSystemPrompt + "\n现在进入施工结果审议阶段。你必须返回合法 JSON；from=decision_ai，to=worker，type 必须为 DECISION_RESPONSE 或 COMPLETE。若 Commit 已满足目标，可返回 COMPLETE；否则返回 DECISION_RESPONSE，并在 instruction 中给出下一步。"
+        if (aiAInput.to != CollaborationProtocol.Role.AI_A) return messages
+        val aiAPrompt = if (aiAInput.type == CollaborationProtocol.Type.COMMIT) {
+            aiASystemPrompt + "\n现在进入施工结果审议阶段。你必须返回合法 JSON；from=decision_ai，to=aiB，type 必须为 DECISION_RESPONSE 或 COMPLETE。若 Commit 已满足目标，可返回 COMPLETE；否则返回 DECISION_RESPONSE，并在 instruction 中给出下一步。"
         } else {
-            decisionSystemPrompt
+            aiASystemPrompt
         }
-        val decisionMessage = parseProtocolResponseWithRetry(callDecisionAi(decisionInput, decisionPrompt)) {
-            callDecisionAi(decisionInput, decisionPrompt + compactRetryPrompt(CollaborationProtocol.Role.DECISION_AI, false))
+        val aiAMessage = parseProtocolResponseWithRetry(callAiA(aiAInput, aiAPrompt)) {
+            callAiA(aiAInput, aiAPrompt + compactRetryPrompt(CollaborationProtocol.Role.AI_A, false))
         }
-        validateResponse(decisionMessage, CollaborationProtocol.Role.DECISION_AI)
-        transport.append(decisionMessage)
+        validateResponse(aiAMessage, CollaborationProtocol.Role.AI_A)
+        transport.append(aiAMessage)
         val taskId = task.taskId
         CollaborationTaskStore(context).get(taskId)?.let { record ->
             CollaborationTaskStore(context).update(taskId) {
-                it.status = when (decisionMessage.type) {
+                it.status = when (aiAMessage.type) {
                     CollaborationProtocol.Type.BLOCKED,
                     CollaborationProtocol.Type.ESCALATE -> CollaborationTaskRecord.STATUS_WAITING_CONSTRUCTION
                     CollaborationProtocol.Type.COMPLETE -> when (it.status) {
@@ -578,7 +578,7 @@ class CollaborationCoordinator(
                 }
             }
         }
-        messages += decisionMessage
+        messages += aiAMessage
         return messages
     }
 
@@ -597,9 +597,9 @@ class CollaborationCoordinator(
     }
 
     private fun compactRetryPrompt(role: CollaborationProtocol.Role, initialTask: Boolean = true): String {
-        val route = if (role == CollaborationProtocol.Role.DECISION_AI) {
-            if (initialTask) "from=decision_ai,to=worker,type=TASK" else "from=decision_ai,to=worker,type=DECISION_RESPONSE|COMPLETE"
-        } else "from=worker,to=decision_ai,type=DECISION_REQUEST|PROGRESS|BLOCKED|FILE_CHANGE_REQUEST"
+        val route = if (role == CollaborationProtocol.Role.AI_A) {
+            if (initialTask) "from=decision_ai,to=aiB,type=TASK" else "from=decision_ai,to=aiB,type=DECISION_RESPONSE|COMPLETE"
+        } else "from=aiB,to=decision_ai,type=DECISION_REQUEST|PROGRESS|BLOCKED|FILE_CHANGE_REQUEST"
         return "\n上一轮输出无法被完整解析。请立即重新输出一个完整、紧凑、合法的 JSON 对象；不要 Markdown、不要解释、不要换行长文本；$route。避免冗长 scope、acceptance、autonomy 与 context_refs，只保留完成协议所需内容。确保最后一个字符为 }。"
     }
     private fun executeFileChangeRequest(
@@ -608,8 +608,8 @@ class CollaborationCoordinator(
     ): CollaborationProtocol.Message {
         require(request.type == CollaborationProtocol.Type.FILE_CHANGE_REQUEST)
         require(request.taskId == taskMessage.taskId)
-        val memberId = workerAiMemberId?.takeIf { it.isNotBlank() }
-            ?: error("Worker AI Member 未绑定，不能进入自动施工")
+        val memberId = constructionAiMemberId?.takeIf { it.isNotBlank() }
+            ?: error("AI B AI Member 未绑定，不能进入自动施工")
         val workspace = BridgeProjectStore(context).load().firstOrNull { it.id == workspaceId }
             ?: error("工作区不存在：" + workspaceId)
         require(workspace.github.writeEnabled) { "当前工作区未允许 GitHub 修改" }
@@ -634,7 +634,7 @@ class CollaborationCoordinator(
         if (current.status != CollaborationTaskRecord.STATUS_CONSTRUCTING) {
             requestConstruction(taskMessage.taskId, memberId)
         } else {
-            require(current.constructionHolderAiMemberId == memberId) { "当前 Worker 未持有施工锁" }
+            require(current.constructionHolderAiMemberId == memberId) { "当前 AI B 未持有施工锁" }
         }
         val token = GitHubTokenStore(context).state().accessToken?.takeIf { it.isNotBlank() } ?: error("GitHub 尚未授权")
         val service = GitHubWorkspaceService(context, GitHubApiClient(context, token), workspace.github, workspace)
