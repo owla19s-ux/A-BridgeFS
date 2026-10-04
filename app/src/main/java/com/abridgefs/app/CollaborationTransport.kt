@@ -552,6 +552,16 @@ class CollaborationCoordinator(
             workerMessage
         }
         if (decisionInput.to != CollaborationProtocol.Role.DECISION_AI) return messages
+        // A real Commit is not yet a verified Commit. Once a GitHub write enters
+        // WAITING_VERIFY, stop this round here. The next Decision AI round must
+        // only start after the exact Commit SHA passes GitHub Actions Verify.
+        if (decisionInput.type == CollaborationProtocol.Type.COMMIT) {
+            val persisted = CollaborationTaskStore(context).get(task.taskId)
+            if (persisted?.status == CollaborationTaskRecord.STATUS_WAITING_VERIFY) {
+                return messages
+            }
+        }
+
         val decisionPrompt = if (decisionInput.type == CollaborationProtocol.Type.COMMIT) {
             decisionSystemPrompt + "\n现在进入施工结果审议阶段。你必须返回合法 JSON；from=decision_ai，to=worker，type 必须为 DECISION_RESPONSE 或 COMPLETE。若 Commit 已满足目标，可返回 COMPLETE；否则返回 DECISION_RESPONSE，并在 instruction 中给出下一步。"
         } else {
