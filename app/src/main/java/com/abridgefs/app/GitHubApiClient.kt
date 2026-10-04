@@ -39,6 +39,17 @@ class GitHubApiClient(
         return get("/repos/${owner}/${repo}/contents/${encodedPath}${ref}")
     }
 
+    fun createFile(owner: String, repo: String, path: String, content: String, message: String, branch: String?): JSONObject {
+        ensureEnabled()
+        val encodedPath = path.trimStart('/').split('/').joinToString("/") {
+            java.net.URLEncoder.encode(it, "UTF-8").replace("+", "%20")
+        }
+        val body = JSONObject()
+            .put("message", message)
+            .put("content", android.util.Base64.encodeToString(content.toByteArray(Charsets.UTF_8), android.util.Base64.NO_WRAP))
+        if (!branch.isNullOrBlank()) body.put("branch", branch)
+        return write("/repos/" + owner + "/" + repo + "/contents/" + encodedPath, body)
+    }
     fun updateFile(owner: String, repo: String, path: String, content: String, message: String, branch: String?, sha: String): JSONObject {
         ensureEnabled()
         val encodedPath = path.trimStart('/').split('/').joinToString("/") {
