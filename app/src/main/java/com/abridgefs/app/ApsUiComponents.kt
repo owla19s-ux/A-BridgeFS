@@ -69,13 +69,39 @@ internal fun ApsActivity.settingSwitch(name: String, checked: Boolean, onChanged
             minHeight = 0
             minimumHeight = 0
             setOnClickListener {
-                if (input.text.toString().trim().isNotBlank()) {
-                    toast("输入已进入当前工作流（UI 壳）")
-                    pendingTaskMentions.clear()
-                    input.setText("")
-                    input.clearFocus()
-                    (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
-                        .hideSoftInputFromWindow(input.windowToken, 0)
+                val text = input.text.toString().trim()
+                if (text.isBlank()) return@setOnClickListener
+                if (hint.contains("工作目标")) {
+                    val project = currentProject
+                    if (project == null) {
+                        toast("当前没有可用 Project")
+                        return@setOnClickListener
+                    }
+                    val conversation = project.activeConversation()
+                    conversation.messages += BridgeChatMessage("user", text)
+                    projectStore.save(projects)
+                    input.isEnabled = false
+                    toast("正在请求当前 Project AI")
+                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                        val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            ProjectConversationService(this@inputBar).send(project, conversation, text)
+                        }
+                        input.isEnabled = true
+                        if (result.answer != null) {
+                            conversation.messages += BridgeChatMessage("assistant", result.answer)
+                        } else {
+                            conversation.messages += BridgeChatMessage("system", result.error ?: "请求失败")
+                        }
+                        projectStore.save(projects)
+                        input.setText("")
+                        pendingTaskMentions.clear()
+                        input.clearFocus()
+                        (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
+                            .hideSoftInputFromWindow(input.windowToken, 0)
+                        render()
+                    }
+                } else {
+                    toast("独立对话尚未接入真实会话")
                 }
             }
         }, LinearLayout.LayoutParams(dp(78), dp(52)).apply { marginStart = dp(6) })
