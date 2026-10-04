@@ -24,7 +24,7 @@ internal fun ApsActivity.messageBubble(name: String, text: String) =
         orientation = LinearLayout.VERTICAL
         setPadding(dp(14), dp(12), dp(14), dp(12))
         background = round(c(R.color.bridgefs_surface), dp(12))
-        addView(TextView(this@messageBubble).apply {
+        addView(TextView(this@ApsActivity).apply {
             this.text = name
             textSize = 12f
             typeface = Typeface.DEFAULT_BOLD
