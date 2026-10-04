@@ -1352,7 +1352,7 @@ class V021Activity : Activity() {
                 val lockStore = ConstructionLockStore(this)
                 val lock = lockStore.acquire(project, memberId)
                 val token = GitHubTokenStore(this).state().accessToken?.takeIf { it.isNotBlank() } ?: error("GitHub 尚未授权")
-                val service = GitHubWorkspaceService(this, GitHubApiClient(this, token), project.github, project)
+                val service = ProjectGitHubService(this, GitHubApiClient(this, token), project.githubAddress, project)
                 var lastCommit = ""
                 for (command in commands) {
                     when (command) {
