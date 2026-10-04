@@ -1,8 +1,8 @@
 # GitHub 仓库使用方法
 
-本文记录 A-BridgeFS 项目在实际协作、施工、检查、验证和发布过程中形成的仓库使用方法。
+本文记录 APS 项目在实际协作、施工、检查、验证和发布过程中形成的仓库使用方法。
 
-> 适用范围：A-BridgeFS 以及采用相同 AI 协作方式的后续项目。
+> 适用范围：APS 以及采用相同 AI 协作方式的后续项目。
 > 
 > 核心原则：**代码是实现事实，main 是正式基线，Commit 是施工单位，PR 是审查入口，Verify 是完成条件，Release/Tag 是版本锚点。**
 
@@ -113,7 +113,7 @@ UI 组件
 - UI 显示的状态是否来自真实数据？
 - 点击后是否真的进入新的业务链路？
 
-### A-BridgeFS 当前尤其需要注意
+### APS 当前尤其需要注意
 
 本项目曾出现过“新旧实现同时存在”的情况。
 
@@ -387,7 +387,7 @@ Artifact
 
 ## 9. APK / Release 怎么判断
 
-A-BridgeFS 的正式 APK 不应该通过“某个文件名看起来像新版本”来判断。
+APS 的正式 APK 不应该通过“某个文件名看起来像新版本”来判断。
 
 正确链路：
 
@@ -402,13 +402,13 @@ Artifact
  ↓
 Release
  ↓
-A-BridgeFS.apk
+APS.apk
 ```
 
 当前项目对外下载固定使用：
 
 ```
-releases/latest/download/A-BridgeFS.apk
+releases/latest/download/APS.apk
 ```
 
 但测试时还要确认：
@@ -647,7 +647,7 @@ AI 不应该只执行用户说出的最后一句。
 
 ---
 
-## 14. A-BridgeFS 当前推荐的仓库操作口诀
+## 14. APS 当前推荐的仓库操作口诀
 
 ```
 先看 main
@@ -679,7 +679,7 @@ main 才是正式基线
 
 ## 15. 当前项目的特殊原则
 
-A-BridgeFS 不只是普通 Android 项目。
+APS 不只是普通 Android 项目。
 
 它同时是：
 
@@ -695,7 +695,7 @@ A-BridgeFS 不只是普通 Android 项目。
 ```
 用户
  ↓
-A-BridgeFS
+APS
  ↓
 AI
  ↓
@@ -737,14 +737,14 @@ GitHub Commit
  ↓
 Verify
  ↓
-A-BridgeFS 获取结果
+APS 获取结果
  ↓
 Receipt
  ↓
 人
 ```
 
-这也是 A-BridgeFS 后续 AI 协作能力最重要的基础。
+这也是 APS 后续 AI 协作能力最重要的基础。
 
 ---
 
