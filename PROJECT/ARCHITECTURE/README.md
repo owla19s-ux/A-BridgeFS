@@ -2,12 +2,18 @@
 
 正式架构资料入口。
 
-当前仍位于 `docs/architecture/` 的架构文档将在整理过程中逐步迁移到这里。
+当前正式架构主文件：
 
-迁移完成前：
+- `PROJECT/ARCHITECTURE/APS-CURRENT-ARCHITECTURE.md`
 
-- `PROJECT/ARCHITECTURE/`：新的正式入口
-- `docs/architecture/`：现有资料来源
-- 两者不得产生互相矛盾的版本
+当前架构判断：
 
-迁移时以当前确认后的架构为准，不机械复制历史内容。
+- Project-centered；
+- Project Address 统一 Local / GitHub / future storage；
+- Default AI / Project Member / API Profile 分层；
+- Request AI Assistance 为按需动作；
+- 固定 Decision AI / Worker AI、固定 AI A / AI B 已废弃。
+
+`docs/architecture/` 与其他旧架构文件属于迁移 / 历史资料。除非明确标记为当前，否则不得作为新功能设计依据。
+
+PROJECT 描述当前应该是什么；实际代码是否已经实现，以源码与 Verify 为准。
