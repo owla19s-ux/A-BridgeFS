@@ -1,139 +1,211 @@
 # A-BridgeFS 当前需求板
 
-更新时间：2026-10-02
+更新时间：2026-10-04
 
-## A. 已确认
+## A. 核心产品模型
 
-### 一级页面
-底部一级导航固定为：工作区、对话、配置。
+### 1. Project 是核心对象
 
-### 工作区
-工作区是 AI 协作资源集合，至少包含：
-- AI 成员
-- API 模块
-- GitHub 模块
-- 权限与施工权
-- 工作区操作
+Project 是 A-BridgeFS 的主要工作单元。
 
-### 双 AI 协作
-工作区支持两个协作 AI。
+一个 Project 至少包含：
 
-两 AI：
-- 默认共享读取能力
-- 可以同时读取同一 Repository
-- 可以同时分析、沟通和检查结果
-- 不固定谁是 Decision AI、谁是 Worker
-- 施工角色随任务变化
+- 基本信息
+- Project Address
+- Default AI
+- Project Members
+- Project Conversation
+- Request AI Assistance
 
-施工权限：
-- 属于 Workspace + Repository + Branch
-- 同一 Repository / Branch 同时最多一个 AI 拥有修改权
-- 修改权可转移
-- API Profile 不直接拥有工作区施工权
+### 2. Project Address
 
-### GitHub
-GitHub 必须是真实模块，且**读取能力不属于工作区专属能力**。
+Project Address 是统一的项目资源地址概念。
 
-至少包含：
-- 连接状态
-- GitHub 账号
-- Repository
-- Branch
-- 读取权限
-- 修改权限 / 施工权
-- GitHub 工作区入口
+V0.1 至少支持：
 
-GitHub 读取边界：
-- 普通「对话」页可以在 GitHub 全局访问开启、授权有效且当前已配置 GitHub 资源时读取 Repository；
-- 工作区对话同样可以读取当前 Workspace 绑定的 Repository / Branch；
-- 两者都只读时，不需要 ConstructionLock；
-- **修改 / Commit 不属于普通对话读取能力，另行受施工权控制。**
+- Local
+- GitHub
 
-第一阶段必须先证明：
-普通对话 → API → GitHub → Repository / 文件读取 → AI 能根据真实仓库回答。
+未来可扩展其他存储。
 
-如果普通对话无法读取 GitHub，就不能认为“API + GitHub”链路已经打通。
+**GitHub 不再与 Project 并列成为另一套工作区业务模型。**
 
-## B. 已实现
-- Android 原生工程
-- applicationId com.abridgefs.app
-- target SDK 35
-- API / GitHub 全局访问开关
-- BridgeApiClient
-- BridgeProjectStore
-- 三页 UI 粗骨架
-- 多 API 配置列表
-- Chat → API 绑定持久化
-- GitHub PAT / Android Keystore / Repository / Branch 基础能力
+### 3. Default AI / Project Member / API Profile
 
-## C. 当前开发
-- Workspace AI 成员 / 权限模型（基础模型已落地，待完整验证）
-- Repository / Branch 施工锁（基础链已落地，待 AI 自主施工接线）
-- Chat 独立数据模型
-- CommandParser → PermissionPolicy → CommandExecutor → Receipt 主链统一
-- GitHub 普通对话读取链
-- GitHub 工作区读取链
-- GitHub 实际文件修改 / Commit / Issue / PR / Actions / Release 能力
-- GitHub 本地权限与 GitHub Token 实际权限的双层判断
-- 双 AI 协作消息与连续任务循环
-- 协作日志与 Receipt 时间线统一
+三者必须保持分层：
 
-## D. 暂不做
-- 多于两个协作 AI
-- 复杂 Agent 调度
-- 完整 Git 客户端
-- 全量 GitHub API
-- 复杂组织管理
-- 多层自动调度器
-- 自动绕过用户授权
+| 对象 | 作用 |
+|---|---|
+| API Profile | API 连接资源：Base URL、Key、Model 等 |
+| Project Member | AI 在项目中的成员关系，可管理 |
+| Default AI | 当前 Project 默认使用的 Member |
 
-## E. 当前设计验收
-1. 两个 AI 可以同时读取允许范围内的 Repository。
-2. 两个 AI 可以互相发送协作消息。
-3. 同一 Repository / Branch 同时最多一个 AI 可以修改。
-4. 施工权可以转移。
-5. 持有施工权的 AI 可以在授权范围内连续施工；普通对话读取链不依赖施工权。
-6. 普通实现问题不要求用户逐次输入“继续”。
-7. 真正需要产品、架构或权限决策时才暂停协作。
-8. Verify 必须以真实外部工序结果为依据。
-9. 未产生新的 Actions Run / APK / 真机证据前，不将本批次标记为“已验证”。
+要求：
 
-未完成真实验证，不标记为“已验证”。
+- Project 可以拥有一个或多个 Member；
+- Member 可以新增、移除、修改；
+- Member 可以更换 API Profile；
+- Default AI 可以更换；
+- API Profile 不直接等同于 Project Member；
+- 不使用固定 AI A / AI B 作为产品模型；
+- 不使用固定 Decision AI / Worker AI 作为产品模型。
 
-## F. 状态定义
-待讨论 / 候选 / 已确认 / 开发中 / 已实现 / 已验证 / 阻塞 / 废弃
+### 4. Project Conversation
 
+进入 Project 后，Conversation 是主要工作入口。
 
-## 2026-10-02 UI 结构修正：Workspace 协作对话 / 独立对话分离
+正常行为：
 
-正式区分两种 Conversation：
+```
+用户提问
+ ↓
+当前 Project
+ ↓
+Project Address
+ ↓
+Default AI
+ ↓
+读取 / 分析 / 工作
+ ↓
+回答 / 完成
+```
 
-- **Workspace 协作对话**：属于 Workspace，用于双 AI 协作、任务、施工锁、Commit / Verify 等工作区业务。
-- **独立对话**：属于全局对话页，只与用户和一个指定 API 直接交流，不继承 Workspace 的双 AI 协作状态。
+普通项目问题不得因为存在多个 Project Member 而自动触发多 AI 讨论。
 
-因此：
+### 5. Request AI Assistance
 
-- 底部「对话」页不得读取或写入当前 Workspace 的 activeConversation。
-- 「对话」页不得因为 Workspace 的协作配置而自动进入双 AI 协作。
-- Workspace 必须提供明确的「进入协作对话」入口。
-- Workspace 内仍可新建 / 切换多个协作 Conversation。
-- 独立对话拥有自己的 API 选择、消息历史、回执和本地文件修改权限。
+多 AI 协助是一个动作，而不是 Project 的默认模式。
 
+```
+Default AI
+ ↓
+Request AI Assistance
+ ↓
+其他 Project Member / 临时 AI
+ ↓
+协助
+ ↓
+Default AI 继续
+```
 
-## 2026-10-04 需求校正：普通对话必须具备 GitHub 读取能力
+协助对象不以 A/B 身份命名。
 
-此前文档对 GitHub 的描述容易让人误解为“进入 Workspace 后 AI 才能读取 Repository”。该理解已纠正。
+## B. 连续工作
 
-当前正式要求：
+Default AI 在获得相应施工权限后，可以连续完成一次任务：
 
-- GitHub **读取**是 A-BridgeFS AI 对话的基础能力之一，不是 Workspace 专属能力。
-- 普通对话首先要能够确认 GitHub 是否已连接，并读取当前可用 Repository / Branch / 文件。
-- Workspace 对话在此基础上读取 Workspace 绑定的 GitHub 资源。
-- GitHub **修改 / Commit** 与读取严格分开；本轮先不施工修改链。
-- ConstructionLock 只负责真实修改阶段的施工权，不负责普通读取。
+```
+理解 → 读取 → 修改 → Commit → Verify → 必要时继续修复 → 完成
+```
 
-当前最小验证链：
+用户不需要在每一步点击“继续”。
 
-普通对话 → API → GitHub 全局访问 / 授权 → 当前 Repository / Branch → 读取文件 → AI 根据真实代码回答
+仅在以下情况暂停：
 
-这条链未打通前，不把“GitHub 已连接”视为完整可用。
+- 需要用户决策；
+- 权限 / 资源不足；
+- 明确阻塞；
+- 达到合理的失败 / 重试边界。
+
+## C. 独立「对话」页
+
+「对话」页与 Project 独立。
+
+主要用途：
+
+- 选择 API Profile；
+- 与单个 AI 直接交流；
+- 进行普通问答、分析；
+- 在允许情况下读取外部资源。
+
+默认定位为**只读 / 查询型能力**。
+
+它不得：
+
+- 自动进入 Project；
+- 自动使用 Project Default AI；
+- 自动启动多 AI 协作；
+- 因 API 连接而获得 Project 施工权限；
+- 绕过 ConstructionLock 修改项目。
+
+当前对话页底层架构基本保留，主要进行 UI 优化。
+
+## D. 权限边界
+
+### 读取
+
+读取 Project Address 中的资源属于正常 AI 工作能力。
+
+GitHub 读取不需要 ConstructionLock。
+
+### 修改
+
+修改 / Commit 属于施工能力，需要明确的施工权限。
+
+ConstructionLock 只控制修改阶段，不作为普通读取前置条件。
+
+## E. 当前已确认 / 待施工
+
+### 已确认
+
+- Project 是核心对象。
+- Project Address 统一 Local / GitHub / future storage。
+- Default AI 是 Project 的主要 AI。
+- Project Members 是可管理集合，不是固定 A/B。
+- API Profile 与 Project Member 分离。
+- Project Conversation 是项目主要入口。
+- Request AI Assistance 是按需动作。
+- 普通「对话」独立于 Project。
+- 普通「对话」默认只读 / 查询定位。
+- 多项目 Secretary / Orchestrator 暂不施工。
+
+### 待施工
+
+- Project Address 数据模型统一；
+- Project Default Member 数据模型；
+- Project Member 增删改与 API Profile 更换；
+- Project 创建 / 编辑 / 删除；
+- Project Conversation 与新 Project 模型统一；
+- Request AI Assistance 新入口；
+- ConstructionLock 从旧 Workspace 语义迁移到 Project；
+- 清理旧 A/B、Decision / Worker、独立 Conversation GitHub 配置；
+- Project UI 重新收口。
+
+## F. 暂不做
+
+- 固定 Decision AI / Worker AI；
+- 固定 AI A / AI B；
+- 普通项目提问自动多 AI 讨论；
+- 复杂 Project Dashboard；
+- Secretary / Orchestrator；
+- 完整 Git 客户端；
+- 多层自动 Agent 调度。
+
+## G. 验收原则
+
+```
+代码
+ ↓
+UI 入口
+ ↓
+用户操作
+ ↓
+状态保存 / 恢复
+ ↓
+真实业务生效
+ ↓
+APK
+ ↓
+真机验证
+```
+
+代码存在不等于功能完成。
+
+状态必须明确区分：
+
+- 已设计未实现
+- 开发中
+- 已实现
+- 已验证
+- 阻塞
+- 废弃
