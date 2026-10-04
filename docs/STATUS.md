@@ -462,3 +462,12 @@ Workspace + Repository + Branch
 - MainActivity 仅做兼容保留，已去除对 GlobalAccessActivity 的引用；V021Activity 继续作为正式 Launcher/UI。
 - 当前状态：代码整理已完成，尚未进行真机验证；本轮暂不宣称 APK 已验证。
 
+## 2026-10-04 UI 信息架构第四轮检查
+- 工作区继续压缩：GitHub 卡片只保留连接状态、Repository、Branch 与进入入口；AI 协作保留为工作区一级快速入口，并显示最新协作状态。
+- 协作对话继续保持独立页面；用户可见文本不再展示内部 Decision AI / Worker 分类，内部协议角色仍保留。
+- 删除 V021Activity 中已经没有入口的旧本地权限卡与旧 API 编辑/删除代码，避免正式 UI 与遗留代码并存。
+- GitHub 全局访问开关调整为始终可见：即使 GitHub 当前关闭，也可以直接在 GitHub 页面重新开启，不再依赖不存在的“连接与访问”入口。
+- ApiProfileStore 已确认 API Key 由 ApiSecretStore 保存，API 设置读取到的是实际使用的 Profile 数据；普通对话和协作使用同一数据源。
+- MainActivity 仍有历史 UI 代码残留，但已不是 Launcher，且当前新 UI 没有引用它；本轮不再继续扩大改动范围，后续可单独清理。
+- 当前状态：代码层继续收口，尚未构建/真机验证。
+
