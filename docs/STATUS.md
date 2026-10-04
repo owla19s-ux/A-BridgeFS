@@ -453,3 +453,12 @@ Workspace + Repository + Branch
 - Android 真机验证协作对话输入框是否紧贴输入法顶部。
 - Android 真机验证 GitHub API 连通性按钮的成功/失败反馈。
 - Android 真机验证配置首页 → API / GitHub / 执行 / 文件 / 系统 / 日志各入口是否形成完整返回链路。
+
+## 2026-10-04 UI 信息架构第三轮收口
+- 已确认：工作区保留「AI 协作」快速入口，不把协作对话藏到配置或二级页面；工作区同时显示参与 AI 与最新协作状态/Commit 摘要。
+- 已移除 V021Activity 中旧的「协作任务」大卡片，任务详情与操作只留在协作对话，避免同一功能出现两套入口。
+- API 设置统一改为直接读写 ApiProfileStore；普通对话与协作共用同一组 API Profile，消除旧 SharedPreferences API 配置与新 Profile 架构并存的问题。
+- API 全局访问开关保留在「AI 与 API」页面；GitHub 全局访问开关保留在 GitHub 页面；旧 GlobalAccessActivity 已移除。
+- MainActivity 仅做兼容保留，已去除对 GlobalAccessActivity 的引用；V021Activity 继续作为正式 Launcher/UI。
+- 当前状态：代码整理已完成，尚未进行真机验证；本轮暂不宣称 APK 已验证。
+
