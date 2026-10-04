@@ -236,7 +236,7 @@ GitHub 是真实执行资源之一，不是 UI 装饰。
 
 ## 13. 与双 AI 施工权模型的关系
 
-GitHub 模块不决定哪个 AI 是“Decision AI”或“Worker AI”。
+GitHub 模块不决定哪个 AI 承担决策、施工或检查角色；正式架构不设固定 Decision AI / Worker AI 身份。
 
 当前正式模型为：
 
@@ -246,4 +246,4 @@ GitHub 模块不决定哪个 AI 是“Decision AI”或“Worker AI”。
 - API Profile 与 GitHub Token 都是连接 / 授权资源，不直接等于 A-BridgeFS 施工权。
 - GitHub Token 的真实权限仍是最终外部能力边界。
 
-因此 GitHub 模块负责“能访问什么”，Workspace / ConstructionLock 负责“当前哪个 AI 可以在这个资源上施工”。
+因此 GitHub 模块负责“能访问什么”，Workspace / ConstructionLock 负责“当前哪个 AI 在当前阶段获得施工权”。角色可以随任务阶段变化，施工权不等于固定 AI 身份。
