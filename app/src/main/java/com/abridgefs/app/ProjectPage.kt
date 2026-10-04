@@ -17,9 +17,7 @@ internal fun ApsActivity.projectPage() {
         val project = currentProject
         content.addView(title(project?.name ?: "默认项目"))
         content.addView(TextView(this).apply {
-            text = "Project Address
-Local：未设置
-GitHub：未设置"
+            text = "Project Address\nLocal：${project?.localAddress ?: "未设置"}\nGitHub：${project?.githubAddress?.repository ?: "未设置"}"
             textSize = 12f
             setTextColor(c(R.color.bridgefs_text_secondary))
             setPadding(0, dp(3), 0, dp(6))
@@ -73,7 +71,38 @@ GitHub：未设置"
                 val profile = member?.apiProfileId?.let { ApiProfileStore(this@projectPage).find(it) }
                 addView(value("Default API：${profile?.name ?: "未绑定"}"))
                 addView(label("项目级配置仅在这里维护"))
-                addView(Button(this).apply { text = "选择 API Profile"; setOnClickListener { toast("API Profile 连接将在下一段接线") } })
+                addView(Button(this).apply {
+                    text = "选择 API Profile"
+                    setOnClickListener {
+                        val p = currentProject ?: return@setOnClickListener
+                        val profiles = apiProfilesStore.list()
+                        if (profiles.isEmpty()) {
+                            toast("暂无 API Profile，请先在设置 → 连接 → API Profiles 配置")
+                            return@setOnClickListener
+                        }
+                        val names = profiles.map { it.name }.toTypedArray()
+                        val currentId = p.defaultMemberId?.let { id -> p.aiMembers.firstOrNull { it.id == id }?.apiProfileId }
+                        val checked = profiles.indexOfFirst { it.id == currentId }
+                        AlertDialog.Builder(this@projectPage)
+                            .setTitle("选择 Default API")
+                            .setSingleChoiceItems(names, checked) { dialog, which ->
+                                val profile = profiles[which]
+                                val member = p.defaultMemberId?.let { id -> p.aiMembers.firstOrNull { it.id == id } }
+                                    ?: BridgeAiMember(java.util.UUID.randomUUID().toString(), profile.name, profile.id).also {
+                                        p.aiMembers += it
+                                        p.defaultMemberId = it.id
+                                    }
+                                member.name = profile.name
+                                member.apiProfileId = profile.id
+                                p.activeConversation().apiId = profile.id
+                                projectStore.save(projects)
+                                dialog.dismiss()
+                                render()
+                            }
+                            .setNegativeButton("取消", null)
+                            .show()
+                    }
+                })
             })
         }
         if (displayOpen) content.addView(card().apply {
