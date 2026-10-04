@@ -59,20 +59,19 @@ log("Service","onCreate");showBall()
 override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
 if (intent?.hasExtra("bridgefs_external_command") == true) {
 val text=intent.getStringExtra("bridgefs_external_command").orEmpty()
-val rootPath=intent.getStringExtra("bridgefs_root").orEmpty()
+val requestedRoot=intent.getStringExtra("bridgefs_root").orEmpty()
 val projectId=intent.getStringExtra("projectId")
 val conversationId=intent.getStringExtra("conversationId")
 val standaloneConversationId=intent.getStringExtra("standaloneConversationId")
 commandExecutor.submit {
-val result=executeExternalCommand(rootPath,text,projectId,conversationId,standaloneConversationId)
+val result=executeExternalCommand(requestedRoot,text,projectId,conversationId,standaloneConversationId)
 broadcastReceipt(result.first,result.second,result.third,projectId,conversationId,standaloneConversationId)
 }
 }
 return START_NOT_STICKY
 }
 
-private fun executeExternalCommand(rootPath:String,text:String,projectId:String?,conversationId:String?,standaloneConversationId:String?):Triple<String,String,String>{
-val rootFile=File(rootPath)
+private fun executeExternalCommand(requestedRoot:String,text:String,projectId:String?,conversationId:String?,standaloneConversationId:String?):Triple<String,String,String>{
 if(rootPath.isBlank()||!rootFile.isDirectory||isProtectedWorkspace(rootPath)){
 return Triple("FAILED",text,"工作目录无效或属于受保护区域："+rootPath)
 }
@@ -92,6 +91,14 @@ val standaloneConversation = standaloneConversationId?.let { id ->
     BridgeConversationStore(this).load().firstOrNull { it.id == id }
 }
 val auth = PermissionPolicy.authorization(this, project, projectConversation ?: standaloneConversation)
+val rootPath = auth.root.ifBlank { requestedRoot }
+val rootFile=File(rootPath)
+if(rootPath.isBlank() || !rootFile.isDirectory || isProtectedWorkspace(rootPath)) {
+    return Triple("FAILED", text, "Project Local Address 无效或属于受保护区域：" + rootPath)
+}
+if (project != null && requestedRoot.isNotBlank() && File(requestedRoot).canonicalPath != rootFile.canonicalPath) {
+    return Triple("DENIED", text, "请求的 Local Address 与当前 Project Address 不一致")
+}
 val denied = commands.firstOrNull { PermissionPolicy.check(it, auth) == Decision.DENY }
 if (denied != null) {
     AppLogger.log(this, "EXECUTION_DENIED", "reason=permission command=" + denied)
