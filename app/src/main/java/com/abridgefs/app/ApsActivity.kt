@@ -18,6 +18,9 @@ class ApsActivity : Activity() {
     private var projectChatOpen = true
     private var displayOpen = true
     private val settingOpen = mutableSetOf<String>()
+    private var localFileAccess = false
+    private var storageAccess = false
+    private var externalAccess = false
     private val pendingTaskMentions = linkedSetOf<String>()
     private var projectInput: EditText? = null
     private var conversationGroup = "默认分组"
@@ -306,12 +309,14 @@ GitHub：未设置"
                         })
                     }
                     if (name == "权限") {
-                        addView(value("本地文件访问"))
-                        addView(value("存储访问"))
-                        addView(value("其他 APS 系统访问"))
-                        addView(Button(this@ApsActivity).apply {
-                            text = "管理系统权限"
-                            setOnClickListener { toast("系统级权限控制将在接线阶段恢复") }
+                        addView(settingSwitch("本地文件访问", localFileAccess) {
+                            localFileAccess = it
+                        })
+                        addView(settingSwitch("存储访问", storageAccess) {
+                            storageAccess = it
+                        })
+                        addView(settingSwitch("其他 APS 系统访问", externalAccess) {
+                            externalAccess = it
                         })
                     }
                 })
@@ -320,6 +325,18 @@ GitHub：未设置"
         host.addView(ScrollView(this).apply { addView(content) },
             LinearLayout.LayoutParams(-1, 0, 1f))
     }
+
+    private fun settingSwitch(name: String, checked: Boolean, onChanged: (Boolean) -> Unit) =
+        Switch(this).apply {
+            text = name
+            isChecked = checked
+            textSize = 13f
+            setTextColor(c(R.color.bridgefs_text_primary))
+            setPadding(0, dp(2), 0, dp(2))
+            setOnCheckedChangeListener { _, value ->
+                onChanged(value)
+            }
+        }
 
     private fun messageBubble(name: String, text: String) =
         LinearLayout(this).apply {
