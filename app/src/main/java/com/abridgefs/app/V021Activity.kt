@@ -765,7 +765,7 @@ class V021Activity : Activity() {
             setPadding(dp(14), dp(8), dp(8), dp(8))
             background = colorDrawable(R.color.bridgefs_input_surface, 14)
             setOnClickListener {
-                val labels = workspace.conversations.map { it.name.ifBlank { "未命名协作对话" } }.toTypedArray()
+                val labels = workspace.conversations.map { it.name.ifBlank { "未命名 Project 对话" } }.toTypedArray()
                 val currentIndex = workspace.conversations.indexOfFirst { it.id == workspace.activeConversationId }.coerceAtLeast(0)
                 AlertDialog.Builder(this@V021Activity)
                     .setTitle("切换协作对话")
@@ -782,7 +782,7 @@ class V021Activity : Activity() {
         selector.addView(LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             addView(TextView(this@V021Activity).apply {
-                text = "当前工作区协作对话"
+                text = "当前 Project 对话"
                 textSize = 12f
                 setTextColor(color(R.color.bridgefs_text_secondary))
             })
@@ -802,17 +802,6 @@ class V021Activity : Activity() {
         }, LinearLayout.LayoutParams(dp(72), dp(44)))
         root.addView(selector, LinearLayout.LayoutParams(-1, dp(64)).apply { bottomMargin = dp(6) })
 
-        val profiles = collaborationProfileIds()
-        val collaborationRunning = collaborationRunningConversationId == conversation.id
-        root.addView(TextView(this).apply {
-            text = "协作 AI：" +
-                (apis().firstOrNull { it.id == profiles.first }?.name ?: "AI A") +
-                " ↔ " +
-                (apis().firstOrNull { it.id == profiles.second }?.name ?: "AI B")
-            textSize = 13f
-            setTextColor(color(R.color.bridgefs_text_secondary))
-            setPadding(dp(4), dp(2), dp(4), dp(2))
-        })
         root.addView(TextView(this).apply {
             val directory = workspace.workspaceDirectory.orEmpty().ifBlank { "未设置" }
             text = "工作目录：$directory"
@@ -821,10 +810,10 @@ class V021Activity : Activity() {
             setPadding(dp(4), 0, dp(4), dp(6))
         })
 
-        root.addView(textButton("＋ 新建协作对话") {
-            val input = field("协作对话名称", "协作对话 " + (workspace.conversations.size + 1))
+        root.addView(textButton("＋ 新建 Project 对话") {
+            val input = field("Project 对话名称", "Project 对话 " + (workspace.conversations.size + 1))
             AlertDialog.Builder(this@V021Activity)
-                .setTitle("新建协作对话")
+                .setTitle("新建 Project 对话")
                 .setView(input)
                 .setPositiveButton("创建") { _, _ ->
                     val created = BridgeConversation(
@@ -856,7 +845,7 @@ class V021Activity : Activity() {
             setPadding(0, dp(6), 0, 0)
         }
         val input = EditText(this).apply {
-            hint = "输入协作目标……"
+            hint = "输入问题或工作目标……"
             textSize = 14f
             minLines = 1
             maxLines = 4
@@ -866,15 +855,9 @@ class V021Activity : Activity() {
             setHintTextColor(color(R.color.bridgefs_text_secondary))
         }
         composer.addView(input, LinearLayout.LayoutParams(0, dp(52), 1f))
-        val sendButton = actionButton(if (collaborationRunning) "处理中…" else "发送") {
-            if (collaborationRunningConversationId == conversation.id) {
-                Toast.makeText(this@V021Activity, "本轮协作还在进行，请等待结果。", Toast.LENGTH_SHORT).show()
-            } else {
-                sendProjectMessage(input, conversation)
-                input.text.clear()
-            }
+        val sendButton = actionButton("发送") {
+            sendProjectMessage(input, conversation)
         }
-        sendButton.isEnabled = !collaborationRunning
         composer.addView(sendButton, LinearLayout.LayoutParams(dp(82), dp(52)).apply { marginStart = dp(6) })
         root.addView(composer)
         content.addView(root)
