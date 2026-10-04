@@ -24,8 +24,8 @@ class BridgeProjectStore(private val context: Context) {
                 id = obj.getString("id"),
                 name = obj.getString("name"),
                 localFileModifyEnabled = obj.optBoolean("localFileModifyEnabled", false),
-                workspaceDirectory = obj.optString("workspaceDirectory", "").ifBlank { null },
-                github = GitHubWorkspace(
+                localAddress = obj.optString("localAddress", "").ifBlank {\n                    obj.optString("workspaceDirectory", "").ifBlank { null }\n                },
+                githubAddress = ProjectGitHubAddress(
                     accountLogin = obj.optString("githubAccount", "").ifBlank {
                         obj.optString("githubAccountLogin", "").ifBlank { null }
                     },
@@ -91,15 +91,15 @@ class BridgeProjectStore(private val context: Context) {
                 .put("id", project.id)
                 .put("name", project.name)
                 .put("localFileModifyEnabled", project.localFileModifyEnabled)
-                .put("workspaceDirectory", project.workspaceDirectory.orEmpty())
+                .put("localAddress", project.localAddress.orEmpty())
                 .put("activeConversationId", project.activeConversationId.orEmpty())
                 .put("defaultMemberId", project.defaultMemberId.orEmpty())
-                .put("githubAccount", project.github.accountLogin.orEmpty())
-                .put("githubRepositoryId", project.github.repositoryId?.toString().orEmpty())
-                .put("githubRepository", project.github.repository.orEmpty())
-                .put("githubBranch", project.github.branch.orEmpty())
-                .put("githubReadEnabled", project.github.readEnabled)
-                .put("githubWriteEnabled", project.github.writeEnabled)
+                .put("githubAccount", project.githubAddress.accountLogin.orEmpty())
+                .put("githubRepositoryId", project.githubAddress.repositoryId?.toString().orEmpty())
+                .put("githubRepository", project.githubAddress.repository.orEmpty())
+                .put("githubBranch", project.githubAddress.branch.orEmpty())
+                .put("githubReadEnabled", project.githubAddress.readEnabled)
+                .put("githubWriteEnabled", project.githubAddress.writeEnabled)
 
             obj.put("aiMembers", JSONArray().apply {
                 project.aiMembers.forEach {
