@@ -409,14 +409,9 @@ class V021Activity : Activity() {
             setTextColor(color(R.color.bridgefs_text_secondary))
             setPadding(0, dp(2), 0, dp(8))
         })
-        box.addView(actionButton("选择两个协作 AI") { selectCollaborationProfiles() })
         box.addView(actionButton("进入协作对话") {
-            if (!configured) {
-                Toast.makeText(this, "请先选择两个协作 AI", Toast.LENGTH_SHORT).show()
-            } else {
-                page = Page.WORKSPACE_CHAT
-                render()
-            }
+            page = Page.WORKSPACE_CHAT
+            render()
         }, LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(4) })
         return box
     }
@@ -991,6 +986,8 @@ class V021Activity : Activity() {
         root.addView(selector, LinearLayout.LayoutParams(-1, dp(64)).apply { bottomMargin = dp(6) })
 
         val profiles = collaborationProfileIds()
+        root.addView(actionButton("配置协作 AI") { selectCollaborationProfiles() },
+            LinearLayout.LayoutParams(-1, dp(40)).apply { bottomMargin = dp(4) })
         val collaborationRunning = collaborationRunningConversationId == conversation.id
         root.addView(TextView(this).apply {
             text = "协作 AI：" +
