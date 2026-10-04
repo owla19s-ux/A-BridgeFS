@@ -32,7 +32,9 @@
 - API Profile 不直接拥有工作区施工权
 
 ### GitHub
-GitHub 必须是真实模块，至少包含：
+GitHub 必须是真实模块，且**读取能力不属于工作区专属能力**。
+
+至少包含：
 - 连接状态
 - GitHub 账号
 - Repository
@@ -40,6 +42,17 @@ GitHub 必须是真实模块，至少包含：
 - 读取权限
 - 修改权限 / 施工权
 - GitHub 工作区入口
+
+GitHub 读取边界：
+- 普通「对话」页可以在 GitHub 全局访问开启、授权有效且当前已配置 GitHub 资源时读取 Repository；
+- 工作区对话同样可以读取当前 Workspace 绑定的 Repository / Branch；
+- 两者都只读时，不需要 ConstructionLock；
+- **修改 / Commit 不属于普通对话读取能力，另行受施工权控制。**
+
+第一阶段必须先证明：
+普通对话 → API → GitHub → Repository / 文件读取 → AI 能根据真实仓库回答。
+
+如果普通对话无法读取 GitHub，就不能认为“API + GitHub”链路已经打通。
 
 ## B. 已实现
 - Android 原生工程
@@ -58,6 +71,8 @@ GitHub 必须是真实模块，至少包含：
 - Repository / Branch 施工锁（基础链已落地，待 AI 自主施工接线）
 - Chat 独立数据模型
 - CommandParser → PermissionPolicy → CommandExecutor → Receipt 主链统一
+- GitHub 普通对话读取链
+- GitHub 工作区读取链
 - GitHub 实际文件修改 / Commit / Issue / PR / Actions / Release 能力
 - GitHub 本地权限与 GitHub Token 实际权限的双层判断
 - 双 AI 协作消息与连续任务循环
@@ -77,7 +92,7 @@ GitHub 必须是真实模块，至少包含：
 2. 两个 AI 可以互相发送协作消息。
 3. 同一 Repository / Branch 同时最多一个 AI 可以修改。
 4. 施工权可以转移。
-5. 持有施工权的 AI 可以在授权范围内连续施工；当前第一阶段仍需完成 Worker 文件修改结果 → `updateFile()` 的协议接线。
+5. 持有施工权的 AI 可以在授权范围内连续施工；普通对话读取链不依赖施工权。
 6. 普通实现问题不要求用户逐次输入“继续”。
 7. 真正需要产品、架构或权限决策时才暂停协作。
 8. Verify 必须以真实外部工序结果为依据。
@@ -103,3 +118,22 @@ GitHub 必须是真实模块，至少包含：
 - Workspace 必须提供明确的「进入协作对话」入口。
 - Workspace 内仍可新建 / 切换多个协作 Conversation。
 - 独立对话拥有自己的 API 选择、消息历史、回执和本地文件修改权限。
+
+
+## 2026-10-04 需求校正：普通对话必须具备 GitHub 读取能力
+
+此前文档对 GitHub 的描述容易让人误解为“进入 Workspace 后 AI 才能读取 Repository”。该理解已纠正。
+
+当前正式要求：
+
+- GitHub **读取**是 A-BridgeFS AI 对话的基础能力之一，不是 Workspace 专属能力。
+- 普通对话首先要能够确认 GitHub 是否已连接，并读取当前可用 Repository / Branch / 文件。
+- Workspace 对话在此基础上读取 Workspace 绑定的 GitHub 资源。
+- GitHub **修改 / Commit** 与读取严格分开；本轮先不施工修改链。
+- ConstructionLock 只负责真实修改阶段的施工权，不负责普通读取。
+
+当前最小验证链：
+
+普通对话 → API → GitHub 全局访问 / 授权 → 当前 Repository / Branch → 读取文件 → AI 根据真实代码回答
+
+这条链未打通前，不把“GitHub 已连接”视为完整可用。
