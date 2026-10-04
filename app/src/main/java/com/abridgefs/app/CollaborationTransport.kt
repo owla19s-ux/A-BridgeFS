@@ -104,6 +104,7 @@ class CollaborationCoordinator(
             aTurn = !aTurn
         }
 
+        taskStore.update(task.taskId) { it.status = CollaborationTaskRecord.STATUS_WAITING_CONSTRUCTION }
         AppLogger.log(context, AppLogger.Category.COLLABORATION, "DISCUSSION_READY",
             "taskId=" + task.taskId + " turns=" + turns.size)
         return turns
