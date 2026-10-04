@@ -571,7 +571,7 @@ class V021Activity : Activity() {
             setPadding(0, dp(4), 0, dp(8))
         })
         box.addView(TextView(this).apply {
-            text = "API 仅表示连接资源；文件/GitHub 修改权限由工作区与对话权限控制。"
+            text = "API 仅表示连接资源；文件/GitHub 修改权限由 Project 与对话权限控制。"
             textSize = 12f
             setTextColor(color(R.color.bridgefs_text_secondary))
             setPadding(0, dp(4), 0, 0)
@@ -591,7 +591,7 @@ class V021Activity : Activity() {
             text = if (list.isEmpty()) {
                 "尚未配置 API。普通对话和 AI 协作都需要至少一个可用 API。"
             } else {
-                "已配置 ${list.size} 个 API；当前工作区的协作 AI 从这里选择。"
+                "已配置 ${list.size} 个 API；Project Member 通过这里关联 API Profile。"
             }
             textSize = 12f
             setTextColor(color(R.color.bridgefs_text_secondary))
@@ -971,7 +971,7 @@ class V021Activity : Activity() {
 
     private fun renderNewChat() {
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(18), dp(12), dp(18), dp(14)) }
-        root.addView(header("新聊天", "创建一个独立对话，不加入任何工作区协作"))
+        root.addView(header("新聊天", "创建一个独立对话，不加入任何 Project 协作"))
         val name = EditText(this).apply {
             hint = "对话名称"
             textSize = 14f
@@ -1363,7 +1363,7 @@ class V021Activity : Activity() {
         val workspace = project
         val root = workspace?.workspaceDirectory.orEmpty().trim()
         if (root.isBlank()) {
-            recordReceipt(conversation, "FAILED", "AI command", "当前工作区未设置 BridgeFS 工作目录，指令未执行。")
+            recordReceipt(conversation, "FAILED", "AI command", "当前 Project 未设置 Local Project Address，指令未执行。")
             return
         }
 
