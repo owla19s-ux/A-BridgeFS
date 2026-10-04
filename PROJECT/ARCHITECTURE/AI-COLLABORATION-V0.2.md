@@ -1,232 +1,215 @@
-# 双 AI 协作协议 v0.2
+# 双 AI 协作 V0.1
 
-状态：设计基线 / 已确认方向 / 施工链开发中
+状态：**第一版方向 / 已确认 / 低复杂度优先**
 
-## 1. 核心原则
+## 1. 第一版目标
 
-A-BridgeFS 采用两个 AI 协作模型，而不是固定的 Decision AI + Worker AI 身份模型。
+A-BridgeFS 第一版不做“AI 协作平台”。
 
-两个 AI：
-- 默认共享工作区允许范围内的读取能力
-- 可以同时分析、沟通、检查结果
-- 可以在不同任务中承担不同角色
-- 同一 Repository / Branch 同时最多一个 AI 持有施工权
-- 施工权可以授予、释放、转移
+核心只有：
 
-Decision AI / Worker AI 只能作为阶段角色标签，不是永久身份。
+> **两个 AI + 用户 + 实际施工。**
 
-核心原则：
+用户提出问题或目标后，两个 AI 可以围绕问题自然讨论。
 
-**读权限共享，施工权限独占且可转移。**
+需要确定方案时：
+- 两个 AI 可以自己讨论；
+- 需要用户决定时，再让用户参与；
+- 用户不需要在人与 AI 之间复制、转发消息。
 
-## 2. 协作角色
+形成可施工方案后，由用户选择当前拥有施工权的 AI。
 
-角色属于任务或阶段：
+**拿到施工权的 AI 负责真正干活。**
 
-- PLANNER：目标拆解、方案分析
-- BUILDER：当前持有施工权并负责修改
-- REVIEWER：检查与验证
-- OBSERVER：读取与分析
+## 2. 两个 AI 的关系
 
-同一个 AI 可以在不同阶段承担不同角色。
+AI A / AI B 是两个协作参与者，不绑定固定职责。
 
-## 3. 权限模型
+在某一个施工阶段：
+- 一个 AI = 当前施工 AI；
+- 另一个 AI = 参与讨论、分析、检查的 AI。
 
-权限属于 Workspace + Repository + Branch，而不是 API Profile。
+施工权可以由用户选择，也可以在后续协作中转移。
 
-读取能力可以同时授予两个 AI。
+这里的“施工 AI”只是当前状态，不是永久角色。
 
-施工能力可细分为：
-- read
-- edit
-- create
-- delete
-- run_test
-- commit
-- push
-- create_pr
-- merge
+**不要恢复固定的 Decision AI / Worker AI。**
 
-施工锁：
+## 3. 协作方式
 
-ConstructionLock(Workspace, Repository, Branch)
+第一版优先使用自然对话。
 
-状态：
-- FREE
-- HELD_BY_AI_A
-- HELD_BY_AI_B
+```
+用户提出目标
+    ↓
+AI A / AI B 讨论
+    ↓
+需要用户决定？ → 用户决定
+    ↓
+确定怎么做
+    ↓
+用户选择谁施工
+    ↓
+施工 AI 调查 / 修改 / 测试 / Commit
+    ↓
+结果回来
+    ↓
+两个 AI 继续讨论
+```
 
-建议锁覆盖：
+用户不应该承担“人肉复制机”的工作。
 
-申请 → 修改 → 测试 → Commit → Verify
+## 4. 不再要求 AI 输出复杂协议
 
-完成、释放、授权撤销或任务阻塞后才能转移。
+第一版**不要求 AI 的普通对话必须输出 CollaborationProtocol JSON**。
 
-## 4. 协作消息
+尤其不要要求 AI 为普通讨论生成 id、ts、v、from、to、task_id、type、payload 等系统字段。
 
-第一阶段消息类型：
+这些属于 App 内部状态或通信实现，不应该成为 AI 协作的负担。
 
-PROPOSAL / QUESTION / DECISION / TASK / PROGRESS / REQUEST_WRITE / GRANT_WRITE / RELEASE_WRITE / FILE_CHANGE_REQUEST / COMMIT / VERIFY / BLOCKED / COMPLETE / ESCALATE
+如果系统内部需要记录消息、任务、Commit、Verify 等数据，由 App 自己生成和保存。
 
-当前代码仍存在 `DECISION_AI / WORKER` 历史路由与部分提示词残留，正在迁移；这些术语不再代表固定 AI 身份，也不得作为正式架构的角色边界。文件修改协议不能把任一 AI 的普通文本或普通 `PROGRESS` 直接视为写入请求。
+**AI 负责表达想法、讨论方案、提出施工意图；App 负责权限、状态和实际执行。**
 
-消息协议不规定固定的 AI → AI 方向。
+现有 CollaborationProtocol 先不继续扩大。严格 AI JSON 输入属于旧实现，后续应逐步简化。
 
-## 5. 典型流程
+## 5. 施工权
 
-AI A / AI B 读取
-→ 讨论 / 分析
-→ 形成任务
-→ 申请施工权
-→ Workspace 授权检查
-→ 取得 Repository / Branch 施工锁
-→ 持有施工权的 AI 连续施工
-→ 测试 / Commit / Verify
-→ 释放或转移施工权
+施工权是第一版真正需要保留的控制点。
 
-施工期间另一 AI 可以读取、分析、沟通、提出建议，但不能直接写入被锁定的 Repository / Branch。
+同一个 Workspace / Repository / Branch：
+- 同时最多一个 AI 可以实际修改；
+- 用户可以选择当前施工 AI；
+- 施工 AI 才能进行真实文件修改和 Commit；
+- 另一个 AI 可以继续阅读、分析、讨论和检查；
+- 施工权完成后可以释放或转移。
 
-## 6. 决策
+现有 ConstructionLock 保留，不重新设计。
 
-决策不是某个固定 AI 的专属能力。
+## 6. 实际施工
 
-任一 AI 都可以提出 QUESTION / PROPOSAL。
+第一版只要求施工链能够真正跑通：
 
-形成协作结论后记录 DECISION。
+```
+施工 AI
+  ↓
+读取项目
+  ↓
+判断需要修改什么
+  ↓
+修改文件
+  ↓
+测试 / 构建
+  ↓
+Commit
+  ↓
+Actions / Verify
+  ↓
+结果回到协作对话
+```
 
-两 AI 无法解决，或涉及用户授权时：
+不要求第一版具备复杂 Agent 调度、复杂任务编排或无限自动循环。
 
-ESCALATE → Human
+## 7. 用户需要做什么
 
-## 7. 连续施工
+用户主要负责：
+1. 提出目标；
+2. 在两个 AI 无法确定时拍板；
+3. 选择当前施工 AI；
+4. 在需要授权或高风险操作时确认。
 
-明确授权后，施工 AI 应能够在边界内连续完成：
+用户不需要：
+- 手动复制 AI A 的话给 AI B；
+- 手动复制 AI B 的话给 AI A；
+- 手动搬运施工命令；
+- 每修改一个文件就重新下达“继续”。
 
-调查 → 修改 → 测试 → Commit → Verify
-
-普通实现问题不要求用户逐次输入“继续”。
-
-只有改变已确认设计、超出任务范围、新增施工权限、高风险操作、外部阻塞、无法形成决定或需要用户授权时才暂停。
-
-## 8. Verify
-
-代码或仓库状态变化后：
-
-Commit SHA → Actions / Check Run / Job → 真实结果
-
-VERIFY 只报告事实，不代表自动批准。
-
-## 9. 当前范围
-
-第一阶段只支持两个协作 AI。
+## 8. 第一版明确不做
 
 暂不做：
-- 多于两个 AI
-- 复杂 Agent 调度
-- 永久角色绑定
-- 全局单一施工锁
-- 复杂投票
-- 无限自动循环
-- 绕过用户授权
+- 固定 Decision AI / Worker AI；
+- 复杂 PLANNER / BUILDER / REVIEWER / OBSERVER 角色体系；
+- AI 之间复杂 JSON 协议；
+- 复杂投票；
+- 多 AI 调度平台；
+- 无限自动循环；
+- 复杂 Agent 编排；
+- 为了“架构完整”而增加新的中间层。
 
-## 10. 与其他模块关系
+> **第一版先把两个 AI 真正聊起来，并让拿到施工权的那个 AI 真正把事情做完。**
 
-A-BridgeFS 负责 Workspace、AI 成员、API Profile、权限、施工锁、协作消息、状态与回执。
+## 9. 当前代码处理原则
 
-GitHub 负责代码和工程事实。
+现有 AI A / AI B、Workspace / Conversation、ConstructionLock、CollaborationTask、GitHub 写入、Commit、Actions / Verify、Receipt / 日志等能力可以继续保留，只要它们服务于实际功能。
 
-BridgeFS 负责 Android 本地真实执行。
+但不要因为已有结构继续向上扩展新的“协作平台架构”。
 
-API Profile 是连接资源，不等于施工权。
+对于现有 CollaborationProtocol：
+- 先停止扩大；
+- 清理固定 Decision / Worker 路由；
+- 逐步降低 AI 输出格式要求；
+- 能用普通对话解决的，不增加协议；
+- App 自己能生成的数据，不要求 AI 生成。
 
-## 11. 当前实现差距
+## 10. 第一版验收标准
 
-### 11.1 工作区权限落地进度
+只看最实际的结果：
 
-工作区已经开始承载本地文件修改权限：
+### A. 能聊
+两个 AI 可以参与同一个 Workspace 协作讨论。
 
-- `BridgeProject.localFileModifyEnabled`：工作区级开关，已持久化。
-- `BridgeProject.conversations`：工作区内独立 Conversation 列表，已持久化。
-- `activeConversationId`：当前对话指针已持久化；旧扁平消息数据可自动迁移到默认 Conversation。
-- V021 工作区页提供开关 UI。
-- `PermissionPolicy.authorization(workspace, conversation)` 已读取 Conversation 覆盖与 Workspace 默认值。
-- `FileBridgeService` 在真实本地执行入口再次使用有效授权，因此该权限已进入实际执行拦截；仍待新 APK / 真机验证。
+### B. 能讨论
+AI 可以针对同一个问题交换意见，而不是要求用户转发消息。
 
-目标模型为：
+### C. 能决定
+需要用户拍板时，用户可以决定。
 
-`effectiveLocalFileModify = chatOverride ?: workspace.localFileModifyEnabled`
+### D. 能选施工者
+用户可以明确选择 AI A 或 AI B 获得施工权。
 
-### 11.2 GitHub 写入边界
+### E. 能干活
+施工 AI 能实际修改项目，而不是只生成“建议修改”。
 
-GitHub 写入采用分层边界：
+### F. 能验证
+修改后可以 Commit、构建并获得真实验证结果。
 
-1. `GitHubWorkspaceService`：Workspace 级 GitHub 访问与写入边界。
-2. `ConstructionLockStore`：Workspace + Repository + Branch 的独占施工权。
-3. `GitHubApiClient`：GitHub HTTP / Contents API 实现。
+### G. 能继续
+施工完成后，两个 AI 能继续围绕结果讨论。
 
-当前已经具备 Workspace-scoped `updateFile()`，实际写入入口要求调用者提供 AI Member，并通过 ConstructionLock 检查该 AI 是否持有当前 Repository / Branch 的施工权。
+**这七项跑通，就是第一版成功。**
 
-`CollaborationCoordinator.requestConstruction()` 已能把持久化任务推进到 `CONSTRUCTING` 并取得施工锁；`updateFile()` 已能完成真实 Contents API 更新并保存 Commit SHA。
+## 11. 与旧设计的关系
 
-当前 ConstructionLock 已具备：
-- acquire：申请 / 持有
-- release：释放
-- transfer：转移
-- requireHolder：实际写入前检查
+旧版 Decision AI → Worker AI → Verify 是历史实现思路。
 
-协作任务状态已开始持久化：
-- CollaborationTaskStore 保存 Workspace + Conversation + Task 状态。
-- 任务只有显式 requestConstruction() 才进入施工阶段，不会因普通协作分析自动抢占施工锁。
-- 施工任务通过 GitHubWorkspaceService.updateFile() 进入真实 Contents API 写入边界。
-- Contents API 返回的 Commit SHA 会保存到任务状态，并将任务推进到 WAITING_VERIFY。
-
-Verify 实链第一版已经接入：
-- 以任务保存的 Commit SHA 查询 GitHub Actions。
-- 只接受 head_sha 与任务 Commit SHA 完全一致的 Run。
-- queued / in_progress 等状态保持 WAITING_VERIFY。
-- completed + success 才进入 COMPLETE，并释放 ConstructionLock。
-- completed + 非 success 进入 FAILED，保留施工锁以允许继续修复。
-
-尚未完成：
-- 新 Actions Run / APK / 真机验证。
-- 更细的 Job / Step 结果汇总与 UI 展示。
-
-### 11.3 下一阶段
-
-继续完成：
-- 当前持有施工权的 AI 输出 → FILE_CHANGE_REQUEST → `updateFile()` 的安全协议接线
-- 动态 BUILDER 角色自主施工 → Commit 的完整运行链
-- 新 Actions / APK / 真机实证
-- Receipt 与协作消息时间线统一
-- 双 AI 连续协作循环
-- 施工失败后的恢复 / 转移策略
-
-已完成基础设施但仍需真实验证：
-- Workspace / Conversation 数据拆分与权限执行拦截
-- AI 成员与 API Profile 解耦
-- Repository / Branch ConstructionLock
-- GitHub 写入 → Commit → Actions / Verify 基础链
-
-当前最关键断点：`CollaborationCoordinator.updateFile()` 已可真实写入，但协作运行时尚未把当前持有施工权的 AI 的文件修改意图统一映射为该调用；因此“动态 BUILDER 自主施工 → Commit”仍不可达。
-
-旧 Decision AI ↔ Worker 文档仅作为历史参考，不再作为当前正式身份模型。
-
-
-## 12. UI 边界修正：独立对话与 Workspace 协作对话
-
-当前正式 UI 边界：
+当前正式方向：
 
 ```
-Workspace
- └─ Workspace Conversations
-     └─ 双 AI 协作 / Task / ConstructionLock / Commit / Verify
-
-底部「对话」
- └─ Standalone Conversations
-     └─ 用户 ↔ 单一 API
-     └─ 独立消息 / 回执 / 本地文件修改权限
+AI A ↔ AI B
+   ↕
+  用户
+   ↓
+选择当前施工 AI
+   ↓
+实际施工
 ```
 
-独立对话不读取 Workspace.activeConversation，也不受 Workspace 双 AI 协作开关影响。
+不再根据 AI 身份预先规定谁负责决策、谁负责施工。
 
-Workspace 协作对话通过 Workspace 页面明确入口进入。
+**职责可以变化，施工权由当前任务状态决定。**
+
+## 12. 当前开发重点
+
+第一优先级不是继续设计架构，而是打通已经存在的东西：
+
+1. 双 AI 对话；
+2. AI A / AI B 能看到彼此讨论；
+3. 用户施工权选择；
+4. 施工 AI → 实际文件修改；
+5. GitHub Commit；
+6. Actions / Verify；
+7. 结果回到对话。
+
+完成这一条闭环后，再根据真实使用问题决定是否增加能力。
+
+**第一版原则：先能用，再变强；先闭环，再扩展。**
