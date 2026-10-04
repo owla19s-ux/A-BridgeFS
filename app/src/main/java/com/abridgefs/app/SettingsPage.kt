@@ -41,12 +41,12 @@ internal fun ApsActivity.settingsPage() {
                                 topMargin = dp(6)
                             })
 
-                            addView(Button(this@settingsPage).apply {
-                                text = "GitHub"
-                                setOnClickListener {
-                                    toast("GitHub：账号、Repository、Branch 与 GitHub 内部权限")
-                                }
-                            }, LinearLayout.LayoutParams(-1, dp(44)).apply {
+                            val githubButton = Button(this@settingsPage)
+                            githubButton.text = "GitHub"
+                            githubButton.setOnClickListener {
+                                toast("GitHub：账号、Repository、Branch 与 GitHub 内部权限")
+                            }
+                            addView(githubButton, LinearLayout.LayoutParams(-1, dp(44)).apply {
                                 topMargin = dp(6)
                             })
                         }
