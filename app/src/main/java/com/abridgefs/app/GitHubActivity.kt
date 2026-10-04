@@ -16,15 +16,15 @@ class GitHubActivity : android.app.Activity() {
     private val projectStore by lazy { BridgeProjectStore(this) }
     private val executor = Executors.newSingleThreadExecutor()
     private var projects = mutableListOf<BridgeProject>()
-    private var workspace: BridgeProject? = null
+    private var project: BridgeProject? = null
     private lateinit var root: LinearLayout
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
         projects = projectStore.load()
-        if (projects.isEmpty()) projects += projectStore.newProject("默认工作区")
+        if (projects.isEmpty()) projects += projectStore.newProject("默认项目")
         val workspaceId = intent.getStringExtra("workspaceId")
-        workspace = projects.firstOrNull { it.id == workspaceId } ?: projects.first()
+        project = projects.firstOrNull { it.id == workspaceId } ?: projects.first()
         build()
     }
 
@@ -92,13 +92,13 @@ class GitHubActivity : android.app.Activity() {
             "普通对话只读 Branch"
         ))
 
-        root.addView(section("工作区 Repository"))
-        root.addView(info(workspace?.github?.displayRepository() ?: "未选择 Repository", "当前工作区 Repository"))
-        root.addView(button("切换工作区 Repository") { chooseRepository() })
+        root.addView(section("Project Repository"))
+        root.addView(info(project?.github?.displayRepository() ?: "未选择 Repository", "当前 Project Repository"))
+        root.addView(button("切换 Project Repository") { chooseRepository() })
 
         root.addView(section("Branch"))
-        root.addView(info(workspace?.github?.displayBranch() ?: "未选择 Branch", "当前工作区 Branch"))
-        root.addView(button("切换 Branch") { chooseBranch() })
+        root.addView(info(workspace?.github?.displayBranch() ?: "未选择 Branch", "当前 Project Branch"))
+        root.addView(button("切换 Project Branch") { chooseBranch() })
 
         root.addView(section("访问权限"))
         root.addView(CheckBox(this).apply {
@@ -118,7 +118,7 @@ class GitHubActivity : android.app.Activity() {
             }
         })
 
-        root.addView(section("GitHub 工作区"))
+        root.addView(section("GitHub Project"))
         listOf("文件", "Commit", "Issue", "PR", "Actions", "Release").forEach { name ->
             root.addView(info(name, "真实模块入口；具体能力按版本逐步开放。"))
         }
@@ -243,7 +243,7 @@ class GitHubActivity : android.app.Activity() {
     }
 
     private fun chooseRepository() {
-        val service = workspaceService() ?: return
+        val service = projectService() ?: return
         executor.execute {
             runCatching { service.repositories() }
                 .onSuccess { repos ->
@@ -350,8 +350,8 @@ class GitHubActivity : android.app.Activity() {
         }
     }
 
-    private fun workspaceService(): GitHubWorkspaceService? {
-        val project = workspace ?: return null
+    private fun projectService(): GitHubWorkspaceService? {
+        val project = project ?: return null
         val token = authStore.state().accessToken
         if (token.isNullOrBlank()) {
             Toast.makeText(this, "GitHub 尚未连接", Toast.LENGTH_SHORT).show()
