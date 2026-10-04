@@ -76,11 +76,11 @@ object CollaborationProtocol {
 
         companion object {
             fun fromJson(json: JSONObject): Message {
-                val version = json.optString("v")
+                val version = json.optString("v").ifBlank { VERSION }
                 require(version == VERSION || version == "0.1") { "unsupported protocol version: $version" }
                 return Message(
-                    id = json.getString("id"),
-                    ts = json.getString("ts"),
+                    id = json.optString("id").ifBlank { "msg_" + UUID.randomUUID().toString() },
+                    ts = json.optString("ts").ifBlank { java.time.Instant.now().toString() },
                     from = roleFromWireName(json.getString("from")),
                     to = roleFromWireName(json.getString("to")),
                     taskId = json.getString("task_id"),
