@@ -321,7 +321,7 @@ class CollaborationCoordinator(
         return digest.digest(header + bytes).joinToString("") { "%02x".format(it) }
     }
 
-    private fun discardPendingAI BInputs(taskId: String) {
+    private fun discardPendingAiBInputs(taskId: String) {
         transport.pendingFor(CollaborationProtocol.Role.AI_B)
             .filter {
                 it.taskId == taskId &&
@@ -341,7 +341,7 @@ class CollaborationCoordinator(
         if (result.state != GitHubVerifyState.PASSED) return result
 
         val task = CollaborationTaskStore(context).get(taskId) ?: return result
-        discardPendingAI BInputs(taskId)
+        discardPendingAiBInputs(taskId)
         CollaborationTaskStore(context).update(taskId) {
             it.status = CollaborationTaskRecord.STATUS_RUNNING
             it.constructionHolderAiMemberId = null
@@ -357,7 +357,7 @@ class CollaborationCoordinator(
         transport.append(commitMessage)
 
         val aiAPrompt = aiASystemPrompt +
-            "\n这是系统确认通过的 Commit。请决定任务是否完成；若未完成，必须返回合法 JSON，from=ai_a,to=aiB,type=DECISION_RESPONSE，并给出下一步施工指令。"
+            "\n这是系统确认通过的 Commit。请决定任务是否完成；若未完成，必须返回合法 JSON，from=ai_a,to=ai_b,type=DECISION_RESPONSE，并给出下一步施工指令。"
         val aiA = parseProtocolResponseWithRetry(callAiA(commitMessage, aiAPrompt)) {
             callAiA(commitMessage, aiAPrompt + compactRetryPrompt(CollaborationProtocol.Role.AI_A, false))
         }
@@ -377,12 +377,12 @@ class CollaborationCoordinator(
 
         // Verify_PASSED is an explicit boundary. A DECISION_RESPONSE means the
         // task is continuing, so reopen the bounded AI B round explicitly.
-        // This avoids dispatchOneAI BRound() silently rejecting the persisted
+        // This avoids dispatchOneAiBRound() silently rejecting the persisted
         // VERIFY_PASSED state.
         CollaborationTaskStore(context).update(taskId) {
             it.status = CollaborationTaskRecord.STATUS_RUNNING
         }
-        dispatchOneAI BRound(aiBSystemPrompt, aiASystemPrompt)
+        dispatchOneAiBRound(aiBSystemPrompt, aiASystemPrompt)
         return result
     }
 
@@ -409,7 +409,7 @@ class CollaborationCoordinator(
         // repair round. Do not transition FAILED -> RUNNING unless the actual
         // Repository/Branch lock is still held by the recorded repair owner.
         ConstructionLockStore(context).requireHolder(workspace, repairHolder)
-        discardPendingAI BInputs(taskId)
+        discardPendingAiBInputs(taskId)
 
         CollaborationTaskStore(context).update(taskId) {
             it.status = CollaborationTaskRecord.STATUS_RUNNING
@@ -432,7 +432,7 @@ class CollaborationCoordinator(
             "Verify 失败后的 AI A 必须返回 DECISION_RESPONSE"
         }
         transport.append(aiA)
-        dispatchOneAI BRound(aiBSystemPrompt, aiASystemPrompt)
+        dispatchOneAiBRound(aiBSystemPrompt, aiASystemPrompt)
         return GitHubVerifyResult(
             GitHubVerifyState.FAILED,
             task.lastCommitSha.orEmpty(),
@@ -451,7 +451,7 @@ class CollaborationCoordinator(
         return CollaborationApiClient(CollaborationApiConfig.fromProfile(context, aiAProfileId)).invoke(message, systemPrompt)
     }
 
-    fun callAI B(message: CollaborationProtocol.Message, systemPrompt: String): String {
+    fun callAiB(message: CollaborationProtocol.Message, systemPrompt: String): String {
         require(message.to == CollaborationProtocol.Role.AI_B)
         return CollaborationApiClient(CollaborationApiConfig.fromProfile(context, aiBProfileId)).invoke(message, systemPrompt)
     }
@@ -497,7 +497,7 @@ class CollaborationCoordinator(
         var rounds = 0
         val maxIterations = task.payload.optJSONObject("autonomy")?.optInt("max_iterations", 20)?.coerceIn(1, 20) ?: 20
         while (rounds < maxIterations) {
-            val round = dispatchOneAI BRound(aiBSystemPrompt, aiASystemPrompt)
+            val round = dispatchOneAiBRound(aiBSystemPrompt, aiASystemPrompt)
             if (round.isEmpty()) break
             messages += round
             rounds++
@@ -518,7 +518,7 @@ class CollaborationCoordinator(
     }
 
     /** Execute exactly one AI B → AI A round. */
-    fun dispatchOneAI BRound(aiBSystemPrompt: String, aiASystemPrompt: String): List<CollaborationProtocol.Message> {
+    fun dispatchOneAiBRound(aiBSystemPrompt: String, aiASystemPrompt: String): List<CollaborationProtocol.Message> {
         val current = currentTask() ?: return emptyList()
         // A persisted TASK/DECISION_RESPONSE may remain unhandled after a process
         // restart. Never replay it after a real Commit has already moved the task
@@ -532,8 +532,8 @@ class CollaborationCoordinator(
                 it.taskId == current.taskId &&
                     (it.type == CollaborationProtocol.Type.TASK || it.type == CollaborationProtocol.Type.DECISION_RESPONSE)
             } ?: return emptyList()
-        val aiBMessage = parseProtocolResponseWithRetry(callAI B(task, aiBSystemPrompt)) {
-            callAI B(task, aiBSystemPrompt + compactRetryPrompt(CollaborationProtocol.Role.AI_B))
+        val aiBMessage = parseProtocolResponseWithRetry(callAiB(task, aiBSystemPrompt)) {
+            callAiB(task, aiBSystemPrompt + compactRetryPrompt(CollaborationProtocol.Role.AI_B))
         }
         validateResponse(aiBMessage, CollaborationProtocol.Role.AI_B)
         require(aiBMessage.type in setOf(CollaborationProtocol.Type.DECISION_REQUEST, CollaborationProtocol.Type.PROGRESS, CollaborationProtocol.Type.BLOCKED, CollaborationProtocol.Type.FILE_CHANGE_REQUEST)) {
@@ -553,7 +553,7 @@ class CollaborationCoordinator(
         }
         if (aiAInput.to != CollaborationProtocol.Role.AI_A) return messages
         val aiAPrompt = if (aiAInput.type == CollaborationProtocol.Type.COMMIT) {
-            aiASystemPrompt + "\n现在进入施工结果审议阶段。你必须返回合法 JSON；from=ai_a，to=aiB，type 必须为 DECISION_RESPONSE 或 COMPLETE。若 Commit 已满足目标，可返回 COMPLETE；否则返回 DECISION_RESPONSE，并在 instruction 中给出下一步。"
+            aiASystemPrompt + "\n现在进入施工结果审议阶段。你必须返回合法 JSON；from=ai_a，to=ai_b，type 必须为 DECISION_RESPONSE 或 COMPLETE。若 Commit 已满足目标，可返回 COMPLETE；否则返回 DECISION_RESPONSE，并在 instruction 中给出下一步。"
         } else {
             aiASystemPrompt
         }
@@ -598,7 +598,7 @@ class CollaborationCoordinator(
 
     private fun compactRetryPrompt(role: CollaborationProtocol.Role, initialTask: Boolean = true): String {
         val route = if (role == CollaborationProtocol.Role.AI_A) {
-            if (initialTask) "from=ai_a,to=aiB,type=TASK" else "from=ai_a,to=aiB,type=DECISION_RESPONSE|COMPLETE"
+            if (initialTask) "from=ai_a,to=ai_b,type=TASK" else "from=ai_a,to=ai_b,type=DECISION_RESPONSE|COMPLETE"
         } else "from=aiB,to=ai_a,type=DECISION_REQUEST|PROGRESS|BLOCKED|FILE_CHANGE_REQUEST"
         return "\n上一轮输出无法被完整解析。请立即重新输出一个完整、紧凑、合法的 JSON 对象；不要 Markdown、不要解释、不要换行长文本；$route。避免冗长 scope、acceptance、autonomy 与 context_refs，只保留完成协议所需内容。确保最后一个字符为 }。"
     }
