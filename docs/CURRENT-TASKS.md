@@ -1,186 +1,247 @@
-# A-BridgeFS 当前任务总表（2026-10-04）
+# A-BridgeFS 当前任务总表
 
-> 当前阶段先收口基础模型，再审查旧架构残留，不继续在旧 Collaboration 模型上叠加功能。
+更新时间：2026-10-04
 
-## 一、当前产品核心模型
+> 本轮目标：先把 Project 基础模型理清，再施工。普通「对话」不再承担 Project 工作区职责。
 
-A-BridgeFS 当前核心对象是 **Project（项目）**。
+## 一、当前架构基线
 
-一个项目先明确三件核心事情：
+### Project 是核心
+
+```
+项目
+│
+├─ 项目基本信息
+├─ 项目地址
+│   ├─ 本地
+│   ├─ GitHub
+│   └─ future other storage
+├─ 默认 AI
+├─ AI 成员
+├─ 请求 AI 协助
+└─ 对话 ★
+```
+
+进入项目后的主要行为是：
+
+**查看项目 → 提问 → 默认 AI 读取 / 分析 / 工作。**
+
+### 独立「对话」是额外工具
+
+```
+对话
+├─ 选择 API
+├─ 普通问答
+├─ 读取 / 分析
+└─ 不默认拥有项目施工权
+```
+
+它与 Project 独立，目前不需要大改架构，主要优化 UI。
+
+## 二、Project 成员模型
+
+当前目标模型：
 
 ```
 Project
-├─ Project Address（项目地址）
-│  ├─ Local
-│  ├─ GitHub
-│  └─ future other storage
-│
-├─ Default AI / API（默认 AI / API）
-│
-└─ Conversation（项目对话）★
+├─ id
+├─ name
+├─ address
+├─ defaultMemberId
+└─ members[]
+      ├─ id
+      ├─ name
+      └─ apiProfileId
 ```
 
-核心原则：
+### API Profile
 
-- 用户进入项目，主要目的就是查看项目情况、向项目提问、让默认 AI 工作。
-- **Project Address 属于项目本身**，不是独立的“Workspace GitHub”或“Conversation GitHub”。
-- GitHub 只是项目地址的一种类型；Local 同样是一等地址类型。
-- **Default AI 是项目的主要 AI**，不是固定的 Decision AI / Worker AI。
-- 普通项目问题默认由 Default AI 直接回答。
-- 不因为一次普通提问自动启动多个 AI 的讨论。
-- 其他 AI 只有在确有需要时，通过“请求 AI 协助”临时加入。
-- 多项目、多 API 的秘书 / 管家 / 调度层属于未来能力，当前不进入 V0.1。
-
-## 二、V0.1 当前施工目标
-
-### P0 — Project / Address / Default AI 基础链
-
-**状态：已确认 / 审查中**
+API Profile 是连接资源：
 
 ```
+API Profile
+├─ Base URL
+├─ API Key
+├─ Model
+└─ ...
+```
+
+### Project Member
+
+Project Member 是项目关系：
+
+- 可以添加；
+- 可以删除；
+- 可以修改名称；
+- 可以更换 API Profile；
+- 可以成为 Default AI。
+
+**不要再把 AI A / AI B 当作成员模型。**
+
+## 三、Project 工作链
+
+正常：
+
+```
+用户
+ ↓
 Project
  ↓
 Project Address
  ↓
-Default AI / API
- ↓
-Project Conversation
+Default AI
  ↓
 读取 / 分析 / 工作
  ↓
 完成
 ```
 
-最终必须验证：
-
-1. 项目可以创建、打开、切换；
-2. 项目地址由项目自身持有；
-3. 项目地址可以区分 Local / GitHub 等类型；
-4. 项目可以绑定 Default AI / API；
-5. 进入项目后默认使用该 AI；
-6. 项目对话直接围绕当前项目工作；
-7. GitHub 项目可以由默认 AI 读取真实仓库内容；
-8. 不需要用户手工转发仓库内容；
-9. 项目状态能够保存并恢复。
-
-### P1 — 项目连续工作
-
-**状态：已确认 / 待架构审查**
-
-默认 AI 获得施工权限后，可以在一次任务中自行：
+连续施工：
 
 ```
-理解 → 读取 → 修改 → Commit → Verify → 必要时继续修复 → 完成
+理解
+ ↓
+读取
+ ↓
+修改
+ ↓
+Commit
+ ↓
+Verify
+ ↓
+必要时继续修复
+ ↓
+完成
 ```
 
-“继续”只用于暂停、阻塞或需要用户决策的情况，不应成为正常施工步骤。
+“继续”不是正常步骤，只用于暂停、阻塞或需要用户决策的情况。
 
-### P2 — 请求 AI 协助
+## 四、Request AI Assistance
 
-**状态：已确认 / 待重构**
-
-协助不是固定的 AI A / AI B 模式，而是项目中的一次动作：
+这是 Project 中的一个动作：
 
 ```
 Default AI
  ↓
 需要协助
  ↓
-Request AI Assistance
+请求 AI 协助
  ↓
-临时 AI 加入
+其他 Project Member / 临时 AI
  ↓
-完成协助
+协助完成
  ↓
 Default AI 继续
 ```
 
-普通项目对话不得因为“存在多个 API”而自动进入多 AI 讨论。
+不再设计成固定的 AI A / AI B 对话循环。
 
-## 三、当前重点：旧架构审查
+## 五、独立「对话」页
 
-**状态：当前施工重点**
+当前判断：
 
-修改代码前，逐项审查现有：
+**架构基本没问题，主要做 UI 优化。**
 
-- Project / Workspace 模型；
-- Conversation 模型；
-- GitHub 配置与 GitHubConversationConfigStore；
-- Repository / Branch 绑定；
-- API Profile / Default AI 绑定；
-- CollaborationCoordinator / CollaborationTransport；
-- AI Members；
-- ConstructionLock；
+保留：
+
+- 独立 API 选择；
+- 独立消息历史；
+- 普通 AI 对话；
+- 允许的只读资源访问。
+
+不承担：
+
+- Project 主工作流；
+- Project Default AI；
+- Project Member 协作状态；
+- 自动多 AI 讨论；
+- Project ConstructionLock；
+- Project Commit / Verify。
+
+## 六、旧架构审查范围
+
+### 重构
+
+- BridgeProject / Workspace 语义；
+- Project Address；
+- Default AI 数据绑定；
+- Conversation 与 Project 的关系；
+- ConstructionLock 的 Workspace → Project 语义；
+- Project UI。
+
+### 保留语义、重构实现
+
+- `aiMembers` → Project Members；
+- API Profile；
+- Conversation；
 - Receipt / Log；
-- MainActivity / legacy facade；
-- 其他旧的 Decision / Worker / A / B 逻辑。
+- GitHub 读取；
+- GitHub 修改 / Commit / Verify；
+- PermissionPolicy。
 
-审查目标不是立即删除代码，而是给每项标记：
+### 废弃候选
 
-| 状态 | 含义 |
-|---|---|
-| 保留 | 符合 Project 模型，可继续使用 |
-| 合并 | 功能正确，但应归入 Project |
-| 重构 | 方向正确，但当前结构不符合新模型 |
-| 废弃候选 | 属于旧架构，待确认后移除 |
-| 已废弃 | 不再作为施工依据 |
-| 待验证 | 需要代码 / UI / APK 证据 |
+- 固定 AI A / AI B 默认成员；
+- Decision AI / Worker AI；
+- CollaborationProtocol；
+- 普通对话独立 GitHub 地址绑定；
+- Workspace GitHub 与 Conversation GitHub 两套长期业务概念；
+- 普通项目提问自动多 AI 讨论；
+- 复杂 Project Dashboard。
 
-## 四、明确不再作为当前架构依据
+### 暂不施工
 
-- ❌ Decision AI / Worker AI 固定身份；
-- ❌ 固定 AI A / AI B；
-- ❌ 普通项目提问自动触发多 AI 讨论；
-- ❌ CollaborationProtocol JSON 作为普通 AI 对话协议；
-- ❌ Workspace GitHub 与 Conversation GitHub 长期分裂；
-- ❌ 把 GitHub Repository / Branch 当成项目之外的独立业务核心；
-- ❌ 用复杂 Project Dashboard 替代项目对话；
-- ❌ 当前阶段建设秘书 / 管家 / 多项目调度系统。
+- Secretary / Orchestrator；
+- 多项目统一调度；
+- 更复杂的 Agent 自动规划系统。
 
-## 五、当前页面方向
+## 七、当前施工顺序
+
+### P0 — Project 基础模型
+
+1. 统一 Project Address；
+2. 增加 / 迁移 Default Member；
+3. 把 Project Members 从 A/B 默认值改为可管理集合；
+4. Project 创建 / 编辑 / 删除；
+5. Project Conversation 接入 Project；
+6. 保存并恢复完整 Project 状态。
+
+### P1 — Project 工作
+
+1. Default AI 读取 Project Address；
+2. Project Conversation 成为主要入口；
+3. 连续施工链；
+4. ConstructionLock 迁移到 Project 语义；
+5. Commit / Verify 接入 Project 工作链。
+
+### P2 — Request AI Assistance
+
+1. Project 内增加明确入口；
+2. 选择其他 Member / 临时 AI；
+3. 协助完成后回到 Default AI；
+4. 不形成固定 A/B 状态机。
+
+### P3 — 独立「对话」UI
+
+只做必要 UI 优化，不重新设计底层架构。
+
+## 八、总验收
 
 ```
-项目
-│
-├─ 项目地址
-│   ├─ 本地
-│   ├─ GitHub
-│   └─ future
-│
-├─ 默认 AI
-│
-├─ 请求 AI 协助
-│
-└─ 对话 ★
+代码
+→ UI
+→ 用户操作
+→ 状态保存 / 恢复
+→ 真实行为
+→ APK
+→ 真机
 ```
 
-**对话是项目页面主体。**
+每个功能都必须经过完整链路，不能以“代码存在”代替已完成。
 
-暂不要求最近 Commit、Verify 统计、任务 Dashboard、复杂文件树等内容成为首页核心。
+## 九、未来
 
-## 六、GitHub 原则
-
-GitHub 是 Project Address 的一种实现：
-
-- GitHub 读取属于项目正常工作能力；
-- GitHub 读取不需要 ConstructionLock；
-- GitHub 修改 / Commit 才需要施工权限；
-- GitHub Repository / Branch 信息最终由 Project Address 统一管理；
-- 不再维护长期独立的“普通对话 GitHub 地址”和“Workspace GitHub 地址”两套业务概念。
-
-## 七、总验收原则
-
-**代码 → UI 入口 → 用户操作 → 状态保存 / 恢复 → 真实业务生效 → APK → 真机验证**
-
-“代码存在”不等于“功能完成”。
-
-尤其是 Project：
-
-**必须真正做到进入项目 → 使用项目地址 → 使用默认 AI → 围绕项目对话 / 工作。**
-
-## 八、后续架构方向（暂不施工）
-
-未来多项目、多 API 并行后，再增加：
+多项目、多 API 真正形成并行工作需求后，再考虑：
 
 ```
 Secretary / Orchestrator
@@ -190,4 +251,4 @@ Secretary / Orchestrator
 项目 A 项目 B 项目 C
 ```
 
-该层负责跨项目调度，而不是改变 Project 自身的核心模型。
+它属于未来调度层，不改变 Project 本身的核心模型。
