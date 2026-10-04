@@ -652,8 +652,10 @@ class CollaborationCoordinator(
         val sha = file.optString("sha").takeIf { it.isNotBlank() } ?: error("无法取得文件 SHA：" + path)
         val result = updateFile(taskMessage.taskId, memberId, path, content, commitMessage, sha)
         val commitSha = result.optJSONObject("commit")?.optString("sha").orEmpty()
-        runCatching { verifyTask(taskMessage.taskId) }
-            .onFailure { AppLogger.log(context, AppLogger.Category.COLLABORATION, "VERIFY_TRIGGER_FAILED", it.message ?: "verify trigger failed") }
+        // GitHub Actions Verify is asynchronous. Do not trigger an immediate
+        // verification attempt here: the real Commit must cross the explicit
+        // WAITING_VERIFY boundary first, and the caller owns the bounded
+        // Verify -> Decision AI -> Worker continuation loop.
         return CollaborationProtocol.commit(taskMessage.taskId, commitSha, commitMessage, listOf(path), "1 file changed")
     }
     private fun parseProtocolResponse(raw: String): CollaborationProtocol.Message {
