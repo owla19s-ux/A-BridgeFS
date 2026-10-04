@@ -179,11 +179,11 @@ Default AI 继续
 - GitHub 修改 / Commit / Verify；
 - PermissionPolicy。
 
-### 废弃候选
+### 已废弃 / 已拆除
 
 - 固定 AI A / AI B 默认成员；
 - Decision AI / Worker AI；
-- CollaborationProtocol；
+- CollaborationProtocol / CollaborationTransport / CollaborationTaskStore / CollaborationVerifyService；
 - 普通对话独立 GitHub 地址绑定；
 - Workspace GitHub 与 Conversation GitHub 两套长期业务概念；
 - 普通项目提问自动多 AI 讨论；
@@ -252,3 +252,8 @@ Secretary / Orchestrator
 ```
 
 它属于未来调度层，不改变 Project 本身的核心模型。
+
+
+## 2026-10-04 拆除结果
+
+旧的双 AI 协作运行链已从当前代码路径拆除：不再存在固定 AI A / AI B 对话入口、Decision / Worker 协作入口或旧 CollaborationTransport 任务链。`ConstructionLock` 保留，作为未来 Project 连续施工的权限基础，而不是旧协作模式的入口。
