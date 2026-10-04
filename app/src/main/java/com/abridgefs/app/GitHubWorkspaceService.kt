@@ -87,6 +87,17 @@ class GitHubWorkspaceService(
      * Callers use this service so the workspace read/write boundary is checked
      * before a repository write reaches the low-level GitHub client.
      */
+    fun readText(path: String): String {
+        val raw = file(path)
+        val encoded = raw.optString("content").replace("\\n", "").trim()
+        check(encoded.isNotBlank()) { "GitHub 文件没有可读取内容：$path" }
+        return try {
+            String(android.util.Base64.decode(encoded, android.util.Base64.DEFAULT), Charsets.UTF_8)
+        } catch (_: Exception) {
+            error("GitHub 文件内容解码失败：$path")
+        }
+    }
+
     fun updateFile(
         path: String,
         content: String,
