@@ -1,3 +1,17 @@
+# 历史架构：双 AI 协作 V0.1
+
+> **历史资料 / 不作为当前架构依据**
+>
+> 本文件保留用于记录 APS 从 A-BridgeFS 时代的双 AI 协作探索。
+> 当前产品已经改为 Project-centered 模型，固定 Decision AI / Worker AI、固定 AI A / AI B、默认双 AI 协作循环均已废弃。
+>
+> 当前正式产品规格：`PROJECT/SPEC/APS-PRODUCT-SPEC.md`。
+> 当前正式架构：`PROJECT/ARCHITECTURE/APS-CURRENT-ARCHITECTURE.md`。
+>
+> 以下内容仅用于理解历史演进，不得用于新增代码或恢复旧运行链。
+
+---
+
 # 双 AI 协作 V0.1
 
 状态：**第一版方向 / 已确认 / 低复杂度优先**
