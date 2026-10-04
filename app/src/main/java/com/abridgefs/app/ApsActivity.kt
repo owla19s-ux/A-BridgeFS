@@ -290,23 +290,28 @@ GitHub：未设置"
             }, LinearLayout.LayoutParams(-1, dp(52)).apply { bottomMargin = dp(4) })
             if (open) {
                 content.addView(card().apply {
-                    addView(value(if (name == "连接") "API Profiles / GitHub / 其他连接模块"
-                        else if (name == "权限") "全局 API、GitHub 与 Project 权限"
-                        else "系统级 " + name + " 设置"))
+                    addView(value(
+                        if (name == "连接") "全局连接资源"
+                        else if (name == "权限") "仅管理没有明确归属到具体模块的 APS 系统级权限"
+                        else "系统级 " + name + " 设置"
+                    ))
                     if (name == "连接") {
                         addView(Button(this@ApsActivity).apply {
                             text = "API Profiles"
-                            setOnClickListener { toast("API Profiles 页面将在接线阶段恢复") }
+                            setOnClickListener { toast("API 连接及其内部权限将在接线阶段恢复") }
                         })
                         addView(Button(this@ApsActivity).apply {
                             text = "GitHub"
-                            setOnClickListener { toast("GitHub 设置将在接线阶段恢复") }
+                            setOnClickListener { toast("GitHub 连接及其内部权限将在接线阶段恢复") }
                         })
                     }
                     if (name == "权限") {
+                        addView(value("本地文件访问"))
+                        addView(value("存储访问"))
+                        addView(value("其他 APS 系统访问"))
                         addView(Button(this@ApsActivity).apply {
-                            text = "权限设置"
-                            setOnClickListener { toast("权限控制将在接线阶段恢复") }
+                            text = "管理系统权限"
+                            setOnClickListener { toast("系统级权限控制将在接线阶段恢复") }
                         })
                     }
                 })
