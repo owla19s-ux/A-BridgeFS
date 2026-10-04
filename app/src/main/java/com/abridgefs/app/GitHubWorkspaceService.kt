@@ -40,7 +40,8 @@ class GitHubWorkspaceService(
     fun branchHead(): String {
         requireRead()
         val (owner, name) = repositoryParts()
-        return client.getBranch(owner, name, workspace.branch).optJSONObject("commit")?.optString("sha").orEmpty()
+        val branch = workspace.branch?.takeIf { it.isNotBlank() } ?: error("GitHub Branch 未配置")
+        return client.getBranch(owner, name, branch).optJSONObject("commit")?.optString("sha").orEmpty()
     }
 
     fun commit(commitSha: String): JSONObject {
