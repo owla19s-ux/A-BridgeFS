@@ -72,9 +72,6 @@ return START_NOT_STICKY
 }
 
 private fun executeExternalCommand(requestedRoot:String,text:String,projectId:String?,conversationId:String?,standaloneConversationId:String?):Triple<String,String,String>{
-if(rootPath.isBlank()||!rootFile.isDirectory||isProtectedWorkspace(rootPath)){
-return Triple("FAILED",text,"工作目录无效或属于受保护区域："+rootPath)
-}
 val commands=CommandParser.parse(text)
 if(commands.isEmpty()){
 return Triple("FAILED",text,CommandParser.lastError ?: "未识别到可执行指令")
@@ -305,7 +302,7 @@ val cs=CommandParser.parse(raw)
 if(cs.isEmpty()){
     val message=CommandParser.lastError ?: "未发现可执行指令"
     findReceipt(box)?.let{it.text=message;it.setTextColor(Color.DKGRAY)}
-    broadcastReceipt("FAILED",raw,message,null,null,null,null)
+    broadcastReceipt("FAILED",raw,message,null,null,null)
 }else if(CommandParser.lastError!=null){
     val message=CommandParser.lastError!!
     findReceipt(box)?.let{it.text=message;it.setTextColor(Color.DKGRAY)}
@@ -321,7 +318,7 @@ if(cs.isEmpty()){
             runButton?.isEnabled=true
             log("Command","执行 "+cs.size+" 条指令："+if(status=="SUCCEEDED")"成功" else "失败")
         }
-        broadcastReceipt(status,cs.joinToString(" | "){it.toString()},message,null,null,null,null)
+        broadcastReceipt(status,cs.joinToString(" | "){it.toString()},message,null,null,null)
     }
 }
 }
