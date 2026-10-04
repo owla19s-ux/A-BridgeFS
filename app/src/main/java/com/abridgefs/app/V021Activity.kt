@@ -1101,14 +1101,14 @@ class V021Activity : Activity() {
         val payload = message.payload
         val detail = when (message.type) {
             CollaborationProtocol.Type.TASK -> payload.optString("objective").ifBlank { "已生成协作任务" }
-            CollaborationProtocol.Type.DECISION_REQUEST -> payload.optString("question").ifBlank { "Worker 请求 Decision AI 决策" }
-            CollaborationProtocol.Type.DECISION_RESPONSE -> payload.optString("decision").ifBlank { "Decision AI 已返回决策" }
+            CollaborationProtocol.Type.DECISION_REQUEST -> payload.optString("question").ifBlank { "协作 AI 请求进一步决策" }
+            CollaborationProtocol.Type.DECISION_RESPONSE -> payload.optString("decision").ifBlank { "协作 AI 已返回决策" }
             CollaborationProtocol.Type.PROGRESS -> payload.optString("message").ifBlank { payload.optString("objective").ifBlank { "协作进度更新" } }
-            CollaborationProtocol.Type.BLOCKED -> payload.optString("blocked_on").ifBlank { "Worker 暂时受阻" }
+            CollaborationProtocol.Type.BLOCKED -> payload.optString("blocked_on").ifBlank { "协作 AI 暂时受阻" }
             CollaborationProtocol.Type.COMMIT -> "Commit " + payload.optString("sha").takeIf { it.isNotBlank() }?.take(10).orEmpty()
             CollaborationProtocol.Type.VERIFY -> "Verify：" + payload.optString("verdict").ifBlank { "待确认" }
             CollaborationProtocol.Type.COMPLETE -> payload.optString("summary").ifBlank { "协作任务完成" }
-            CollaborationProtocol.Type.FILE_CHANGE_REQUEST -> payload.optString("path").ifBlank { "Worker 请求修改文件" }
+            CollaborationProtocol.Type.FILE_CHANGE_REQUEST -> payload.optString("path").ifBlank { "协作 AI 请求修改文件" }
             CollaborationProtocol.Type.ESCALATE -> "需要用户处理"
         }
         return "[协作 " + message.type.name + "] " + roleName + " → " + targetName + "\n" + detail
