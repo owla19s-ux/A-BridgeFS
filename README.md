@@ -1,13 +1,13 @@
-# A-BridgeFS
+# APS
 
-A-BridgeFS 是面向 **AI 项目工作与真实执行环境** 的 Android 工作台。
+APS 是面向 **AI 项目工作与真实执行环境** 的 Android 工作台。
 
 当前阶段先把最基础的产品模型理清：**Project（项目）是核心对象**。普通「对话」是独立的 AI 对话工具，不与 Project 的工作模型混为一谈。
 
 ## 当前产品模型
 
 ```
-A-BridgeFS
+APS
 │
 ├─ 项目 ★核心
 │   ├─ 项目基本信息
@@ -182,7 +182,7 @@ Artifact
  ↓
 latest Release
  ↓
-A-BridgeFS.apk
+APS.apk
 ```
 
 当前尚无公开发行版本，因此内部验证构建统一使用正式签名身份，不再人为区分“测试签名”和“正式签名”。
