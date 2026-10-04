@@ -1,36 +1,173 @@
 # A-BridgeFS
 
-A-BridgeFS 是面向 **AI 协作与真实执行环境** 的 Android 工作台。
+A-BridgeFS 是面向 **AI 项目工作与真实执行环境** 的 Android 工作台。
 
-当前阶段重点验证：
+当前阶段先把最基础的产品模型理清：**Project（项目）是核心对象**。普通「对话」是独立的 AI 对话工具，不与 Project 的工作模型混为一谈。
 
-```
-双 AI 协作
- ↓
-Workspace
- ↓
-授权 / 权限边界
- ↓
-BridgeFS / GitHub 真实执行
- ↓
-Commit / Verify
- ↓
-Receipt
-```
-
-## 最新 APK
-
-对外下载只认 GitHub Release 的固定地址：
-
-**[下载最新版 A-BridgeFS.apk](https://github.com/owla19s-ux/A-BridgeFS/releases/latest/download/A-BridgeFS.apk)**
-
-固定文件名：
+## 当前产品模型
 
 ```
-A-BridgeFS.apk
+A-BridgeFS
+│
+├─ 项目 ★核心
+│   ├─ 项目基本信息
+│   ├─ 项目地址
+│   │   ├─ Local
+│   │   ├─ GitHub
+│   │   └─ future other storage
+│   ├─ 默认 AI
+│   ├─ AI 成员
+│   ├─ 请求 AI 协助
+│   └─ 对话 ★主要入口
+│
+├─ 对话 ★独立工具
+│   └─ API / 读取 / 普通问答
+│
+└─ 配置
+    ├─ API Profiles
+    ├─ GitHub
+    └─ 全局权限
 ```
 
-不要从仓库源码目录直接下载 APK，也不要依赖带版本号的 APK 文件名。
+### Project
+
+Project 负责真正的项目工作。
+
+核心关系：
+
+```
+Project
+├─ id
+├─ name
+├─ address
+├─ defaultMemberId
+└─ members[]
+      ├─ id
+      ├─ name
+      └─ apiProfileId
+```
+
+**Project Member 与 API Profile 是两个不同层级的对象。**
+
+- API Profile：API 连接资源，例如 Base URL、API Key、Model。
+- Project Member：项目中的 AI 成员关系。
+- 一个项目可以有一个或多个 AI Member。
+- Member 可以新增、移除、修改名称。
+- Member 可以更换所使用的 API Profile。
+- Default AI 可以随时更换。
+- Project 本身可以创建、编辑、删除。
+
+因此不再把 AI A / AI B 当成产品身份，也不把 API 永久绑定到 Project。
+
+### Project Address
+
+Project Address 是项目资源地址的统一概念。
+
+GitHub 只是其中一种实现，Local 同样是一等地址类型，未来可以增加其他存储。
+
+读取与修改严格分开：
+
+- 读取项目资源：正常项目工作能力。
+- 修改 / Commit：需要对应的施工权限。
+- GitHub Repository / Branch 不再作为独立于 Project 的长期业务核心。
+
+### Project Conversation
+
+进入项目后，用户主要是：
+
+**看项目 → 提问 → 让默认 AI 读取、分析、工作。**
+
+普通项目问题由 Default AI 直接处理，不因为项目存在多个 AI Member 就自动启动多 AI 对话。
+
+默认工作链：
+
+```
+用户
+ ↓
+当前项目
+ ↓
+项目地址
+ ↓
+默认 AI
+ ↓
+读取 / 分析 / 工作
+ ↓
+完成
+```
+
+默认 AI 在一次任务中可以连续推进：
+
+```
+理解 → 读取 → 修改 → Commit → Verify → 必要时继续修复 → 完成
+```
+
+只有真正需要用户决策、权限或资源时才暂停；“继续”不是正常施工步骤。
+
+### 请求 AI 协助
+
+多 AI 是**按需能力**，不是 Project 的默认运行模式。
+
+```
+默认 AI
+ ↓
+需要协助
+ ↓
+请求 AI 协助
+ ↓
+其他 Project Member / 临时 AI
+ ↓
+完成协助
+ ↓
+默认 AI 继续
+```
+
+不再使用固定 Decision AI / Worker AI，也不以固定 AI A / AI B 表达成员身份。
+
+## 独立「对话」页
+
+底部「对话」是独立工具，不是 Project 的第二套工作区。
+
+它主要用于：
+
+- 选择一个 API Profile；
+- 与 AI 直接交流；
+- 读取允许访问的外部资源；
+- 进行普通问答、分析和测试。
+
+默认定位是**读取型能力**。它不因为连接了 API 或 GitHub 就自动获得 Project 施工权限，也不会自动启动多 AI 协作。
+
+因此当前「对话」页架构基本保留，后续主要进行 UI 优化。
+
+## 权限原则
+
+```
+读取
+ ↓
+可以回答 / 分析
+
+修改
+ ↓
+需要施工权限
+ ↓
+Commit
+ ↓
+Verify
+```
+
+ConstructionLock 属于修改阶段，不是普通读取的前置条件。
+
+## 当前阶段
+
+当前优先级不是继续扩展旧协作系统，而是：
+
+1. 完成 Project 数据模型与 Project Address 统一；
+2. 明确 Default AI / Project Member / API Profile 三者边界；
+3. 把 Project Conversation 作为主要项目入口；
+4. 把“请求 AI 协助”改造成按需动作；
+5. 清理旧 Decision / Worker / A/B / Workspace GitHub / Conversation GitHub 等架构残留；
+6. 普通「对话」页保持独立，主要做 UI 优化。
+
+多项目、多 API 并行后的 Secretary / Orchestrator 属于未来能力，当前不施工。
 
 ## 构建与发布
 
@@ -39,113 +176,28 @@ main
  ↓
 GitHub Actions
  ↓
-checkout 当前 GITHUB_SHA
+正式 Release 签名构建
  ↓
-SHA 校验
- ↓
-Gradle 构建
- ↓
-Artifact：A-BridgeFS-<commit SHA>
+Artifact
  ↓
 latest Release
  ↓
 A-BridgeFS.apk
 ```
 
-源码是唯一真源。APK 不提交到 `main`。
-
-每次 `main` 更新后，Actions 构建触发该次提交对应的 APK，并将实际构建文件统一发布为：
-
-```
-A-BridgeFS.apk
-```
-
-README 与后续项目主页统一使用：
-
-```
-releases/latest/download/A-BridgeFS.apk
-```
-
-Android `applicationId`、源码目录和 Release APK 文件名彼此独立。
+当前尚无公开发行版本，因此内部验证构建统一使用正式签名身份，不再人为区分“测试签名”和“正式签名”。
 
 ## 项目资料
 
-当前协作资料入口：
-
 - `AGENTS.md`：施工、验证与 AI 协作规则
 - `PROJECT/ARCHITECTURE/`：当前正式架构
-- `PROJECT/SPEC/`：正式项目规格入口
-- `PROJECT/UI/`：正式 UI 资料入口
+- `PROJECT/SPEC/`：正式项目规格
+- `PROJECT/UI/`：正式 UI 资料
 - `PROJECT/STATUS/`：当前状态与审计快照
+- `docs/CURRENT-TASKS.md`：当前任务与架构审查范围
 - `docs/STATUS.md`：当前实现状态
 - `docs/REQUIREMENTS.md`：当前需求与验收
-- `docs/A-BRIDGEFS-STAGE-WORKLOG.md`：阶段施工与验证记录
-- `docs/architecture/`：当前专项架构与历史架构资料
-- `docs/V0.1.1-PLAN.md`：早期版本计划，作为历史资料保留
+- `docs/BUILD-PRECHECK.md`：构建前检查
+- `docs/architecture/`：专项架构与历史资料
 
-## 当前协作模型
-
-A-BridgeFS 当前采用**双 AI 协作模型**。
-
-两个 AI：
-
-- 可以共享工作区允许范围内的读取能力；
-- 可以分别分析、沟通、检查结果；
-- 不因 AI 身份天然获得修改权。
-
-施工权限独立属于：
-
-```
-Workspace + Repository + Branch
-```
-
-同一 Repository / Branch 同时最多一个 AI 持有施工权；施工权可以授予、释放、转移。
-
-旧的 Decision AI / Worker AI 仅作为历史任务阶段术语保留；当前正式架构不设固定决策 AI / 施工 AI 身份。两个 AI 的角色随任务阶段变化，施工权由 Workspace + Repository + Branch 的 ConstructionLock 动态授予、释放或转移。
-
-## 当前工程闭环
-
-普通 AI 对话首先具备 GitHub 读取能力：
-
-```
-普通对话
- ↓
-API
- ↓
-GitHub 授权 / Repository / Branch
- ↓
-读取真实项目
- ↓
-AI 分析 / 回答
-```
-
-需要实际修改时，再进入施工权限链：
-
-```
-用户 / AI 协作
- ↓
-选择施工 AI
- ↓
-ConstructionLock
- ↓
-施工
- ↓
-Commit
- ↓
-Verify
- ↓
-Receipt
-```
-
-**读取与修改是两条不同能力链。普通对话可以读 GitHub，但不因此获得修改权。**
-
-当前重点不是提前建设完整 Agent 平台，而是把 **双 AI 协作、工作区、真实执行、GitHub 施工与验证** 逐步连接成可以实际使用和验证的闭环。
-
-
-## 当前最重要的验证点
-
-当前优先验证：**普通对话能否真正读取 GitHub 仓库**。
-
-仅有 GitHub 配置页面显示“已连接”不算完成。必须让普通对话通过当前 API 实际读取 Repository / Branch / 文件，并根据真实内容回答。
-
-本阶段暂不把 GitHub 修改 / Commit 与该读取问题混在一起。
+**代码事实、GitHub Commit / Actions / APK 验证结果优先于旧文档描述。**
