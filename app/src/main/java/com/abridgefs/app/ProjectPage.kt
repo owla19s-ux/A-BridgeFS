@@ -10,20 +10,20 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 
 internal fun ApsActivity.projectPage() {
-        val content = LinearLayout(this).apply {
+        val content = LinearLayout(this@ProjectPage).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(14), dp(10), dp(14), dp(8))
         }
         val project = currentProject
         val conversation = project?.activeConversation()
         content.addView(title(project?.name ?: "默认项目"))
-        content.addView(TextView(this).apply {
+        content.addView(TextView(this@ProjectPage).apply {
             text = "Project Address\nLocal：${project?.localAddress ?: "未设置"}\nGitHub：${project?.githubAddress?.repository ?: "未设置"}"
             textSize = 12f
             setTextColor(c(R.color.bridgefs_text_secondary))
             setPadding(0, dp(3), 0, dp(6))
         })
-        content.addView(TextView(this).apply {
+        content.addView(TextView(this@ProjectPage).apply {
             text = if (displayOpen) "↓  收起内容区" else "↑  展开内容区"
             textSize = 12f
             gravity = Gravity.CENTER
@@ -39,14 +39,14 @@ internal fun ApsActivity.projectPage() {
         if (projectConfigOpen) {
             content.addView(card().apply {
                 addView(label("项目名称"))
-                addView(EditText(this).apply {
+                addView(EditText(this@ProjectPage).apply {
                     hint = "默认项目"
                     maxLines = 1
                 })
                 addView(label("Project Address"))
                 addView(value("Local Project Address：${project?.localAddress ?: "未设置"}"))
                 addView(value("GitHub Project Address：${project?.githubAddress?.repository ?: "未设置"}"))
-                addView(Button(this).apply {
+                addView(Button(this@ProjectPage).apply {
                     text = "配置 Project Address"
                     setOnClickListener {
                         val p = currentProject ?: return@setOnClickListener
@@ -72,7 +72,7 @@ internal fun ApsActivity.projectPage() {
                 val profile = member?.apiProfileId?.let { ApiProfileStore(this@projectPage).find(it) }
                 addView(value("Default API：${profile?.name ?: "未绑定"}"))
                 addView(label("项目级配置仅在这里维护"))
-                addView(Button(this).apply {
+                addView(Button(this@ProjectPage).apply {
                     text = "选择 API Profile"
                     setOnClickListener {
                         val p = currentProject ?: return@setOnClickListener
@@ -109,7 +109,7 @@ internal fun ApsActivity.projectPage() {
         if (displayOpen) content.addView(card().apply {
             addView(label("待处理任务"))
             listOf("UI 输入框问题", "构建问题", "签名冲突").forEach { task ->
-                addView(CheckBox(this).apply {
+                addView(CheckBox(this@ProjectPage).apply {
                     text = task
                     textSize = 13f
                     setOnCheckedChangeListener { _, checked ->
@@ -141,12 +141,12 @@ internal fun ApsActivity.projectPage() {
             })
         }
         if (displayOpen) {
-            content.addView(Button(this).apply {
+            content.addView(Button(this@ProjectPage).apply {
                 text = "Request AI Assistance"
                 setOnClickListener { toast("协助链将在项目对话闭环后接入") }
             }, LinearLayout.LayoutParams(-1, dp(44)).apply { topMargin = dp(8) })
         }
-        host.addView(ScrollView(this).apply {
+        host.addView(ScrollView(this@ProjectPage).apply {
             isFillViewport = true
             addView(content)
         }, LinearLayout.LayoutParams(-1, 0, 1f))
