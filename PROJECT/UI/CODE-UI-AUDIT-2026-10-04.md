@@ -114,3 +114,42 @@ UI 入口 → 用户操作 → 业务状态 → 持久化 → 重新进入 / 恢
 | 配置 UI | 开发中 |
 | 旧 Workspace UI 清理 | 待施工 |
 | UI ↔ 业务闭环 | 开发中 |
+
+## 2026-10-04 本轮代码核对
+
+### 已确认的主要偏差
+
+当前 `V021Activity` 仍以历史 Workspace 页面作为 Project 一级页面：
+
+- `Page.WORKSPACE` / `Page.WORKSPACE_CHAT` 仍然存在；
+- 底部一级入口仍显示“工作区”；
+- Project 页面仍先展示 Workspace selector、GitHub、请求协助、工作目录、本地权限、API summary 等多张卡片；
+- Project Conversation 仍是独立的第二级页面，而不是 Project 首页主要内容；
+- ↑ / ↓ 显示切换尚未形成当前正式 UI；
+- Project 配置独立展开 / 收起尚未形成当前正式 UI；
+- Project Members / Default AI 数据模型已经存在，但当前 Project UI 尚未提供完整的成员管理闭环；
+- `workspaceDirectory`、`active_workspace_id` 等历史命名仍大量存在，部分属于迁移兼容，不能机械删除；
+- `BridgeProjectStore` 已能保存 / 恢复 Default Member、Members、Conversations 和 Project Address，但 UI 尚未完整接通这些状态。
+
+### 当前判断
+
+这不是继续补旧 Workspace 卡片的问题，而是 **T1 Project 主页面重构**。
+
+施工顺序应为：
+
+1. 先把 Project 首页与 Project Conversation 合并到同一页面结构；
+2. 再把 Project 配置变成独立可展开区域；
+3. 再把 Project Address / Default AI / Members 等已有模型接入配置区域；
+4. 最后再接连续施工和 AI 协助。
+
+普通「对话」与全局「配置」本轮暂缓，不作为 T1～T5 的阻塞项。
+
+### 不应做的事
+
+- 不恢复 Decision AI / Worker AI；
+- 不恢复固定 AI A / B；
+- 不把 Project 首页重新做成 Dashboard；
+- 不把 GitHub 重新提升为一级页面；
+- 不因为代码中存在 Workspace 命名就立即删除所有兼容字段；
+- 不在 T1 阶段提前施工连续 Agent 循环。
+
