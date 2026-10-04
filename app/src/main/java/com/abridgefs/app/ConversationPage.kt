@@ -9,7 +9,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 
 internal fun ApsActivity.conversationPage() {
-        val content = LinearLayout(this).apply {
+        val content = LinearLayout(this@ConversationPage).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(14), dp(10), dp(14), dp(8))
         }
@@ -25,13 +25,13 @@ internal fun ApsActivity.conversationPage() {
                 addView(label("当前会话"))
                 addView(value(currentConversation))
                 addView(label("当前分组"))
-                val groupRow = LinearLayout(this).apply {
+                val groupRow = LinearLayout(this@ConversationPage).apply {
                     orientation = LinearLayout.HORIZONTAL
                     gravity = Gravity.CENTER_VERTICAL
                 }
                 groupRow.addView(value(conversationGroupNames.joinToString("  ·  ")),
                     LinearLayout.LayoutParams(0, dp(40), 1f))
-                groupRow.addView(Button(this).apply {
+                groupRow.addView(Button(this@ConversationPage).apply {
                     text = "新建分组"
                     setOnClickListener {
                         val next = "分组 " + (conversationGroupNames.size + 1)
@@ -41,10 +41,10 @@ internal fun ApsActivity.conversationPage() {
                     }
                 }, LinearLayout.LayoutParams(dp(94), dp(44)))
                 addView(groupRow)
-                val actionRow = LinearLayout(this).apply {
+                val actionRow = LinearLayout(this@ConversationPage).apply {
                     orientation = LinearLayout.HORIZONTAL
                 }
-                actionRow.addView(Button(this).apply {
+                actionRow.addView(Button(this@ConversationPage).apply {
                     text = "新建会话"
                     setOnClickListener {
                         val next = "新会话 " + (conversationNames.size + 1)
@@ -53,7 +53,7 @@ internal fun ApsActivity.conversationPage() {
                         render()
                     }
                 }, LinearLayout.LayoutParams(0, dp(44), 1f))
-                actionRow.addView(Button(this).apply {
+                actionRow.addView(Button(this@ConversationPage).apply {
                     text = "删除当前"
                     setOnClickListener {
                         if (conversationNames.size > 1) {
@@ -77,7 +77,7 @@ internal fun ApsActivity.conversationPage() {
             content.addView(card().apply {
                 addView(label("选择 API Profile"))
                 apiProfilesStore.list().forEach { profile ->
-                    addView(TextView(this).apply {
+                    addView(TextView(this@ConversationPage).apply {
                         text = if (profile.id == selectedApiProfileId) "✓  ${profile.name}" else profile.name
                         textSize = 13f
                         setTextColor(c(if (profile == selectedApi) R.color.bridgefs_text_primary else R.color.bridgefs_text_secondary))
@@ -113,7 +113,7 @@ internal fun ApsActivity.conversationPage() {
             addView(messageBubble("系统", "消息复制、真实历史记录将在接线阶段加入。"))
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
 
-        host.addView(ScrollView(this).apply { addView(content) },
+        host.addView(ScrollView(this@ConversationPage).apply { addView(content) },
             LinearLayout.LayoutParams(-1, 0, 1f))
         inputBar("输入消息……")
     }
