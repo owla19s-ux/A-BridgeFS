@@ -1300,6 +1300,9 @@ class V021Activity : Activity() {
                     )
                     store.save(projects)
                     render()
+                    if (!executeProjectGitHubCommands(answer, current, conversation)) {
+                        executeProjectCommands(answer, current, conversation)
+                    }
                 }
             } catch (e: Exception) {
                 runOnUiThread {
@@ -1460,7 +1463,7 @@ class V021Activity : Activity() {
                     BridgeCommandSpec.aiSystemPrompt(prefs.getInt("command_limit", 3).coerceIn(1, 20)) +
                         "\n\n你正在继续当前 Project 的施工。上一轮执行回执如下：\n" +
                         formatReceipt(receipt) +
-                        "\n如果工作已经完成，直接说明完成，不要输出 bridgefs 指令；如果仍需修改，请输出下一轮完整的 [bridgefs]...[/bridgefs] 指令。不要声称操作成功，必须依据回执判断。" +
+                        "\n如果工作已经完成，直接说明完成，不要输出 bridgefs/githubfs 指令；如果仍需修改本地文件，请输出下一轮完整的 [bridgefs]...[/bridgefs] 指令；如果需要修改 GitHub Project，请输出 [githubfs]...[/githubfs]。不要声称操作成功，必须依据回执判断。" +
                         githubPrompt
                 )
                 runOnUiThread {
