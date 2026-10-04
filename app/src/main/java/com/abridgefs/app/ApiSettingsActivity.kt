@@ -130,14 +130,14 @@ class ApiSettingsActivity : Activity() {
         }, LinearLayout.LayoutParams(-1, dp(46)).apply { topMargin = dp(10) })
 
 
-        root.addView(sectionLabel("AI 协作"))
+        root.addView(sectionLabel("API Profile"))
         root.addView(TextView(this).apply {
-            text = "API Profile 只负责连接资源。AI 协作参与者请回到「工作区」，从已保存的 API Profile 中选择 AI A 与 AI B。这里不再保存固定的 Decision AI / Worker API。"
+            text = "API Profile 只负责连接资源。项目中的 AI 成员通过 Project Member 关联 API Profile；默认 AI 和其他协助 AI 均在项目中管理。这里不保存固定的 AI 角色。"
             textSize = 13f
             setTextColor(resources.getColor(R.color.bridgefs_text_secondary))
             setPadding(dp(4), dp(6), dp(4), dp(10))
         })
-        root.addView(actionButton("返回工作区选择协作 AI") {
+        root.addView(actionButton("返回项目管理 AI 成员") {
             finish()
         }, LinearLayout.LayoutParams(-1, dp(46)))
 
