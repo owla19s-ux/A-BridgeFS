@@ -1364,7 +1364,8 @@ class V021Activity : Activity() {
         if (memberId.isNullOrBlank()) { addProjectReceipt(conversation, "DENIED", "GitHub construction", "当前 Project 没有可用的 Default AI Member"); return true }
         executor.execute {
             try {
-                val lock = ConstructionLockStore(this).acquire(project, memberId)
+                val lockStore = ConstructionLockStore(this)
+                val lock = lockStore.acquire(project, memberId)
                 val token = GitHubTokenStore(this).state().accessToken?.takeIf { it.isNotBlank() } ?: error("GitHub 尚未授权")
                 val service = GitHubWorkspaceService(this, GitHubApiClient(this, token), project.github, project)
                 var lastCommit = ""
@@ -1395,8 +1396,11 @@ class V021Activity : Activity() {
                     if (runs != null) append("\nActions runs: ").append(runs.length())
                     append("\nConstructionLock: ").append(lock.holderAiMemberId)
                 }
-                ConstructionLockStore(this).release(project, memberId)
-                runOnUiThread { addProjectReceipt(conversation, "SUCCEEDED", "GitHub construction", summary) }
+                lockStore.release(project, memberId)
+                runOnUiThread {
+                    addProjectReceipt(conversation, "SUCCEEDED", "GitHub construction", summary)
+                    continueProjectConstruction(project, conversation, conversation.executions.last())
+                }
             } catch (e: Exception) {
                 runOnUiThread { addProjectReceipt(conversation, "FAILED", "GitHub construction", e.message ?: "GitHub 施工失败") }
             }
