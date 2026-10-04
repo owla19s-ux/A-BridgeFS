@@ -25,8 +25,8 @@ class BridgeProjectStore(private val context: Context) {
                 name = obj.getString("name"),
                 localFileModifyEnabled = obj.optBoolean("localFileModifyEnabled", false),
                 localAddress = obj.optString("localAddress", "").ifBlank {
-                    obj.optString("workspaceDirectory", "").ifBlank { null }
-                },
+                    obj.optString("workspaceDirectory", "")
+                }.takeIf { it.isNotBlank() },
                 githubAddress = ProjectGitHubAddress(
                     accountLogin = obj.optString("githubAccount", "").ifBlank {
                         obj.optString("githubAccountLogin", "").ifBlank { null }
