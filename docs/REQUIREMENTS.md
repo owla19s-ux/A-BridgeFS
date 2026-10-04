@@ -169,7 +169,7 @@ ConstructionLock 只控制修改阶段，不作为普通读取前置条件。
 - Request AI Assistance 新入口；
 - ConstructionLock 从旧 Workspace 语义迁移到 Project；
 - 清理旧 A/B、Decision / Worker、独立 Conversation GitHub 配置；
-- Project UI 重新收口。
+- Project UI 按已确认设计施工：项目对话为主体；底部 ↑ / ↓ 只改变屏幕显示；项目配置独立点击展开 / 收起。
 
 ## F. 暂不做
 
