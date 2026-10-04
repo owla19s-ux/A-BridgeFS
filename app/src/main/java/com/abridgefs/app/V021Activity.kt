@@ -396,7 +396,7 @@ class V021Activity : Activity() {
         val configured = collaborationProfiles.first.isNotBlank() && collaborationProfiles.second.isNotBlank()
         box.addView(TextView(this).apply { text = "AI 协作"; textSize = 16f; typeface = Typeface.DEFAULT_BOLD })
         box.addView(TextView(this).apply {
-            text = "两个 AI 共享工作区资源；API 是连接资源，不再代表固定 Decision / AI B 身份。"
+            text = "两个 AI 共享工作区资源；API 是连接资源，不再代表固定的阶段身份。"
             textSize = 13f
             setTextColor(color(R.color.bridgefs_text_secondary))
             setPadding(0, dp(4), 0, dp(8))
