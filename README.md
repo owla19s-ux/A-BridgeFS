@@ -101,7 +101,7 @@ Workspace + Repository + Branch
 
 同一 Repository / Branch 同时最多一个 AI 持有施工权；施工权可以授予、释放、转移。
 
-Decision AI / Worker AI 仅作为任务阶段角色标签，不是固定 AI 身份，也不是固定配置槽位。
+旧的 Decision AI / Worker AI 仅作为历史任务阶段术语保留；当前正式架构不设固定决策 AI / 施工 AI 身份。两个 AI 的角色随任务阶段变化，施工权由 Workspace + Repository + Branch 的 ConstructionLock 动态授予、释放或转移。
 
 ## 当前工程闭环
 
