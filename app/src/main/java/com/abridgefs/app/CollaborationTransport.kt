@@ -357,7 +357,7 @@ class CollaborationCoordinator(
         transport.append(commitMessage)
 
         val aiAPrompt = aiASystemPrompt +
-            "\n这是系统确认通过的 Commit。请决定任务是否完成；若未完成，必须返回合法 JSON，from=decision_ai,to=aiB,type=DECISION_RESPONSE，并给出下一步施工指令。"
+            "\n这是系统确认通过的 Commit。请决定任务是否完成；若未完成，必须返回合法 JSON，from=ai_a,to=aiB,type=DECISION_RESPONSE，并给出下一步施工指令。"
         val aiA = parseProtocolResponseWithRetry(callAiA(commitMessage, aiAPrompt)) {
             callAiA(commitMessage, aiAPrompt + compactRetryPrompt(CollaborationProtocol.Role.AI_A, false))
         }
@@ -553,7 +553,7 @@ class CollaborationCoordinator(
         }
         if (aiAInput.to != CollaborationProtocol.Role.AI_A) return messages
         val aiAPrompt = if (aiAInput.type == CollaborationProtocol.Type.COMMIT) {
-            aiASystemPrompt + "\n现在进入施工结果审议阶段。你必须返回合法 JSON；from=decision_ai，to=aiB，type 必须为 DECISION_RESPONSE 或 COMPLETE。若 Commit 已满足目标，可返回 COMPLETE；否则返回 DECISION_RESPONSE，并在 instruction 中给出下一步。"
+            aiASystemPrompt + "\n现在进入施工结果审议阶段。你必须返回合法 JSON；from=ai_a，to=aiB，type 必须为 DECISION_RESPONSE 或 COMPLETE。若 Commit 已满足目标，可返回 COMPLETE；否则返回 DECISION_RESPONSE，并在 instruction 中给出下一步。"
         } else {
             aiASystemPrompt
         }
@@ -598,8 +598,8 @@ class CollaborationCoordinator(
 
     private fun compactRetryPrompt(role: CollaborationProtocol.Role, initialTask: Boolean = true): String {
         val route = if (role == CollaborationProtocol.Role.AI_A) {
-            if (initialTask) "from=decision_ai,to=aiB,type=TASK" else "from=decision_ai,to=aiB,type=DECISION_RESPONSE|COMPLETE"
-        } else "from=aiB,to=decision_ai,type=DECISION_REQUEST|PROGRESS|BLOCKED|FILE_CHANGE_REQUEST"
+            if (initialTask) "from=ai_a,to=aiB,type=TASK" else "from=ai_a,to=aiB,type=DECISION_RESPONSE|COMPLETE"
+        } else "from=aiB,to=ai_a,type=DECISION_REQUEST|PROGRESS|BLOCKED|FILE_CHANGE_REQUEST"
         return "\n上一轮输出无法被完整解析。请立即重新输出一个完整、紧凑、合法的 JSON 对象；不要 Markdown、不要解释、不要换行长文本；$route。避免冗长 scope、acceptance、autonomy 与 context_refs，只保留完成协议所需内容。确保最后一个字符为 }。"
     }
     private fun executeFileChangeRequest(
