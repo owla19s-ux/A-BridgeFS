@@ -18,6 +18,34 @@ class GitHubConversationReader(private val context: Context) {
         val error: String? = null
     )
 
+    fun readForProject(project: BridgeProject, userText: String): Result {
+        val requestedPaths = extractPaths(userText)
+        val requested = requestedPaths.isNotEmpty() || looksLikeRepositoryQuestion(userText)
+        if (!requested) return Result(requested = false)
+        if (!AccessPolicy.isGithubEnabled(context)) return Result(true, error = "GitHub 全局访问已关闭。")
+        if (!project.github.readEnabled) return Result(true, error = "当前 Project 未允许读取 GitHub。")
+        val token = GitHubTokenStore(context).state().accessToken?.takeIf { it.isNotBlank() }
+            ?: return Result(true, error = "GitHub 尚未授权，无法读取当前 Project Repository。")
+        val repository = project.github.repository?.trim()
+            ?: return Result(true, error = "当前 Project 尚未配置 GitHub Repository。")
+        val reader = GitHubWorkspaceService(context, GitHubApiClient(context, token), project.github, project)
+        val paths = if (requestedPaths.isNotEmpty()) requestedPaths else listOf("README.md")
+        val sections = mutableListOf<String>()
+        var total = 0
+        for (path in paths.distinct().take(4)) {
+            val file = try { reader.file(path) } catch (e: Exception) {
+                return Result(true, repository, project.github.branch, error = "读取 GitHub 文件失败：" + path + "\n" + (e.message ?: "未知错误"))
+            }
+            val content = decodeContent(file)
+            if (content.isBlank()) return Result(true, repository, project.github.branch, error = "GitHub 文件没有可读取的文本内容：" + path)
+            val remaining = MAX_TOTAL_CHARS - total
+            if (remaining <= 0) break
+            val clipped = content.take(remaining)
+            sections += "### " + path + "\n" + clipped
+            total += clipped.length
+        }
+        return Result(true, repository, project.github.branch, sections.joinToString("\n\n"))
+    }
     fun readForConversation(userText: String): Result {
         val requestedPaths = extractPaths(userText)
         val requested = requestedPaths.isNotEmpty() || looksLikeRepositoryQuestion(userText)
