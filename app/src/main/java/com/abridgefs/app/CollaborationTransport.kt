@@ -4,161 +4,131 @@ import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
 import java.security.MessageDigest
+import java.util.UUID
 
-/**
- * Minimal transport boundary for 双 AI 协作.
- *
- * Persistence is intentionally local for v0.1. The protocol does not depend on
- * GitHub Issues, files, or any specific network transport.
- */
+data class CollaborationTurn(
+    val id: String = UUID.randomUUID().toString(),
+    val speaker: String,
+    val profileId: String,
+    val content: String,
+    val createdAt: Long = System.currentTimeMillis()
+)
+
 class CollaborationTransport(
     context: Context,
     workspaceId: String,
     conversationId: String
 ) {
     private val prefs = context.getSharedPreferences("collaboration_transport", Context.MODE_PRIVATE)
-    private val keySuffix = workspaceId.ifBlank { "unknown_workspace" } + "_" +
-        conversationId.ifBlank { "unknown_conversation" }
+    private val key = "turns_" + workspaceId.ifBlank { "unknown_workspace" } + "_" + conversationId.ifBlank { "unknown_conversation" }
 
-
-    fun append(message: CollaborationProtocol.Message) {
-        val items = JSONArray(prefs.getString("${KEY_MESSAGES}_$keySuffix", "[]") ?: "[]")
-        items.put(message.toJson())
-        prefs.edit().putString("${KEY_MESSAGES}_$keySuffix", items.toString()).apply()
+    @Synchronized
+    fun append(turn: CollaborationTurn) {
+        val array = JSONArray(prefs.getString(key, "[]") ?: "[]")
+        array.put(JSONObject()
+            .put("id", turn.id)
+            .put("speaker", turn.speaker)
+            .put("profileId", turn.profileId)
+            .put("content", turn.content)
+            .put("createdAt", turn.createdAt))
+        prefs.edit().putString(key, array.toString()).apply()
     }
 
-    fun all(): List<CollaborationProtocol.Message> {
-        val items = JSONArray(prefs.getString("${KEY_MESSAGES}_$keySuffix", "[]") ?: "[]")
+    @Synchronized
+    fun all(): List<CollaborationTurn> {
+        val array = JSONArray(prefs.getString(key, "[]") ?: "[]")
         return buildList {
-            for (index in 0 until items.length()) {
-                val message = CollaborationProtocol.Message.fromJson(items.getJSONObject(index))
-                add(message)
+            for (i in 0 until array.length()) {
+                val item = array.getJSONObject(i)
+                add(CollaborationTurn(
+                    id = item.optString("id", UUID.randomUUID().toString()),
+                    speaker = item.optString("speaker", "AI"),
+                    profileId = item.optString("profileId", ""),
+                    content = item.optString("content", ""),
+                    createdAt = item.optLong("createdAt", System.currentTimeMillis())
+                ))
             }
         }
     }
 
-    fun pendingFor(role: CollaborationProtocol.Role): List<CollaborationProtocol.Message> =
-        all().filter { it.to == role && !isHandled(it.id) }
-
-    fun markHandled(messageId: String) {
-        val handled = JSONArray(prefs.getString("${KEY_HANDLED}_$keySuffix", "[]") ?: "[]")
-        if ((0 until handled.length()).none { handled.optString(it) == messageId }) {
-            handled.put(messageId)
-            prefs.edit().putString("${KEY_HANDLED}_$keySuffix", handled.toString()).apply()
-        }
-    }
-
-    private fun isHandled(messageId: String): Boolean {
-        val handled = JSONArray(prefs.getString("${KEY_HANDLED}_$keySuffix", "[]") ?: "[]")
-        return (0 until handled.length()).any { handled.optString(it) == messageId }
-    }
-
     fun clear() {
-        prefs.edit()
-            .remove("${KEY_MESSAGES}_$keySuffix")
-            .remove("${KEY_HANDLED}_$keySuffix")
-            .apply()
-    }
-
-    companion object {
-        private const val KEY_MESSAGES = "messages"
-        private const val KEY_HANDLED = "handled"
+        prefs.edit().remove(key).apply()
     }
 }
 
-/**
- * Runtime API connection for one AI participant.
- *
- * API profiles are reusable connection resources. The collaboration stage
- * chooses which two profiles participate; there is no persistent Decision/AI B
- * API configuration.
- */
 data class CollaborationApiConfig(
     val profileId: String,
     val baseUrl: String,
     val apiKey: String,
     val model: String
 ) {
-    fun isConfigured(): Boolean =
-        baseUrl.isNotBlank() && model.isNotBlank()
+    fun isConfigured(): Boolean = baseUrl.isNotBlank() && model.isNotBlank()
 
     companion object {
         fun fromProfile(context: Context, profileId: String): CollaborationApiConfig {
             val profile = ApiProfileStore(context).find(profileId)
                 ?: return CollaborationApiConfig(profileId, "", "", "")
-            return CollaborationApiConfig(
-                profileId = profile.id,
-                baseUrl = profile.baseUrl.trim(),
-                apiKey = profile.key,
-                model = profile.model.trim()
-            )
+            return CollaborationApiConfig(profile.id, profile.baseUrl.trim(), profile.key, profile.model.trim())
         }
     }
 }
 
-/**
- * Small role-aware API boundary. It does not decide how protocol JSON is
- * generated or parsed; callers remain responsible for protocol semantics.
- */
-class CollaborationApiClient(private val config: CollaborationApiConfig) {
-    fun invoke(
-        incoming: CollaborationProtocol.Message,
-        systemPrompt: String
-    ): String {
-        require(config.isConfigured()) { "collaboration API is not configured" }
-
-        val client = BridgeApiClient(
-            BridgeApiConfig(
-                baseUrl = config.baseUrl,
-                apiKey = config.apiKey,
-                model = config.model
-            )
-        )
-
-        val request = incoming.toJson().toString()
-        return client.chat(
-            listOf(BridgeChatMessage("user", request)),
-            systemPrompt
-        )
-    }
-}
-
-/**
- * Minimal coordinator used by later UI/service integration.
- *
- * It provides the first real boundary between:
- * AI A API → protocol transport → AI B API.
- * It deliberately does not execute GitHub work yet.
- */
 class CollaborationCoordinator(
     private val context: Context,
     private val workspaceId: String,
     private val conversationId: String,
     private val aiAProfileId: String,
-    private val aiBProfileId: String,
-    /**
-     * Legacy constructor value retained for compatibility with existing callers.
-     * Actual construction authority is always read from the persisted task
-     * constructionHolderAiMemberId at execution time.
-     */
-    private val constructionAiMemberId: String? = null
+    private val aiBProfileId: String
 ) {
     private val transport = CollaborationTransport(context, workspaceId, conversationId)
 
-    fun submitTask(task: CollaborationProtocol.Message) {
-        require(task.type == CollaborationProtocol.Type.TASK) { "submitTask requires TASK" }
-        require(task.from == CollaborationProtocol.Role.AI_A)
-        require(task.to == CollaborationProtocol.Role.AI_B)
-        require(CollaborationProtocol.validate(task).valid)
-        transport.append(task)
+    fun runDiscussion(objective: String, maxTurns: Int = 4): List<CollaborationTurn> {
+        require(objective.isNotBlank()) { "objective is blank" }
+        require(aiAProfileId.isNotBlank() && aiBProfileId.isNotBlank()) { "请先选择两个协作 AI" }
+        require(aiAProfileId != aiBProfileId) { "两个协作 AI 必须使用不同的 API Profile" }
+
+        val taskStore = CollaborationTaskStore(context)
+        val task = taskStore.create(workspaceId, conversationId, objective)
+        taskStore.update(task.taskId) { it.status = CollaborationTaskRecord.STATUS_RUNNING }
+        AppLogger.log(context, AppLogger.Category.COLLABORATION, "DISCUSSION_STARTED", "taskId=" + task.taskId)
+
+        val turns = mutableListOf<CollaborationTurn>()
+        var aTurn = true
+        repeat(maxTurns.coerceIn(2, 8)) {
+            val profileId = if (aTurn) aiAProfileId else aiBProfileId
+            val speaker = if (aTurn) "AI A" else "AI B"
+            val answer = call(profileId, buildPrompt(objective, turns, speaker))
+            val turn = CollaborationTurn(speaker = speaker, profileId = profileId, content = answer)
+            transport.append(turn)
+            turns += turn
+            aTurn = !aTurn
+        }
+
+        AppLogger.log(context, AppLogger.Category.COLLABORATION, "DISCUSSION_READY",
+            "taskId=" + task.taskId + " turns=" + turns.size)
+        return turns
     }
 
-    /**
-     * Explicitly enters the construction stage for a persisted task.
-     *
-     * Analysis-only collaboration never acquires a Repository/Branch lock.
-     * The caller must explicitly request construction with an AI Member id.
-     */
+    private fun call(profileId: String, prompt: String): String {
+        val config = CollaborationApiConfig.fromProfile(context, profileId)
+        require(config.isConfigured()) { "协作 AI 的 API 未配置完整" }
+        val name = if (profileId == aiAProfileId) "AI A" else "AI B"
+        return BridgeApiClient(BridgeApiConfig(config.baseUrl, config.apiKey, config.model)).chat(
+            listOf(BridgeChatMessage("user", prompt)),
+            "你是 $name，是平等的协作参与者。自然讨论问题，不要输出 JSON 协议，不要假装自己是 Decision AI、Worker AI、Planner 或 Reviewer。可以提出方案、质疑另一位 AI、指出风险，也可以说明需要用户决定什么。当前只是讨论阶段，不要自行修改 GitHub 文件。"
+        )
+    }
+
+    private fun buildPrompt(objective: String, turns: List<CollaborationTurn>, speaker: String): String {
+        val transcript = turns.joinToString("\n\n") { it.speaker + "：" + it.content }
+            .ifBlank { "（这是第一轮讨论，暂无其他发言。）" }
+        return ("用户目标：\n" + objective +
+            "\n\n当前讨论记录：\n" + transcript +
+            "\n\n现在轮到 " + speaker + " 发言。\n" +
+            "请基于上面的真实讨论继续思考，不要重复内部规则。直接给出你的判断、补充、质疑或建议。" +
+            "如果已经形成明确方案，可以说明方案已经足够明确；如果必须由用户选择，请明确指出需要用户决定的问题。").trim()
+    }
+
     fun requestConstruction(taskId: String, aiMemberId: String): CollaborationTaskRecord {
         val taskStore = CollaborationTaskStore(context)
         val task = taskStore.get(taskId) ?: error("协作任务不存在：$taskId")
@@ -361,356 +331,11 @@ class CollaborationCoordinator(
             "taskId=" + taskId + " commit=" + branchHead + " path=" + path)
     }
 
+
     private fun gitBlobSha(content: String): String {
         val bytes = content.toByteArray(Charsets.UTF_8)
         val header = ("blob " + bytes.size + "\u0000").toByteArray(Charsets.UTF_8)
-        val digest = MessageDigest.getInstance("SHA-1")
-        return digest.digest(header + bytes).joinToString("") { "%02x".format(it) }
-    }
-
-    private fun discardPendingAiBInputs(taskId: String) {
-        transport.pendingFor(CollaborationProtocol.Role.AI_B)
-            .filter {
-                it.taskId == taskId &&
-                    (it.type == CollaborationProtocol.Type.TASK ||
-                        it.type == CollaborationProtocol.Type.DECISION_RESPONSE)
-            }
-            .forEach { transport.markHandled(it.id) }
-    }
-
-    /**
-     * Verifies the current Commit and, when it passes, starts one bounded
-     * AI A → AI B continuation round. The next AI B file change,
-     * if any, must reacquire the ConstructionLock through the normal path.
-     */
-    fun verifyAndContinue(taskId: String, aiASystemPrompt: String, aiBSystemPrompt: String): GitHubVerifyResult {
-        val result = verifyTask(taskId)
-        if (result.state != GitHubVerifyState.PASSED) return result
-
-        val task = CollaborationTaskStore(context).get(taskId) ?: return result
-        discardPendingAiBInputs(taskId)
-        CollaborationTaskStore(context).update(taskId) {
-            it.status = CollaborationTaskRecord.STATUS_RUNNING
-            it.constructionHolderAiMemberId = null
-        }
-
-        val commitMessage = CollaborationProtocol.commit(
-            taskId,
-            result.commitSha,
-            "Verified Commit",
-            listOfNotNull(task.lastChangedPath),
-            "GitHub Actions Verify passed"
-        )
-        transport.append(commitMessage)
-
-        val aiAPrompt = aiASystemPrompt +
-            "\n这是系统确认通过的 Commit。请决定任务是否完成；若未完成，必须返回合法 JSON，from=ai_a,to=ai_b,type=DECISION_RESPONSE，并给出下一步施工指令。"
-        val aiA = parseProtocolResponseWithRetry(callAiA(commitMessage, aiAPrompt)) {
-            callAiA(commitMessage, aiAPrompt + compactRetryPrompt(CollaborationProtocol.Role.AI_A, false))
-        }
-        validateResponse(aiA, CollaborationProtocol.Role.AI_A)
-        transport.append(aiA)
-
-        if (aiA.type == CollaborationProtocol.Type.COMPLETE) {
-            CollaborationTaskStore(context).update(taskId) {
-                it.status = CollaborationTaskRecord.STATUS_COMPLETE
-            }
-            return result
-        }
-
-        require(aiA.type == CollaborationProtocol.Type.DECISION_RESPONSE) {
-            "Verify 通过后的 AI A 必须返回 DECISION_RESPONSE 或 COMPLETE"
-        }
-
-        // Verify_PASSED is an explicit boundary. A DECISION_RESPONSE means the
-        // task is continuing, so reopen the bounded AI B round explicitly.
-        // This avoids dispatchOneAiBRound() silently rejecting the persisted
-        // VERIFY_PASSED state.
-        CollaborationTaskStore(context).update(taskId) {
-            it.status = CollaborationTaskRecord.STATUS_RUNNING
-        }
-        dispatchOneAiBRound(aiBSystemPrompt, aiASystemPrompt)
-        return result
-    }
-
-    /**
-     * Reopens a Verify-failed task for a bounded repair round. The existing
-     * construction holder is intentionally retained so another AI cannot
-     * modify the same Repository/Branch while the failure is being repaired.
-     */
-    fun retryAfterVerifyFailure(taskId: String, aiASystemPrompt: String, aiBSystemPrompt: String): GitHubVerifyResult {
-        val task = CollaborationTaskStore(context).get(taskId) ?: error("协作任务不存在：$taskId")
-        require(task.workspaceId == workspaceId && task.conversationId == conversationId) {
-            "协作任务不属于当前工作区 / 对话"
-        }
-        require(task.status == CollaborationTaskRecord.STATUS_FAILED) {
-            "只有 Verify 失败的任务可以进入修复轮"
-        }
-        val repairHolder = task.constructionHolderAiMemberId?.takeIf { it.isNotBlank() }
-            ?: error("当前任务没有施工者，无法自动进入修复轮")
-
-        val workspace = BridgeProjectStore(context).load().firstOrNull { it.id == workspaceId }
-            ?: error("工作区不存在：$workspaceId")
-
-        // A Verify failure deliberately retains construction authority for the
-        // repair round. Do not transition FAILED -> RUNNING unless the actual
-        // Repository/Branch lock is still held by the recorded repair owner.
-        ConstructionLockStore(context).requireHolder(workspace, repairHolder)
-        discardPendingAiBInputs(taskId)
-
-        CollaborationTaskStore(context).update(taskId) {
-            it.status = CollaborationTaskRecord.STATUS_RUNNING
-        }
-
-        val failureNotice = CollaborationProtocol.Message(
-            from = CollaborationProtocol.Role.HUMAN,
-            to = CollaborationProtocol.Role.AI_A,
-            taskId = taskId,
-            type = CollaborationProtocol.Type.PROGRESS,
-            payload = JSONObject()
-                .put("objective", task.objective)
-                .put("instruction", "上一 Commit 的 GitHub Actions Verify 失败，请分析失败结果并决定下一步修复；不得直接宣布任务完成。")
-        )
-        val aiA = parseProtocolResponseWithRetry(callAiA(failureNotice, aiASystemPrompt)) {
-            callAiA(failureNotice, aiASystemPrompt + compactRetryPrompt(CollaborationProtocol.Role.AI_A, false))
-        }
-        validateResponse(aiA, CollaborationProtocol.Role.AI_A)
-        require(aiA.type == CollaborationProtocol.Type.DECISION_RESPONSE) {
-            "Verify 失败后的 AI A 必须返回 DECISION_RESPONSE"
-        }
-        transport.append(aiA)
-        dispatchOneAiBRound(aiBSystemPrompt, aiASystemPrompt)
-        return GitHubVerifyResult(
-            GitHubVerifyState.FAILED,
-            task.lastCommitSha.orEmpty(),
-            message = "Verify 失败，已进入修复轮"
-        )
-    }
-
-    /**
-     * Returns the current persisted task for this Workspace + Conversation.
-     */
-    fun currentTask(): CollaborationTaskRecord? =
-        CollaborationTaskStore(context).latest(workspaceId, conversationId)
-
-    fun callAiA(message: CollaborationProtocol.Message, systemPrompt: String): String {
-        require(message.to == CollaborationProtocol.Role.AI_A)
-        return CollaborationApiClient(CollaborationApiConfig.fromProfile(context, aiAProfileId)).invoke(message, systemPrompt)
-    }
-
-    fun callAiB(message: CollaborationProtocol.Message, systemPrompt: String): String {
-        require(message.to == CollaborationProtocol.Role.AI_B)
-        return CollaborationApiClient(CollaborationApiConfig.fromProfile(context, aiBProfileId)).invoke(message, systemPrompt)
-    }
-
-    fun runObjective(
-        objective: String,
-        aiASystemPrompt: String,
-        aiBSystemPrompt: String
-    ): List<CollaborationProtocol.Message> {
-        require(objective.isNotBlank()) { "objective is blank" }
-        val taskRecord = CollaborationTaskStore(context).create(
-            workspaceId = workspaceId,
-            conversationId = conversationId,
-            objective = objective
-        )
-        val taskId = taskRecord.taskId
-        CollaborationTaskStore(context).update(taskId) {
-            it.status = CollaborationTaskRecord.STATUS_RUNNING
-        }
-        val humanMessage = CollaborationProtocol.Message(
-            from = CollaborationProtocol.Role.HUMAN,
-            to = CollaborationProtocol.Role.AI_A,
-            taskId = taskId,
-            type = CollaborationProtocol.Type.PROGRESS,
-            payload = JSONObject().put("objective", objective)
-        )
-        AppLogger.log(context, AppLogger.Category.COLLABORATION, "HUMAN_OBJECTIVE", "taskId=" + taskId)
-        val rawTask = callAiA(humanMessage, aiASystemPrompt)
-        val task = parseProtocolResponseWithRetry(rawTask) {
-            callAiA(humanMessage, aiASystemPrompt + compactRetryPrompt(CollaborationProtocol.Role.AI_A))
-        }
-        require(task.type == CollaborationProtocol.Type.TASK) { "AI A did not return TASK" }
-        require(task.taskId == taskId) { "AI A changed task_id; collaboration task state cannot be recovered safely" }
-        require(task.from == CollaborationProtocol.Role.AI_A && task.to == CollaborationProtocol.Role.AI_B) {
-            "AI A TASK route is invalid"
-        }
-        submitTask(task)
-        CollaborationTaskStore(context).update(taskId) {
-            it.status = CollaborationTaskRecord.STATUS_RUNNING
-        }
-        AppLogger.log(context, AppLogger.Category.COLLABORATION, "TASK_SUBMITTED", "taskId=" + taskId)
-        val messages = mutableListOf<CollaborationProtocol.Message>()
-        var rounds = 0
-        val maxIterations = task.payload.optJSONObject("autonomy")?.optInt("max_iterations", 20)?.coerceIn(1, 20) ?: 20
-        while (rounds < maxIterations) {
-            val round = dispatchOneAiBRound(aiBSystemPrompt, aiASystemPrompt)
-            if (round.isEmpty()) break
-            messages += round
-            rounds++
-            val aiA = round.lastOrNull { it.from == CollaborationProtocol.Role.AI_A }
-            val state = CollaborationTaskStore(context).get(taskId)?.status
-            if (aiA?.type == CollaborationProtocol.Type.COMPLETE ||
-                aiA?.type == CollaborationProtocol.Type.BLOCKED ||
-                aiA?.type == CollaborationProtocol.Type.ESCALATE ||
-                state == CollaborationTaskRecord.STATUS_WAITING_VERIFY ||
-                state == CollaborationTaskRecord.STATUS_COMPLETE ||
-                state == CollaborationTaskRecord.STATUS_FAILED) break
-        }
-        if (rounds >= maxIterations && CollaborationTaskStore(context).get(taskId)?.status == CollaborationTaskRecord.STATUS_RUNNING) {
-            CollaborationTaskStore(context).update(taskId) { it.status = CollaborationTaskRecord.STATUS_FAILED }
-            AppLogger.log(context, AppLogger.Category.COLLABORATION, "MAX_ITERATIONS", "taskId=$taskId")
-        }
-        return messages
-    }
-
-    /** Execute one bounded collaboration round; the user-selected construction holder owns actual writes. */
-    fun dispatchOneAiBRound(aiBSystemPrompt: String, aiASystemPrompt: String): List<CollaborationProtocol.Message> {
-        val current = currentTask() ?: return emptyList()
-        // A persisted TASK/DECISION_RESPONSE may remain unhandled after a process
-        // restart. Never replay it after a real Commit has already moved the task
-        // into Verify/terminal state.
-        if (current.status != CollaborationTaskRecord.STATUS_RUNNING &&
-            current.status != CollaborationTaskRecord.STATUS_CONSTRUCTING
-        ) return emptyList()
-
-        val task = transport.pendingFor(CollaborationProtocol.Role.AI_B)
-            .firstOrNull {
-                it.taskId == current.taskId &&
-                    (it.type == CollaborationProtocol.Type.TASK || it.type == CollaborationProtocol.Type.DECISION_RESPONSE)
-            } ?: return emptyList()
-        val aiBMessage = parseProtocolResponseWithRetry(callAiB(task, aiBSystemPrompt)) {
-            callAiB(task, aiBSystemPrompt + compactRetryPrompt(CollaborationProtocol.Role.AI_B))
-        }
-        validateResponse(aiBMessage, CollaborationProtocol.Role.AI_B)
-        require(aiBMessage.type in setOf(CollaborationProtocol.Type.DECISION_REQUEST, CollaborationProtocol.Type.PROGRESS, CollaborationProtocol.Type.BLOCKED, CollaborationProtocol.Type.FILE_CHANGE_REQUEST)) {
-            "AI B 只能返回 DECISION_REQUEST / PROGRESS / BLOCKED / FILE_CHANGE_REQUEST；Commit / Verify / Complete 必须由系统状态产生"
-        }
-        transport.append(aiBMessage)
-        transport.markHandled(task.id)
-
-        val messages = mutableListOf(aiBMessage)
-        val aiAInput = if (aiBMessage.type == CollaborationProtocol.Type.FILE_CHANGE_REQUEST) {
-            val commit = executeFileChangeRequest(task, aiBMessage)
-            transport.append(commit)
-            messages += commit
-            commit
-        } else {
-            aiBMessage
-        }
-        if (aiAInput.to != CollaborationProtocol.Role.AI_A) return messages
-        val aiAPrompt = if (aiAInput.type == CollaborationProtocol.Type.COMMIT) {
-            aiASystemPrompt + "\n现在进入施工结果审议阶段。你必须返回合法 JSON；from=ai_a，to=ai_b，type 必须为 DECISION_RESPONSE 或 COMPLETE。若 Commit 已满足目标，可返回 COMPLETE；否则返回 DECISION_RESPONSE，并在 instruction 中给出下一步。"
-        } else {
-            aiASystemPrompt
-        }
-        val aiAMessage = parseProtocolResponseWithRetry(callAiA(aiAInput, aiAPrompt)) {
-            callAiA(aiAInput, aiAPrompt + compactRetryPrompt(CollaborationProtocol.Role.AI_A, false))
-        }
-        validateResponse(aiAMessage, CollaborationProtocol.Role.AI_A)
-        transport.append(aiAMessage)
-        val taskId = task.taskId
-        CollaborationTaskStore(context).get(taskId)?.let { record ->
-            CollaborationTaskStore(context).update(taskId) {
-                it.status = when (aiAMessage.type) {
-                    CollaborationProtocol.Type.BLOCKED,
-                    CollaborationProtocol.Type.ESCALATE -> CollaborationTaskRecord.STATUS_WAITING_CONSTRUCTION
-                    CollaborationProtocol.Type.COMPLETE -> when (it.status) {
-                        CollaborationTaskRecord.STATUS_FAILED -> CollaborationTaskRecord.STATUS_FAILED
-                        CollaborationTaskRecord.STATUS_WAITING_VERIFY -> CollaborationTaskRecord.STATUS_WAITING_VERIFY
-                        CollaborationTaskRecord.STATUS_COMPLETE -> CollaborationTaskRecord.STATUS_COMPLETE
-                        else -> CollaborationTaskRecord.STATUS_COMPLETE
-                    }
-                    else -> record.status
-                }
-            }
-        }
-        messages += aiAMessage
-        return messages
-    }
-
-    fun pendingFor(role: CollaborationProtocol.Role): List<CollaborationProtocol.Message> = transport.pendingFor(role)
-
-    private fun parseProtocolResponseWithRetry(
-        raw: String,
-        retry: () -> String
-    ): CollaborationProtocol.Message {
-        return runCatching {
-            parseProtocolResponse(raw)
-        }.getOrElse { firstError ->
-            AppLogger.log(context, AppLogger.Category.COLLABORATION, "PROTOCOL_PARSE_RETRY", firstError.message ?: "invalid protocol response")
-            parseProtocolResponse(retry())
-        }
-    }
-
-    private fun compactRetryPrompt(role: CollaborationProtocol.Role, initialTask: Boolean = true): String {
-        val route = if (role == CollaborationProtocol.Role.AI_A) {
-            if (initialTask) "from=ai_a,to=ai_b,type=TASK" else "from=ai_a,to=ai_b,type=DECISION_RESPONSE|COMPLETE"
-        } else "from=aiB,to=ai_a,type=DECISION_REQUEST|PROGRESS|BLOCKED|FILE_CHANGE_REQUEST"
-        return "\n上一轮输出无法被完整解析。请立即重新输出一个完整、紧凑、合法的 JSON 对象；不要 Markdown、不要解释、不要换行长文本；$route。避免冗长 scope、acceptance、autonomy 与 context_refs，只保留完成协议所需内容。确保最后一个字符为 }。"
-    }
-    private fun executeFileChangeRequest(
-        taskMessage: CollaborationProtocol.Message,
-        request: CollaborationProtocol.Message
-    ): CollaborationProtocol.Message {
-        require(request.type == CollaborationProtocol.Type.FILE_CHANGE_REQUEST)
-        require(request.taskId == taskMessage.taskId)
-        val task = CollaborationTaskStore(context).get(taskMessage.taskId)
-            ?: error("协作任务不存在")
-        val memberId = task.constructionHolderAiMemberId?.takeIf { it.isNotBlank() }
-            ?: error("当前任务尚未由用户指定施工 AI，不能进入自动施工")
-        val workspace = BridgeProjectStore(context).load().firstOrNull { it.id == workspaceId }
-            ?: error("工作区不存在：" + workspaceId)
-        require(workspace.github.writeEnabled) { "当前工作区未允许 GitHub 修改" }
-        val taskDefinition = transport.all().firstOrNull { it.taskId == taskMessage.taskId && it.type == CollaborationProtocol.Type.TASK }
-            ?: error("协作 TASK 不存在，无法校验施工范围")
-        val scope = taskDefinition.payload.optJSONObject("scope") ?: JSONObject()
-        val path = request.payload.optString("path").trim().trimStart('/')
-        val operation = request.payload.optString("operation", "write").trim().lowercase()
-        val content = request.payload.optString("content", "")
-        val commitMessage = request.payload.optString("commit_message", "")
-        require(path.isNotBlank()) { "施工文件路径为空" }
-        require(content.isNotEmpty()) { "施工文件内容为空" }
-        require(commitMessage.isNotBlank()) { "Commit message 为空" }
-        val allowPaths = scope.optJSONArray("allow_paths")?.let { a -> (0 until a.length()).map { a.optString(it).trim().trimStart('/') }.filter { it.isNotBlank() } } ?: emptyList()
-        val denyPaths = scope.optJSONArray("deny_paths")?.let { a -> (0 until a.length()).map { a.optString(it).trim().trimStart('/') }.filter { it.isNotBlank() } } ?: emptyList()
-        val allowOperations = scope.optJSONArray("allow_operations")?.let { a -> (0 until a.length()).map { a.optString(it).trim().lowercase() }.filter { it.isNotBlank() } } ?: emptyList()
-        fun matches(root: String, candidate: String): Boolean = candidate == root || candidate.startsWith(root.trimEnd('/') + "/")
-        require(denyPaths.none { matches(it, path) }) { "施工路径被 deny_paths 禁止：" + path }
-        require(allowPaths.any { matches(it, path) }) { "施工路径不在 allow_paths：" + path }
-        require(allowOperations.contains(operation)) { "施工操作不在 allow_operations：" + operation }
-        val current = CollaborationTaskStore(context).get(taskMessage.taskId) ?: error("协作任务不存在")
-        require(current.status == CollaborationTaskRecord.STATUS_CONSTRUCTING) {
-            "当前协作任务未进入施工阶段"
-        }
-        require(current.constructionHolderAiMemberId == memberId) {
-            "当前施工 AI 与任务施工权不一致"
-        }
-        val token = GitHubTokenStore(context).state().accessToken?.takeIf { it.isNotBlank() } ?: error("GitHub 尚未授权")
-        val service = GitHubWorkspaceService(context, GitHubApiClient(context, token), workspace.github, workspace)
-        val file = service.file(path)
-        val sha = file.optString("sha").takeIf { it.isNotBlank() } ?: error("无法取得文件 SHA：" + path)
-        val result = updateFile(taskMessage.taskId, memberId, path, content, commitMessage, sha)
-        val commitSha = result.optJSONObject("commit")?.optString("sha").orEmpty()
-        runCatching { verifyTask(taskMessage.taskId) }
-            .onFailure { AppLogger.log(context, AppLogger.Category.COLLABORATION, "VERIFY_TRIGGER_FAILED", it.message ?: "verify trigger failed") }
-        return CollaborationProtocol.commit(taskMessage.taskId, commitSha, commitMessage, listOf(path), "1 file changed")
-    }
-    private fun parseProtocolResponse(raw: String): CollaborationProtocol.Message {
-        val text = raw.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
-        val json = try { JSONObject(text) } catch (_: Exception) {
-            val start = text.indexOf('{'); val end = text.lastIndexOf('}')
-            require(start >= 0 && end > start) { "AI response is not a protocol JSON object" }
-            JSONObject(text.substring(start, end + 1))
-        }
-        return try { CollaborationProtocol.Message.fromJson(json) } catch (cause: Exception) {
-            throw IllegalArgumentException("AI response is not a valid collaboration message: " + cause.message, cause)
-        }
-    }
-
-    private fun validateResponse(message: CollaborationProtocol.Message, expectedFrom: CollaborationProtocol.Role) {
-        require(message.from == expectedFrom) { "AI response has wrong sender: ${message.from}" }
-        val result = CollaborationProtocol.validate(message)
-        require(result.valid) { result.error ?: "invalid protocol response" }
+        return MessageDigest.getInstance("SHA-1").digest(header + bytes)
+            .joinToString("") { "%02x".format(it) }
     }
 }
