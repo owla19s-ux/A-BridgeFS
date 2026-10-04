@@ -71,8 +71,7 @@ class V021Activity : Activity() {
                 return
             }
 
-            val target = projects.firstOrNull { it.id == workspaceId }
-                ?: projects.firstOrNull { it.id == projectId }
+            val target = projects.firstOrNull { it.id == projectId }
                 ?: project
             val conversation = target?.let { ws ->
                 conversationId?.let { id -> ws.conversations.firstOrNull { it.id == id } } ?: ws.activeConversation()
@@ -348,8 +347,8 @@ class V021Activity : Activity() {
     }
 
     private fun projectAddressSummary(item: BridgeProject): String {
-        val local = item.workspaceDirectory?.trim().orEmpty()
-        val repo = item.github.repository?.trim().orEmpty()
+        val local = item.localAddress?.trim().orEmpty()
+        val repo = item.githubAddress.repository?.trim().orEmpty()
         return when {
             local.isNotBlank() -> "本地：" + local
             repo.isNotBlank() -> "GitHub：" + repo + " / " + item.github.branch.ifBlank { "默认分支" }
@@ -745,9 +744,9 @@ class V021Activity : Activity() {
     }
     private fun migrateLegacyWorkspaceDirectory() {
         val legacyRoot = prefs.getString("root_path", "").orEmpty().trim()
-        if (legacyRoot.isBlank() || projects.any { !it.workspaceDirectory.isNullOrBlank() }) return
+        if (legacyRoot.isBlank() || projects.any { !it.localAddress.isNullOrBlank() }) return
         val target = project ?: projects.firstOrNull() ?: return
-        target.workspaceDirectory = legacyRoot
+        target.localAddress = legacyRoot
         store.save(projects)
     }
 
