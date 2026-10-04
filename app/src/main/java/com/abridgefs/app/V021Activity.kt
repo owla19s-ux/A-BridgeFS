@@ -1522,9 +1522,20 @@ class V021Activity : Activity() {
         executor.execute {
             try {
                 val limit = prefs.getInt("command_limit", 3).coerceIn(1, 20)
+                val github = GitHubConversationReader(this).readForConversation(project, text)
+                val githubPrompt = if (github.content.isNotBlank()) {
+                    "\n\n[GitHub 只读资料]\nRepository: ${github.repository}\nBranch: ${github.branch ?: "默认分支"}\n以下内容来自当前工作区绑定的 GitHub 仓库，仅用于本轮回答；不要执行任何修改操作。\n\n${github.content}"
+                } else if (github.enabled && !github.repository.isNullOrBlank()) {
+                    "\n\n[GitHub 只读状态]\n当前已连接 Repository: ${github.repository}\nBranch: ${github.branch ?: "默认分支"}\n本轮没有自动读取具体文件；如果需要查看文件，请在问题中给出文件路径。"
+                } else {
+                    ""
+                }
                 val answer = BridgeApiClient(
                     BridgeApiConfig(normalizeBaseUrl(a.baseUrl), a.key, a.model)
-                ).chat(conversation.messages, BridgeCommandSpec.aiSystemPrompt(limit))
+                ).chat(
+                    conversation.messages,
+                    BridgeCommandSpec.aiSystemPrompt(limit) + githubPrompt
+                )
                 runOnUiThread {
                     conversation.messages += BridgeChatMessage(
                         "assistant",
