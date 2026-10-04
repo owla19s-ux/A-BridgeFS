@@ -23,13 +23,14 @@ class ApsActivity : Activity() {
     private var externalAccess = false
     private val pendingTaskMentions = linkedSetOf<String>()
     private var projectInput: EditText? = null
-    private var conversationGroup = "默认分组"
+    private var conversationGroup = "新会话 1"
     private var selectedApi = "未绑定"
     private val apiProfiles = listOf("未绑定", "API Profile（示例）", "API Profile 2（示例）")
     private var apiSelectorOpen = false
     private var conversationManagementOpen = false
     private var projectAccessOpen = false
-    private val conversationGroups = linkedSetOf("默认分组")
+    private val conversationGroupNames = linkedSetOf("默认分组")
+    private val conversationNames = linkedSetOf("新会话 1")
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
@@ -193,13 +194,13 @@ GitHub：未设置"
                     orientation = LinearLayout.HORIZONTAL
                     gravity = Gravity.CENTER_VERTICAL
                 }
-                groupRow.addView(value(conversationGroups.joinToString("  ·  ")),
+                groupRow.addView(value(conversationGroupNames.joinToString("  ·  ")),
                     LinearLayout.LayoutParams(0, dp(40), 1f))
                 groupRow.addView(Button(this@ApsActivity).apply {
                     text = "新建分组"
                     setOnClickListener {
-                        val next = "分组 " + (conversationGroups.size + 1)
-                        conversationGroups.add(next)
+                        val next = "分组 " + (conversationGroupNames.size + 1)
+                        conversationGroupNames.add(next)
                         conversationGroup = next
                         render()
                     }
@@ -211,8 +212,8 @@ GitHub：未设置"
                 actionRow.addView(Button(this@ApsActivity).apply {
                     text = "新建会话"
                     setOnClickListener {
-                        val next = "新会话 " + (conversationGroups.size + 1)
-                        conversationGroups.add(next)
+                        val next = "新会话 " + (conversationNames.size + 1)
+                        conversationNames.add(next)
                         conversationGroup = next
                         render()
                     }
@@ -220,9 +221,9 @@ GitHub：未设置"
                 actionRow.addView(Button(this@ApsActivity).apply {
                     text = "删除当前"
                     setOnClickListener {
-                        if (conversationGroups.size > 1) {
-                            conversationGroups.remove(conversationGroup)
-                            conversationGroup = conversationGroups.first()
+                        if (conversationNames.size > 1) {
+                            conversationNames.remove(conversationGroup)
+                            conversationGroup = conversationNames.first()
                             render()
                         } else {
                             toast("默认会话不能删除")
