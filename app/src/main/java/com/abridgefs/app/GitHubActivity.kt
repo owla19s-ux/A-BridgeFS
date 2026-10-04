@@ -63,8 +63,17 @@ class GitHubActivity : android.app.Activity() {
             setPadding(0, dp(4), 0, dp(16))
         })
 
+        root.addView(Switch(this).apply {
+            text = "允许 A-BridgeFS 访问 GitHub"
+            isChecked = AccessPolicy.isGithubEnabled(this@GitHubActivity)
+            setOnCheckedChangeListener { _, checked ->
+                AccessPolicy.setGithubEnabled(this@GitHubActivity, checked)
+                render()
+            }
+        })
+
         if (!AccessPolicy.isGithubEnabled(this)) {
-            root.addView(info("GitHub 全局访问已关闭", "请先在“配置 → 连接与访问”开启。"))
+            root.addView(info("GitHub 全局访问已关闭", "开启后才能连接账号、选择 Repository 和测试 API。"))
             return
         }
 
@@ -79,6 +88,9 @@ class GitHubActivity : android.app.Activity() {
         }
 
         root.addView(info("● 已连接", auth.login ?: "GitHub 账号"))
+        root.addView(button("测试 GitHub API 连通性") {
+            testGitHubApi()
+        })
         root.addView(info("凭据", auth.credentialType ?: "GitHub Token"))
         root.addView(section("Repository"))
         root.addView(info(workspace?.github?.displayRepository() ?: "未选择 Repository", "当前工作区 Repository"))
@@ -229,6 +241,40 @@ class GitHubActivity : android.app.Activity() {
         }
     }
 
+    private fun testGitHubApi() {
+        if (!AccessPolicy.isGithubEnabled(this)) {
+            Toast.makeText(this, "请先开启 GitHub 访问", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val token = authStore.state().accessToken
+        if (token.isNullOrBlank()) {
+            Toast.makeText(this, "GitHub 尚未连接", Toast.LENGTH_SHORT).show()
+            return
+        }
+        Toast.makeText(this, "正在测试 GitHub API…", Toast.LENGTH_SHORT).show()
+        executor.execute {
+            runCatching {
+                val client = GitHubApiClient(this)
+                val user = client.getCurrentUser()
+                val repos = client.listRepositories(5)
+                val repository = workspace?.github?.repository
+                if (!repository.isNullOrBlank()) {
+                    val parts = repository.split("/", limit = 2)
+                    require(parts.size == 2) { "Repository 格式无效：" + repository }
+                    client.getRepository(parts[0], parts[1])
+                }
+                "账号 " + user.optString("login").ifBlank { "未知" } + " · Repository API 正常 · 已返回 " + repos.length() + " 项"
+            }.onSuccess { result ->
+                runOnUiThread {
+                    Toast.makeText(this, "GitHub API 测试成功：" + result, Toast.LENGTH_LONG).show()
+                }
+            }.onFailure { e ->
+                runOnUiThread {
+                    Toast.makeText(this, "GitHub API 测试失败：" + (e.message ?: "未知错误"), Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
     private fun chooseRepository() {
         val service = workspaceService() ?: return
         executor.execute {

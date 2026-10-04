@@ -19,7 +19,6 @@
         <activity android:name=".MainActivity" android:exported="false" />
         <activity android:name=".GitHubActivity" android:exported="false" />
         <activity android:name=".ApiSettingsActivity" android:exported="false" />
-        <activity android:name=".GlobalAccessActivity" android:exported="false" />
         <activity android:name=".SettingsCategoryActivity" android:exported="false" />
         <service
             android:name=".FileBridgeService"

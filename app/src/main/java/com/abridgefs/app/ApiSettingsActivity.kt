@@ -6,165 +6,170 @@ import android.text.InputType
 import android.view.Gravity
 import android.view.View
 import android.widget.*
-import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import java.util.UUID
 
-/** Dedicated API configuration page. MainActivity should only provide the entry point. */
+/** API profiles and the global API access switch. */
 class ApiSettingsActivity : Activity() {
-    private val secrets by lazy { ApiSecretStore(this) }
-    private val prefs by lazy { getSharedPreferences("bridgefs", 0) }
+    private val store by lazy { ApiProfileStore(this) }
+    private lateinit var rootView: LinearLayout
+    private lateinit var profileBox: LinearLayout
+    private lateinit var status: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.statusBarColor = resources.getColor(R.color.bridgefs_surface)
         window.navigationBarColor = resources.getColor(R.color.bridgefs_surface)
         window.decorView.systemUiVisibility = window.decorView.systemUiVisibility or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+        setContentView(buildPage())
+    }
 
-        val root = LinearLayout(this).apply {
+    override fun onResume() {
+        super.onResume()
+        if (::profileBox.isInitialized) rebuildProfiles()
+    }
+
+    private fun buildPage(): View {
+        rootView = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(resources.getColor(R.color.bridgefs_surface))
             setPadding(dp(16), dp(12), dp(16), dp(20))
+            setBackgroundColor(resources.getColor(R.color.bridgefs_surface))
         }
-
-        val header = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        val back = TextView(this).apply {
-            text = "‹"
-            textSize = 32f
-            gravity = Gravity.CENTER
+        val header = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
+        header.addView(TextView(this).apply {
+            text = "‹"; textSize = 32f; gravity = Gravity.CENTER
             setTextColor(resources.getColor(R.color.bridgefs_text_primary))
             setOnClickListener { finish() }
-        }
-        header.addView(back, LinearLayout.LayoutParams(dp(44), dp(52)))
+        }, LinearLayout.LayoutParams(dp(44), dp(52)))
         header.addView(TextView(this).apply {
-            text = "API 与模型"
-            textSize = 21f
-            setTypeface(null, 1)
+            text = "AI 与 API"; textSize = 21f; setTypeface(null, 1)
             setTextColor(resources.getColor(R.color.bridgefs_text_primary))
         }, LinearLayout.LayoutParams(0, dp(52), 1f))
-        root.addView(header)
+        rootView.addView(header)
 
-        root.addView(sectionLabel("当前 API"))
-        val provider = EditText(this).apply {
-            hint = "API 名称（例如 DeepSeek / OpenAI）"
-            setText(prefs.getString("api_provider", ""))
-            textSize = 14f
-        }
-        root.addView(provider, fieldParams())
-
-        root.addView(sectionLabel("API 地址"))
-        val baseUrl = EditText(this).apply {
-            hint = "https://.../v1"
-            setText(prefs.getString("api_base_url", ""))
-            textSize = 14f
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
-        }
-        root.addView(baseUrl, fieldParams())
-
-        root.addView(sectionLabel("API Key"))
-        val key = EditText(this).apply {
-            hint = "输入 API Key"
-            setText(secrets.getNamed("legacy") ?: prefs.getString("api_key", "").orEmpty())
-            textSize = 14f
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-        }
-        root.addView(key, fieldParams())
-
-        root.addView(sectionLabel("模型"))
-        val model = EditText(this).apply {
-            hint = "模型名称"
-            setText(prefs.getString("api_model", ""))
-            textSize = 14f
-        }
-        root.addView(model, fieldParams())
-
-        val status = TextView(this).apply {
-            text = "连接状态：未测试"
-            textSize = 13f
-            setTextColor(resources.getColor(R.color.bridgefs_text_secondary))
-            setPadding(dp(4), dp(10), dp(4), dp(10))
-        }
-        root.addView(status, LinearLayout.LayoutParams(-1, dp(42)))
-
-        val test = actionButton("测试连接") {
-            if (!AccessPolicy.isApiEnabled(this)) {
-                status.text = "连接状态：API 全局访问已关闭"
-                Toast.makeText(this, "请先在「连接与访问」中开启 API", Toast.LENGTH_SHORT).show()
-                return@actionButton
-            }
-            val url = baseUrl.text.toString().trim()
-            val modelName = model.text.toString().trim()
-            if (url.isBlank() || modelName.isBlank()) {
-                status.text = "连接状态：请先填写 API 地址和模型"
-                return@actionButton
-            }
-            status.text = "连接状态：测试中…"
-            Thread {
-                runCatching {
-                    AppLogger.log(this, "API_TEST_START", "baseUrl=$url model=$modelName")
-                    val result = BridgeApiClient(BridgeApiConfig(url, key.text.toString(), modelName)).testConnection()
-                    runOnUiThread { status.text = "连接状态：成功（$result）" }
-                    AppLogger.log(this, "API_TEST_RESULT", "success=$result")
-                }.onFailure { e ->
-                    val reason = e.message ?: e::class.simpleName ?: "未知错误"
-                    runOnUiThread { status.text = "连接状态：失败\n$reason" }
-                    AppLogger.log(this, "API_TEST_RESULT", "failure=$reason")
-                }
-            }.start()
-        }
-        root.addView(test, LinearLayout.LayoutParams(-1, dp(46)))
-
-        root.addView(actionButton("保存 API 设置") {
-            prefs.edit()
-                .putString("api_provider", provider.text.toString().trim())
-                .putString("api_base_url", baseUrl.text.toString().trim())
-                
-                .putString("api_model", model.text.toString().trim())
-                .apply()
-            secrets.putNamed("legacy", key.text.toString())
-            prefs.edit().remove("api_key").apply()
-            Toast.makeText(this, "API 设置已保存", Toast.LENGTH_SHORT).show()
-            finish()
-        }, LinearLayout.LayoutParams(-1, dp(46)).apply { topMargin = dp(10) })
-
-
-        root.addView(sectionLabel("AI 协作"))
-        root.addView(TextView(this).apply {
-            text = "API Profile 只负责连接资源。AI 协作参与者请回到「工作区」，从已保存的 API Profile 中选择 AI A 与 AI B。这里不再保存固定的 Decision AI / Worker API。"
-            textSize = 13f
-            setTextColor(resources.getColor(R.color.bridgefs_text_secondary))
-            setPadding(dp(4), dp(6), dp(4), dp(10))
+        rootView.addView(Switch(this).apply {
+            text = "允许 A-BridgeFS 访问外部 API"
+            isChecked = AccessPolicy.isApiEnabled(this@ApiSettingsActivity)
+            setOnCheckedChangeListener { _, checked -> AccessPolicy.setApiEnabled(this@ApiSettingsActivity, checked) }
         })
-        root.addView(actionButton("返回工作区选择协作 AI") {
-            finish()
-        }, LinearLayout.LayoutParams(-1, dp(46)))
+        rootView.addView(sectionLabel("API Profiles"))
+        profileBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        rootView.addView(profileBox)
+        rootView.addView(actionButton("＋ 添加 API") { editProfile(null) }, LinearLayout.LayoutParams(-1, dp(44)))
+        status = TextView(this).apply {
+            textSize = 12f; setTextColor(resources.getColor(R.color.bridgefs_text_secondary))
+            setPadding(dp(4), dp(10), dp(4), dp(4))
+        }
+        rootView.addView(status)
+        rootView.addView(TextView(this).apply {
+            text = "API Profile 是普通对话和 AI 协作共用的连接资源。"
+            textSize = 12f; setTextColor(resources.getColor(R.color.bridgefs_text_secondary))
+            setPadding(dp(4), dp(8), dp(4), dp(10))
+        })
+        rebuildProfiles()
+        return ScrollView(this).apply { addView(rootView) }
+    }
 
-        val scroll = ScrollView(this).apply { addView(root) }
-        setContentView(scroll)
+    private fun rebuildProfiles() {
+        profileBox.removeAllViews()
+        val profiles = store.list()
+        if (profiles.isEmpty()) {
+            profileBox.addView(TextView(this).apply {
+                text = "还没有 API Profile"; textSize = 13f
+                setTextColor(resources.getColor(R.color.bridgefs_text_secondary))
+                setPadding(dp(4), dp(6), dp(4), dp(8))
+            })
+            status.text = "添加后即可在普通对话或工作区协作中选择。"
+            return
+        }
+        profiles.forEach { profile ->
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL; setPadding(dp(12), dp(10), dp(10), dp(8))
+                background = rounded(R.color.bridgefs_input_surface, 12)
+            }
+            row.addView(TextView(this).apply {
+                text = profile.name.ifBlank { "未命名 API" }; textSize = 15f; setTypeface(null, 1)
+                setTextColor(resources.getColor(R.color.bridgefs_text_primary))
+            })
+            row.addView(TextView(this).apply {
+                text = profile.model.ifBlank { "未设置模型" } + " · " + profile.baseUrl
+                textSize = 12f; setTextColor(resources.getColor(R.color.bridgefs_text_secondary))
+                setPadding(0, dp(3), 0, dp(4))
+            })
+            val actions = LinearLayout(this).apply { gravity = Gravity.END }
+            actions.addView(textButton("测试") { testProfile(profile) }, LinearLayout.LayoutParams(dp(64), dp(38)))
+            actions.addView(textButton("编辑") { editProfile(profile) }, LinearLayout.LayoutParams(dp(64), dp(38)))
+            actions.addView(textButton("删除") { removeProfile(profile) }, LinearLayout.LayoutParams(dp(64), dp(38)))
+            row.addView(actions)
+            profileBox.addView(row, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
+        }
+        status.text = "共 " + profiles.size + " 个 API Profile"
+    }
+
+    private fun editProfile(old: ApiProfile?) {
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(4), 0, dp(4), 0) }
+        val name = field("名称", old?.name)
+        val avatar = field("头像（文字 / Emoji）", old?.avatar)
+        val url = field("API 地址", old?.baseUrl)
+        val key = field("API Key", old?.key).apply { inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD }
+        val model = field("模型", old?.model)
+        listOf(name, avatar, url, key, model).forEach { box.addView(it) }
+        AlertDialog.Builder(this).setTitle(if (old == null) "添加 API" else "编辑 API").setView(box)
+            .setPositiveButton("保存") { _, _ ->
+                val profile = ApiProfile(old?.id ?: UUID.randomUUID().toString(), name.text.toString().trim(), url.text.toString().trim(), key.text.toString(), model.text.toString().trim(), avatar.text.toString().trim())
+                if (profile.name.isBlank() || profile.baseUrl.isBlank() || profile.model.isBlank()) {
+                    Toast.makeText(this, "名称、API 地址和模型不能为空", Toast.LENGTH_SHORT).show()
+                } else { store.save(profile); rebuildProfiles() }
+            }.setNegativeButton("取消", null).show()
+    }
+
+    private fun testProfile(profile: ApiProfile) {
+        if (!AccessPolicy.isApiEnabled(this)) { Toast.makeText(this, "请先开启 API 全局访问", Toast.LENGTH_SHORT).show(); return }
+        status.text = "正在测试：" + profile.name + "…"
+        Thread {
+            runCatching {
+                AppLogger.log(this, AppLogger.Category.API, "API_TEST_START", "profile=" + profile.id + " model=" + profile.model)
+                val result = BridgeApiClient(BridgeApiConfig(profile.baseUrl, profile.key, profile.model)).testConnection()
+                runOnUiThread { status.text = profile.name + "：连接成功（" + result + "）" }
+                AppLogger.log(this, AppLogger.Category.API, "API_TEST_RESULT", "profile=" + profile.id + " success=" + result)
+            }.onFailure { e ->
+                val reason = e.message ?: e::class.simpleName ?: "未知错误"
+                runOnUiThread { status.text = profile.name + "：连接失败\n" + reason }
+                AppLogger.log(this, AppLogger.Category.API, "API_TEST_RESULT", "profile=" + profile.id + " failure=" + reason)
+            }
+        }.start()
+    }
+
+    private fun removeProfile(profile: ApiProfile) {
+        AlertDialog.Builder(this).setTitle("移除 API")
+            .setMessage("确定移除「" + profile.name + "」？使用它的对话会保留，但将失去对应 API 配置。")
+            .setPositiveButton("移除") { _, _ -> store.remove(profile.id); rebuildProfiles() }
+            .setNegativeButton("取消", null).show()
+    }
+
+    private fun field(label: String, value: String?) = EditText(this).apply {
+        hint = label; setText(value.orEmpty()); textSize = 14f; setSingleLine(true)
+        setPadding(dp(8), dp(8), dp(8), dp(8)); layoutParams = LinearLayout.LayoutParams(-1, dp(50))
     }
 
     private fun sectionLabel(text: String) = TextView(this).apply {
-        this.text = text
-        textSize = 13f
-        setTypeface(null, 1)
-        setTextColor(resources.getColor(R.color.bridgefs_text_secondary))
-        setPadding(dp(4), dp(14), dp(4), dp(6))
+        this.text = text; textSize = 13f; setTypeface(null, 1)
+        setTextColor(resources.getColor(R.color.bridgefs_text_secondary)); setPadding(dp(4), dp(12), dp(4), dp(6))
     }
 
-    private fun fieldParams() = LinearLayout.LayoutParams(-1, dp(50))
-
     private fun actionButton(text: String, action: () -> Unit) = TextView(this).apply {
-        this.text = text
-        textSize = 14f
-        gravity = Gravity.CENTER
-        setTextColor(resources.getColor(R.color.bridgefs_button_text))
-        background = GradientDrawable().apply {
-            setColor(resources.getColor(R.color.bridgefs_button_bg))
-            cornerRadius = dp(10).toFloat()
-        }
+        this.text = text; textSize = 14f; gravity = Gravity.CENTER
+        setTextColor(resources.getColor(R.color.bridgefs_button_text)); background = rounded(R.color.bridgefs_button_bg, 10)
         setOnClickListener { action() }
+    }
+
+    private fun textButton(text: String, action: () -> Unit) = TextView(this).apply {
+        this.text = text; textSize = 12f; gravity = Gravity.CENTER
+        setTextColor(resources.getColor(R.color.bridgefs_accent)); setOnClickListener { action() }
+    }
+
+    private fun rounded(colorRes: Int, radius: Int) = GradientDrawable().apply {
+        setColor(resources.getColor(colorRes)); cornerRadius = dp(radius).toFloat()
     }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()

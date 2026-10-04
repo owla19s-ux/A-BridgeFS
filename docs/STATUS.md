@@ -435,3 +435,52 @@ Workspace + Repository + Branch
 - 本轮已合并 Receipt 幂等、目标 Workspace 路由、Standalone 对话路由、聊天 UI 批量反馈等修复。
 - API 消息身份的数据保存与 V021 消息展示代码均已存在：AI 消息按发送时保存的 API 名称 / 头像展示；但尚无该 main Commit 对应的正式 Release Actions Run，因此仍只能标记为“代码已实现 / 待构建验证”。
 - 下一步按 `docs/BUILD-PRECHECK.md` 触发正式 `android-build.yml`，优先获得当前 main 的 Release APK / 签名 / Actions 事实，再进行真机回归。
+
+
+## 2026-10-04 第二十一轮 UI 信息架构检查
+
+### 已发现并处理
+- 对话页与工作区协作对话继续保持两个独立入口；工作区不再直接承载协作任务详情与执行按钮。
+- 工作区协作卡片收缩为状态 + 进入协作对话；协作 AI 选择移动到协作对话内部。
+- 独立对话页移除本地文件修改开关，避免把执行权限配置塞进聊天页面。
+- 配置首页由 9 项压缩为 6 项，并直接串到真实设置页面；GitHub 从“连接与访问”独立入口进入 GitHub 页面。
+- API 全局访问开关移动到 API 设置页；GitHub 全局访问开关移动到 GitHub 设置页，减少跨页面寻找开关。
+- GitHub 页面新增“测试 GitHub API 连通性”，会实际调用账号、Repository API，用于手机端验证 API 是否真的可访问 GitHub。
+- 聊天页面使用 adjustResize 时不再额外给内容区叠加 IME bottom padding，避免输入框高于输入法并产生空白/遮挡。
+
+### 待验证
+- Android 真机验证普通对话输入框是否随输入法正确上移。
+- Android 真机验证协作对话输入框是否紧贴输入法顶部。
+- Android 真机验证 GitHub API 连通性按钮的成功/失败反馈。
+- Android 真机验证配置首页 → API / GitHub / 执行 / 文件 / 系统 / 日志各入口是否形成完整返回链路。
+
+## 2026-10-04 UI 信息架构第三轮收口
+- 已确认：工作区保留「AI 协作」快速入口，不把协作对话藏到配置或二级页面；工作区同时显示参与 AI 与最新协作状态/Commit 摘要。
+- 已移除 V021Activity 中旧的「协作任务」大卡片，任务详情与操作只留在协作对话，避免同一功能出现两套入口。
+- API 设置统一改为直接读写 ApiProfileStore；普通对话与协作共用同一组 API Profile，消除旧 SharedPreferences API 配置与新 Profile 架构并存的问题。
+- API 全局访问开关保留在「AI 与 API」页面；GitHub 全局访问开关保留在 GitHub 页面；旧 GlobalAccessActivity 已移除。
+- MainActivity 仅做兼容保留，已去除对 GlobalAccessActivity 的引用；V021Activity 继续作为正式 Launcher/UI。
+- 当前状态：代码整理已完成，尚未进行真机验证；本轮暂不宣称 APK 已验证。
+
+## 2026-10-04 UI 信息架构第四轮检查
+- 工作区继续压缩：GitHub 卡片只保留连接状态、Repository、Branch 与进入入口；AI 协作保留为工作区一级快速入口，并显示最新协作状态。
+- 协作对话继续保持独立页面；用户可见文本不再展示内部 Decision AI / Worker 分类，内部协议角色仍保留。
+- 删除 V021Activity 中已经没有入口的旧本地权限卡与旧 API 编辑/删除代码，避免正式 UI 与遗留代码并存。
+- GitHub 全局访问开关调整为始终可见：即使 GitHub 当前关闭，也可以直接在 GitHub 页面重新开启，不再依赖不存在的“连接与访问”入口。
+- ApiProfileStore 已确认 API Key 由 ApiSecretStore 保存，API 设置读取到的是实际使用的 Profile 数据；普通对话和协作使用同一数据源。
+- MainActivity 仍有历史 UI 代码残留，但已不是 Launcher，且当前新 UI 没有引用它；本轮不再继续扩大改动范围，后续可单独清理。
+- 当前状态：代码层继续收口，尚未构建/真机验证。
+
+
+
+## 2026-10-04 UI 信息架构第五轮收口
+- 复查发现协作对话仍会把内部 `Decision AI / Worker` 角色名直接展示给用户；已改为统一显示为「AI / 协作 AI」，内部协议角色只保留在协议与系统提示中。
+- 本轮继续坚持：内部协作协议可以区分角色，但正式 UI 不暴露内部角色分类。
+- 当前状态：代码层继续收口，尚未构建/真机验证。
+
+
+## 2026-10-04 协作执行链第五轮检查
+- 发现并修复协作执行时序问题：Worker 产生 `FILE_CHANGE_REQUEST` 后，真实 GitHub Contents Commit 进入 `WAITING_VERIFY` 时，不再提前把 Commit 交给下一轮 Decision AI；必须先通过与该 Commit SHA 精确绑定的 GitHub Actions Verify。
+- `V021Activity` 已接入有界的异步 Verify/继续循环：协作页面发起一轮后，会等待 Verify，Verify 通过才继续下一轮 AI 协作；Verify 失败进入受施工锁保护的修复轮。
+- 协作页面不再无条件把存在 `WAITING_VERIFY` 的任务显示成“协作完成”，会按实际任务状态显示完成/失败/等待验证。
+- 当前协作链已形成：AI 协作入口 → 双 API Profile → 协议任务 → FILE_CHANGE_REQUEST → ConstructionLock → GitHub Contents Commit → 精确 Commit Verify → 下一轮 AI；仍需 Release 构建与真机验证。

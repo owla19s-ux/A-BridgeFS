@@ -342,6 +342,17 @@ class CollaborationCoordinator(
 
         val task = CollaborationTaskStore(context).get(taskId) ?: return result
         discardPendingWorkerInputs(taskId)
+
+        // The previous Commit has now crossed the Verify boundary. Release the
+        // Repository/Branch construction lock before asking the Decision AI
+        // whether another construction round is needed. A continuing Worker
+        // round must reacquire the lock through requestConstruction().
+        val verifiedHolder = task.constructionHolderAiMemberId?.takeIf { it.isNotBlank() }
+        if (verifiedHolder != null) {
+            val workspace = BridgeProjectStore(context).load().firstOrNull { it.id == workspaceId }
+                ?: error("工作区不存在：$workspaceId")
+            ConstructionLockStore(context).release(workspace, verifiedHolder)
+        }
         CollaborationTaskStore(context).update(taskId) {
             it.status = CollaborationTaskRecord.STATUS_RUNNING
             it.constructionHolderAiMemberId = null
@@ -552,6 +563,16 @@ class CollaborationCoordinator(
             workerMessage
         }
         if (decisionInput.to != CollaborationProtocol.Role.DECISION_AI) return messages
+        // A real Commit is not yet a verified Commit. Once a GitHub write enters
+        // WAITING_VERIFY, stop this round here. The next Decision AI round must
+        // only start after the exact Commit SHA passes GitHub Actions Verify.
+        if (decisionInput.type == CollaborationProtocol.Type.COMMIT) {
+            val persisted = CollaborationTaskStore(context).get(task.taskId)
+            if (persisted?.status == CollaborationTaskRecord.STATUS_WAITING_VERIFY) {
+                return messages
+            }
+        }
+
         val decisionPrompt = if (decisionInput.type == CollaborationProtocol.Type.COMMIT) {
             decisionSystemPrompt + "\n现在进入施工结果审议阶段。你必须返回合法 JSON；from=decision_ai，to=worker，type 必须为 DECISION_RESPONSE 或 COMPLETE。若 Commit 已满足目标，可返回 COMPLETE；否则返回 DECISION_RESPONSE，并在 instruction 中给出下一步。"
         } else {
@@ -642,8 +663,10 @@ class CollaborationCoordinator(
         val sha = file.optString("sha").takeIf { it.isNotBlank() } ?: error("无法取得文件 SHA：" + path)
         val result = updateFile(taskMessage.taskId, memberId, path, content, commitMessage, sha)
         val commitSha = result.optJSONObject("commit")?.optString("sha").orEmpty()
-        runCatching { verifyTask(taskMessage.taskId) }
-            .onFailure { AppLogger.log(context, AppLogger.Category.COLLABORATION, "VERIFY_TRIGGER_FAILED", it.message ?: "verify trigger failed") }
+        // GitHub Actions Verify is asynchronous. Do not trigger an immediate
+        // verification attempt here: the real Commit must cross the explicit
+        // WAITING_VERIFY boundary first, and the caller owns the bounded
+        // Verify -> Decision AI -> Worker continuation loop.
         return CollaborationProtocol.commit(taskMessage.taskId, commitSha, commitMessage, listOf(path), "1 file changed")
     }
     private fun parseProtocolResponse(raw: String): CollaborationProtocol.Message {
