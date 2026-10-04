@@ -1169,7 +1169,7 @@ class V021Activity : Activity() {
                     conversation.messages,
                     BridgeCommandSpec.aiSystemPrompt(prefs.getInt("command_limit", 3).coerceIn(1, 20)) +
                         "\n\n[Project 信息]\n" + projectInfo +
-                        "\n你是当前 Project 的默认 AI。先直接回答用户问题；只有用户明确要求执行工作时，才进入后续工作流程。不要自动启动其他 AI 协作，不要使用 Decision AI / Worker AI / AI A / AI B 等旧角色。"
+                        "\n你是当前 Project 的默认 AI。先直接回答用户问题；只有用户明确要求执行工作时，才进入后续工作流程。不要自动启动其他 AI 协作，也不要恢复已经废弃的固定阶段角色模型。"
                 )
                 runOnUiThread {
                     conversation.messages += BridgeChatMessage(
