@@ -14,7 +14,7 @@ A-BridgeFS 当前作为 **AI 协作移动端工作台 + 本地执行桥** 进行
 
 **两个 AI 共享读取能力；施工权限独立管理，同一 Repository / Branch 同时最多一个 AI 持有修改权。**
 
-Decision AI / Worker AI 只作为任务阶段角色标签，不是固定身份。
+当前正式架构不设固定 Decision AI / Worker AI 身份。PLANNER / BUILDER / REVIEWER / OBSERVER 是动态任务阶段角色；旧 Decision / Worker 仅作为历史代码协议兼容术语，正在移除。
 
 ## 当前状态
 
@@ -132,7 +132,7 @@ Workspace + Repository + Branch
 - API Profile 由 `ApiProfileStore` 统一管理
 - 协作运行时按 Workspace 当前两个 AI Member 的 Profile ID 取 API
 - 不再使用全局 `collaboration_first_api_id` / `collaboration_second_api_id`
-- Decision / Worker 仅保留为当前协议的任务阶段路由，不作为固定身份或固定配置槽位
+- 旧 Decision / Worker 仅作为迁移中的历史协议路由，不应继续作为正式架构模型或固定身份；正式模型使用动态任务阶段角色
 
 仍需处理：专用 `ApiSettingsActivity` 仍保留旧的 legacy API 设置兼容页面；它不再作为 V021 协作配置入口，后续可继续清理。
 
@@ -165,7 +165,7 @@ Workspace + Repository + Branch
 
 - 已修复协作 AI 选择的 Workspace 隔离问题：不再从全局 SharedPreferences 读取协作 Profile ID，Workspace 的 `aiMembers` 成为唯一来源。
 - 移除 API 时同步解除所有 Workspace AI Member 的 Profile 绑定；若协作双 AI 配置因此不完整，会自动关闭协作模式，避免继续调用已删除 Profile。
-- 协作运行提示词已改为“规划参与者 / 执行参与者”任务阶段描述，不再把 Decision AI / Worker 写成两个永久身份。
+- 协作运行提示词已开始改为动态任务阶段描述，不再把 Decision AI / Worker 写成两个永久身份；当前代码仍有部分旧路由与提示词残留，待按正式协作模型统一迁移。
 - ⚠️ 未验证：以上代码尚未经过新的 Actions Run、APK 安装及真机验证。
 
 ### 2026-10-02 协作运行时第二轮检查
