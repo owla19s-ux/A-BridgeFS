@@ -8,8 +8,9 @@ import java.util.UUID
 /**
  * Standalone human ↔ single-AI conversations.
  *
- * These conversations are deliberately outside Workspace state. Workspace
- * conversations remain reserved for AI collaboration and workspace resources.
+ * These conversations are deliberately outside Project state. Project
+ * conversations belong to a Project; standalone conversations remain independent
+ * for ordinary chat, reading and external resource queries.
  */
 class BridgeConversationStore(private val context: Context) {
     private val prefs = context.getSharedPreferences("bridgefs_standalone_conversations", Context.MODE_PRIVATE)
