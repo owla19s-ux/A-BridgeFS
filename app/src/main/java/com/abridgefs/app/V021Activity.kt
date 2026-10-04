@@ -1257,8 +1257,8 @@ class V021Activity : Activity() {
         executor.execute {
             try {
                 val address = current.workspaceDirectory?.trim().orEmpty()
-                val githubRepository = current.githubRead.repository?.trim().orEmpty()
-                val branch = current.githubRead.branch?.trim().orEmpty()
+                val githubRepository = current.github.repository?.trim().orEmpty()
+                val branch = current.github.branch?.trim().orEmpty()
                 val projectInfo = buildString {
                     append("当前 Project：").append(current.name)
                     if (address.isNotBlank()) append("\nLocal Project Address：").append(address)
@@ -1278,7 +1278,7 @@ class V021Activity : Activity() {
                 }
                 val githubPrompt = if (githubRead.content.isNotBlank()) {
                     "\n\n[Project GitHub 只读资料]\nRepository: " + github.repository +
-                        "\nBranch: " + (github.branch ?: "默认分支") +
+                        "\nBranch: " + (githubRead.branch ?: "默认分支") +
                         "\n以下内容来自当前 Project Address，仅用于本轮回答；不要执行任何修改操作。\n\n" + githubRead.content
                 } else ""
                 val answer = BridgeApiClient(
@@ -1355,8 +1355,10 @@ class V021Activity : Activity() {
             addProjectReceipt(conversation, "FAILED", "AI command", "当前 Project 未设置 Local Project Address，指令未执行。")
             return
         }
-        projectConstructionConversationId = conversation.id
-        projectConstructionIterations = 0
+        if (projectConstructionConversationId != conversation.id) {
+            projectConstructionConversationId = conversation.id
+            projectConstructionIterations = 0
+        }
         val intent = Intent(this, FileBridgeService::class.java)
             .putExtra("bridgefs_external_command", command)
             .putExtra("bridgefs_root", root)
