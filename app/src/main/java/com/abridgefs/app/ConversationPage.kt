@@ -63,7 +63,7 @@ internal fun ApsActivity.conversationPage() {
                         } else {
                             toast("默认会话不能删除")
                         }
-                    })
+                    }
                 }, LinearLayout.LayoutParams(0, dp(44), 1f).apply { marginStart = dp(6) })
                 addView(actionRow)
             }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
