@@ -31,6 +31,7 @@
 - API Profile 是否只承担连接资源角色，不承担施工权。
 - 本地文件修改权限是否真正进入 PermissionPolicy / BridgeFS 执行链。
 - GitHub 读取 / 修改边界是否真正生效。
+- **普通对话是否可以读取真实 GitHub Repository / Branch / 文件；不能只验证 Workspace GitHub。**
 - 双 AI 是否按照正式架构工作，而不是旧 Decision / Worker 固定模型。
 - Receipt 是否能恢复并与消息 / 执行 / Verify 状态对应。
 - 日志是否能从 App 内实际访问并按类型查看。
@@ -43,6 +44,7 @@
 - 旧 BridgeProject 兼容字段是否仍被业务代码使用。
 - API Profile 与权限代码是否存在错误耦合。
 - PermissionPolicy 是否读取正确的 Workspace / Conversation 有效权限。
+- 普通对话 GitHub 读取是否经过统一 GitHub 访问边界。
 - GitHub 写入是否经过 Workspace + Repository + Branch 施工边界。
 - 是否存在旧 Decision / Worker 协议残留。
 - 是否存在旧日志路径和重复日志入口。
@@ -97,3 +99,19 @@ Actions 构建完成后必须记录：
 如果是普通实现问题，施工可以继续，不需要用户反复输入“继续”。
 
 如果涉及产品、架构、权限边界或用户授权的新决策，则暂停并报告。
+
+
+## 2026-10-04 新增：普通对话 GitHub 读取预检
+
+本项优先于 GitHub 修改施工。
+
+必须确认：
+- 普通对话不进入 Workspace 也能发起 GitHub 读取；
+- GitHub 全局访问关闭时不会调用 GitHub API；
+- 授权无效 / Repository 不可访问时显示真实错误；
+- AI 能读取真实 Repository / Branch / 文件；
+- 读取结果确实进入 AI 请求，而不是只在 UI 显示“已连接”；
+- 普通对话读取不获得修改权，不绕过 ConstructionLock。
+
+未完成以上真机链路前：普通对话 GitHub = 开发中 / 待验证。
+不要标记为“GitHub 已完全打通”。
