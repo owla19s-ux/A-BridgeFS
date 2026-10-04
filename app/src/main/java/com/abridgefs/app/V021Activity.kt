@@ -355,9 +355,9 @@ class V021Activity : Activity() {
         root.addView(configHeader, LinearLayout.LayoutParams(-1, dp(62)).apply { topMargin = dp(6) })
 
         if (projectConfigExpanded) {
-            root.addView(workspaceSelectorCard())
-            root.addView(workspaceCard())
-            root.addView(workspaceDirectoryCard())
+            root.addView(projectSelectorCard())
+            root.addView(projectGithubCard())
+            root.addView(projectLocalAddressCard())
             root.addView(localFilePermissionCard())
             root.addView(projectMembersCard())
         }
@@ -401,10 +401,10 @@ class V021Activity : Activity() {
         content.addView(composer, LinearLayout.LayoutParams(-1, dp(58)))
     }
 
-    private fun workspaceSelectorCard(): View {
+    private fun projectSelectorCard(): View {
         val box = card()
         val current = project ?: return box
-        val workspaces = projects
+        val projectList = projects
         box.addView(TextView(this).apply {
             text = "当前项目"
             textSize = 12f
@@ -421,12 +421,12 @@ class V021Activity : Activity() {
             setTextColor(color(R.color.bridgefs_text_primary))
         }, LinearLayout.LayoutParams(0, dp(44), 1f))
         row.addView(textButton("切换") {
-            val labels = workspaces.map { it.name.ifBlank { "未命名项目" } }.toTypedArray()
-            val index = workspaces.indexOfFirst { it.id == current.id }.coerceAtLeast(0)
+            val labels = projectList.map { it.name.ifBlank { "未命名项目" } }.toTypedArray()
+            val index = projectList.indexOfFirst { it.id == current.id }.coerceAtLeast(0)
             AlertDialog.Builder(this@V021Activity)
                 .setTitle("切换项目")
                 .setSingleChoiceItems(labels, index) { dialog, which ->
-                    project = workspaces[which]
+                    project = projectList[which]
                     prefs.edit().putString("active_project_id", project?.id).apply()
                     apiId = project?.activeConversation()?.apiId ?: apis().firstOrNull()?.id.orEmpty()
                     store.save(projects)
@@ -471,7 +471,7 @@ class V021Activity : Activity() {
         return box
     }
 
-    private fun workspaceCard(): View {
+    private fun projectGithubCard(): View {
         val box = card()
         val auth = GitHubTokenStore(this).state()
         val connected = AccessPolicy.isGithubEnabled(this) && !auth.accessToken.isNullOrBlank()
@@ -603,7 +603,7 @@ class V021Activity : Activity() {
         return box
     }
 
-    private fun workspaceDirectoryCard(): View {
+    private fun projectLocalAddressCard(): View {
         val box = card()
         val rootPath = project?.workspaceDirectory.orEmpty().trim()
 
