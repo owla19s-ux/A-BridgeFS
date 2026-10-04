@@ -84,3 +84,60 @@ AI A / AI B 继续协作
 代码中仍可发现 `DECISION_AI / WORKER`、旧提示词及固定路由方法；这些属于**旧实现残留 / 迁移对象**，不能继续作为新功能设计依据。
 
 后续施工必须以 `PROJECT/ARCHITECTURE/AI-COLLABORATION-V0.2.md` 为正式架构基线，先统一协作状态与角色模型，再继续补齐连续施工链。
+
+
+## 2026-10-04 — 普通对话 GitHub 读取能力重新定义
+
+### 用户确认
+
+GitHub 读取不能只属于 Workspace。
+
+普通「对话」页也必须能够读取 GitHub，否则：
+
+- 无法确认 API 与 GitHub 是否真正连通；
+- 无法让普通 AI 根据真实仓库回答问题；
+- 用户只能看到“已配置”，却无法验证“实际可读”。
+
+### 当前正确分层
+
+```text
+普通对话
+  ↓
+API
+  ↓
+GitHub 全局访问 / 授权
+  ↓
+Repository / Branch
+  ↓
+文件读取
+  ↓
+AI
+```
+
+Workspace 对话也可以读取 Workspace 绑定的 GitHub 资源。
+
+修改则是另一条链：
+
+```text
+施工 AI
+  ↓
+ConstructionLock
+  ↓
+GitHub updateFile
+  ↓
+Commit
+```
+
+本阶段先不碰后者。
+
+### 当前任务
+
+**任务 A：打通普通对话 GitHub 只读链。**
+
+验收条件：普通对话能够读取真实 Repository / Branch / 文件，并让 AI 根据真实内容回答；关闭 GitHub 访问或授权失效时，能够得到真实错误状态。
+
+状态：**开发中 / 阻塞后续 GitHub 施工链验证**。
+
+### 任务文档整理原则
+
+旧任务中出现的“Worker 文件修改结果 → updateFile()”“固定 Decision AI → Worker”不再作为当前第一优先级。它们保留为历史施工记录，不得覆盖当前双 AI + 普通对话 GitHub 读取的正式要求。
