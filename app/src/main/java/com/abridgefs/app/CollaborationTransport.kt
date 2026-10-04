@@ -178,6 +178,48 @@ class CollaborationCoordinator(
     }
 
     /**
+     * User-selected construction holder.
+     *
+     * The user is the authority that chooses which AI Member holds the
+     * Repository/Branch ConstructionLock. Selecting the other AI transfers
+     * the existing lock instead of creating a second lock.
+     */
+    fun selectConstructionHolder(taskId: String, aiMemberId: String): CollaborationTaskRecord {
+        val taskStore = CollaborationTaskStore(context)
+        val task = taskStore.get(taskId) ?: error("协作任务不存在：$taskId")
+        require(task.workspaceId == workspaceId && task.conversationId == conversationId) {
+            "协作任务不属于当前工作区 / 对话"
+        }
+
+        val workspace = BridgeProjectStore(context).load().firstOrNull { it.id == workspaceId }
+            ?: error("工作区不存在：$workspaceId")
+        require(workspace.aiMembers.any { it.id == aiMemberId }) {
+            "AI Member 不属于当前工作区"
+        }
+
+        val locks = ConstructionLockStore(context)
+        val current = locks.get(workspace)
+        val lock = when {
+            current == null || current.isFree -> locks.acquire(workspace, aiMemberId)
+            current.heldBy(aiMemberId) -> current
+            else -> locks.transfer(workspace, current.holderAiMemberId.orEmpty(), aiMemberId)
+        }
+
+        taskStore.update(taskId) {
+            it.status = CollaborationTaskRecord.STATUS_CONSTRUCTING
+            it.constructionRequestedByAiMemberId = aiMemberId
+            it.constructionHolderAiMemberId = lock.holderAiMemberId
+        }
+        AppLogger.log(
+            context,
+            AppLogger.Category.COLLABORATION,
+            "CONSTRUCTION_SELECTED_BY_USER",
+            "taskId=$taskId holder=$aiMemberId"
+        )
+        return taskStore.get(taskId) ?: error("协作任务状态保存失败")
+    }
+
+    /**
      * Performs one real GitHub Contents write for a task that already holds
      * construction authority. GitHub's Contents API creates the commit.
      */
