@@ -54,7 +54,8 @@ class ApsActivity : Activity() {
         val p=project?:return
         val root=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(14),dp(10),dp(14),dp(8))}
         root.addView(TextView(this).apply{text=p.name;textSize=21f;typeface=Typeface.DEFAULT_BOLD;setTextColor(c(R.color.bridgefs_text_primary))})
-        root.addView(TextView(this).apply{text=address(p);textSize=12f;setTextColor(c(R.color.bridgefs_text_secondary));setPadding(0,dp(3),0,dp(8))})
+        root.addView(TextView(this).apply{text=address(p);textSize=12f;setTextColor(c(R.color.bridgefs_text_secondary));setPadding(0,dp(3),0,dp(4))})
+        root.addView(Button(this).apply{text=if(displayOpen)"↓  收起显示" else "↑  展开显示";setOnClickListener{displayOpen=!displayOpen;render()}})
         root.addView(section("项目配置",configOpen){configOpen=!configOpen;render()})
         if(configOpen)root.addView(config(p))
         root.addView(card().apply{
