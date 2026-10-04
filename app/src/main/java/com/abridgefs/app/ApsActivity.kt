@@ -19,6 +19,7 @@ class ApsActivity : Activity() {
     private var displayOpen = true
     private val settingOpen = mutableSetOf<String>()
     private val pendingTaskMentions = linkedSetOf<String>()
+    private var projectInput: EditText? = null
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
@@ -123,9 +124,11 @@ GitHub：未设置"
                     setOnCheckedChangeListener { _, checked ->
                         if (checked) {
                             pendingTaskMentions.add("@" + task)
+                            syncProjectInput()
                             toast("@" + task + " 已加入当前输入目标")
                         } else {
                             pendingTaskMentions.remove("@" + task)
+                            syncProjectInput()
                         }
                     }
                 })
@@ -218,6 +221,7 @@ GitHub：未设置"
         }
         val input = EditText(this).apply {
             this.hint = hint
+            if (hint.contains("工作目标")) projectInput = this
             maxLines = 4
             if (pendingTaskMentions.isNotEmpty() && hint.contains("工作目标")) {
                 setText(pendingTaskMentions.joinToString(" ") + " ")
@@ -288,6 +292,15 @@ GitHub：未设置"
         textSize = 13f
         setTextColor(c(R.color.bridgefs_text_secondary))
         setPadding(0, dp(4), 0, dp(4))
+    }
+
+    private fun syncProjectInput() {
+        val input = projectInput ?: return
+        val prefix = pendingTaskMentions.joinToString(" ")
+        val current = input.text.toString()
+        val cleaned = current.replace(Regex("""(@[^ ]+\s*)+"""), "").trimStart()
+        input.setText(if (prefix.isBlank()) cleaned else prefix + " " + cleaned)
+        input.setSelection(input.text.length)
     }
 
     private fun toast(text: String) = Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
