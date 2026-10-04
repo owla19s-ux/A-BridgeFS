@@ -408,7 +408,7 @@ class V021Activity : Activity() {
             else conversation.messages.forEach { message -> bodyBox.addView(messageBubble(message)) }
         }
         body.addView(bodyBox)
-        pageRoot.addView(body, LinearLayout.LayoutParams(-1, 0, if (projectDisplayExpanded) 1.8f else 1f))
+        pageRoot.addView(body, LinearLayout.LayoutParams(-1, dp(if (projectDisplayExpanded) 430 else 300)))
         body.post { body.fullScroll(View.FOCUS_DOWN) }
         pageRoot.addView(requestAssistanceCard(), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
 
