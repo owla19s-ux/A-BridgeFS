@@ -68,7 +68,7 @@ ConstructionLock(Workspace, Repository, Branch)
 
 PROPOSAL / QUESTION / DECISION / TASK / PROGRESS / REQUEST_WRITE / GRANT_WRITE / RELEASE_WRITE / FILE_CHANGE_REQUEST / COMMIT / VERIFY / BLOCKED / COMPLETE / ESCALATE
 
-当前代码协议仍保留 `DECISION_AI / WORKER` 作为任务阶段路由；文件修改协议正在施工中，不能把 Worker 普通文本或普通 `PROGRESS` 直接视为写入请求。
+当前代码仍存在 `DECISION_AI / WORKER` 历史路由与部分提示词残留，正在迁移；这些术语不再代表固定 AI 身份，也不得作为正式架构的角色边界。文件修改协议不能把任一 AI 的普通文本或普通 `PROGRESS` 直接视为写入请求。
 
 消息协议不规定固定的 AI → AI 方向。
 
@@ -194,8 +194,8 @@ Verify 实链第一版已经接入：
 ### 11.3 下一阶段
 
 继续完成：
-- Worker 输出 → FILE_CHANGE_REQUEST → `updateFile()` 的安全协议接线
-- AI 自主施工 → Commit 的完整运行链
+- 当前持有施工权的 AI 输出 → FILE_CHANGE_REQUEST → `updateFile()` 的安全协议接线
+- 动态 BUILDER 角色自主施工 → Commit 的完整运行链
 - 新 Actions / APK / 真机实证
 - Receipt 与协作消息时间线统一
 - 双 AI 连续协作循环
@@ -207,7 +207,7 @@ Verify 实链第一版已经接入：
 - Repository / Branch ConstructionLock
 - GitHub 写入 → Commit → Actions / Verify 基础链
 
-当前最关键断点：`CollaborationCoordinator.updateFile()` 已可真实写入，但 `runObjective()` 尚未把 Worker 的文件修改意图映射为该调用；因此“AI 自主施工 → Commit”仍不可达。
+当前最关键断点：`CollaborationCoordinator.updateFile()` 已可真实写入，但协作运行时尚未把当前持有施工权的 AI 的文件修改意图统一映射为该调用；因此“动态 BUILDER 自主施工 → Commit”仍不可达。
 
 旧 Decision AI ↔ Worker 文档仅作为历史参考，不再作为当前正式身份模型。
 
