@@ -38,20 +38,20 @@ class ConstructionLockStore(private val context: android.content.Context) {
         val key = key(project.id, repo, ref)
         val holder = prefs.getString("${key}_holder", null)
         val acquiredAt = if (prefs.contains("${key}_time")) prefs.getLong("${key}_time", 0L) else null
-        return ConstructionLock(workspace.id, repo, ref, holder, acquiredAt)
+        return ConstructionLock(project.id, repo, ref, holder, acquiredAt)
     }
 
     @Synchronized
     fun acquire(project: BridgeProject, aiMemberId: String): ConstructionLock {
         require(aiMemberId.isNotBlank()) { "AI Member 未指定" }
-        require(workspace.github.writeEnabled) { "当前工作区未允许 GitHub 修改" }
-        val repo = workspace.github.repository?.trim().orEmpty()
-        val branch = workspace.github.branch?.trim().orEmpty()
+        require(project.github.writeEnabled) { "当前项目未允许 GitHub 修改" }
+        val repo = project.github.repository?.trim().orEmpty()
+        val branch = project.github.branch?.trim().orEmpty()
         require(repo.isNotBlank()) { "GitHub Repository 未配置" }
         require(branch.isNotBlank()) { "GitHub Branch 未配置" }
 
         val members = project.aiMembers.map { it.id }
-        require(aiMemberId in members) { "AI Member 不属于当前工作区" }
+        require(aiMemberId in members) { "AI Member 不属于当前项目" }
 
         val current = get(project, repo, branch)
         if (current != null && !current.isFree && !current.heldBy(aiMemberId)) {
@@ -60,8 +60,8 @@ class ConstructionLockStore(private val context: android.content.Context) {
         if (current?.heldBy(aiMemberId) == true) return current
 
         val now = System.currentTimeMillis()
-        val lock = ConstructionLock(workspace.id, repo, branch, aiMemberId, now)
-        val key = key(workspace.id, repo, branch)
+        val lock = ConstructionLock(project.id, repo, branch, aiMemberId, now)
+        val key = key(project.id, repo, branch)
         prefs.edit()
             .putString("${key}_holder", aiMemberId)
             .putLong("${key}_time", now)
@@ -71,7 +71,7 @@ class ConstructionLockStore(private val context: android.content.Context) {
 
     @Synchronized
     fun release(project: BridgeProject, aiMemberId: String) {
-        val lock = get(workspace) ?: return
+        val lock = get(project) ?: return
         require(lock.heldBy(aiMemberId)) { "当前 AI 不持有施工权" }
         val key = key(lock.projectId, lock.repository, lock.branch)
         prefs.edit().remove("${key}_holder").remove("${key}_time").apply()
@@ -80,13 +80,13 @@ class ConstructionLockStore(private val context: android.content.Context) {
     @Synchronized
     fun transfer(project: BridgeProject, fromAiMemberId: String, toAiMemberId: String): ConstructionLock {
         require(toAiMemberId.isNotBlank()) { "目标 AI Member 未指定" }
-        require(toAiMemberId in workspace.aiMembers.map { it.id }) { "目标 AI Member 不属于当前工作区" }
-        val current = get(workspace) ?: error("当前没有施工权")
+        require(toAiMemberId in project.aiMembers.map { it.id }) { "目标 AI Member 不属于当前项目" }
+        val current = get(project) ?: error("当前没有施工权")
         require(current.heldBy(fromAiMemberId)) { "当前 AI 不持有施工权" }
         require(fromAiMemberId != toAiMemberId) { "不能转移给同一个 AI" }
 
         val now = System.currentTimeMillis()
-        val key = key(current.workspaceId, current.repository, current.branch)
+        val key = key(current.projectId, current.repository, current.branch)
         prefs.edit()
             .putString("${key}_holder", toAiMemberId)
             .putLong("${key}_time", now)
@@ -96,14 +96,14 @@ class ConstructionLockStore(private val context: android.content.Context) {
 
     @Synchronized
     fun requireHolder(project: BridgeProject, aiMemberId: String): ConstructionLock {
-        val lock = get(workspace) ?: error("当前 Repository / Branch 没有施工权")
+        val lock = get(project) ?: error("当前 Repository / Branch 没有施工权")
         check(lock.heldBy(aiMemberId)) { "当前 AI 未持有 Repository / Branch 施工权" }
         return lock
     }
 
     @Synchronized
     fun clearProject(projectId: String) {
-        val prefix = "lock_${workspaceId}_"
+        val prefix = "lock_${safe(projectId)}_"
         prefs.all.keys
             .filter { it.startsWith(prefix) }
             .forEach { key ->
