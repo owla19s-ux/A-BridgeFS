@@ -124,7 +124,7 @@ class ApsActivity : Activity() {
         Thread{val r=ProjectConversationService(this).send(p,cv,text);runOnUiThread{r.answer?.let{cv.messages+=BridgeChatMessage("assistant",it)};r.error?.let{cv.messages+=BridgeChatMessage("system",it)};save();render()}}.start()
     }
     private fun chooseApi(){
-        val p=project?:return;val list=apis.all();if(list.isEmpty()){Toast.makeText(this,"请先在设置 → 连接 → API Profiles 添加 API",Toast.LENGTH_SHORT).show();return}
+        val p=project?:return;val list=apis.list();if(list.isEmpty()){Toast.makeText(this,"请先在设置 → 连接 → API Profiles 添加 API",Toast.LENGTH_SHORT).show();return}
         AlertDialog.Builder(this).setTitle("选择 Default AI API").setItems(list.map{it.name.ifBlank{"未命名 API"}}.toTypedArray()){_,i->
             val a=list[i];val m=p.defaultMemberId?.let{id->p.aiMembers.firstOrNull{it.id==id}}
             if(m!=null)m.apiProfileId=a.id else {val x=BridgeAiMember(UUID.randomUUID().toString(),a.name.ifBlank{"默认 AI"},a.id);p.aiMembers+=x;p.defaultMemberId=x.id};save();render()
