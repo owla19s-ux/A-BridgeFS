@@ -486,9 +486,9 @@ class V021Activity : Activity() {
             val holderLabel = holder?.name?.ifBlank { null } ?: "未指定"
             box.addView(actionButton(
                 if (task.status == CollaborationTaskRecord.STATUS_CONSTRUCTING)
-                    "切换施工 AI（当前：$" + "{holderLabel}）"
+                    "切换施工 AI（当前：${holderLabel}）"
                 else
-                    "选择施工 AI（当前：$" + "{holderLabel}）"
+                    "选择施工 AI（当前：${holderLabel}）"
             ) {
                 val labels = members.map { member ->
                     val apiName = apis().firstOrNull { it.id == member.apiProfileId }?.name
@@ -539,7 +539,7 @@ class V021Activity : Activity() {
                         val result = coordinator.retryAfterVerifyFailure(
                             task.taskId,
                             "你是 AI A。上一 Commit 的 GitHub Actions Verify 已失败。请分析失败结果并给出下一步修复指令，不得直接宣布完成。",
-                            "你是 施工 AI。根据 AI A 的修复指令进行有限范围施工。"
+                            "你是协作执行参与者。请根据 AI A 的修复指令推进本轮任务；真正的文件写入必须由用户当前指定的施工权持有者执行。"
                         )
                         runOnUiThread {
                             Toast.makeText(this, result.message, Toast.LENGTH_LONG).show()
@@ -581,7 +581,7 @@ class V021Activity : Activity() {
                         val result = coordinator.verifyAndContinue(
                             task.taskId,
                             "你是 AI A。只根据真实 Verify 结果决定是否完成任务或继续施工。",
-                            "你是 施工 AI。根据 AI A 的施工指令执行有限范围内的下一步。"
+                            "你是协作执行参与者。根据 AI A 的施工指令推进下一步；真正的文件写入必须由用户当前指定的施工权持有者执行。"
                         )
                         runOnUiThread {
                             Toast.makeText(this, result.message, Toast.LENGTH_LONG).show()
