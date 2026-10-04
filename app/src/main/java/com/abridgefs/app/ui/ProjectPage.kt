@@ -7,10 +7,12 @@ import android.graphics.drawable.GradientDrawable
 import android.view.*
 import android.view.inputmethod.InputMethodManager
 import android.widget.*
+import com.abridgefs.app.*
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 
-fun projectPage(activity: Activity, host: FrameLayout) {
+fun ApsActivity.projectPage() {
+        val activity = this
         val content = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(14), dp(10), dp(14), dp(8))
