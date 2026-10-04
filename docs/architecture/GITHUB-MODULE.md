@@ -39,7 +39,37 @@ GitHub Workspace Resources
 
 工作区保存的是“当前使用哪个 GitHub 资源”，而不是 GitHub 凭据本身。
 
-## 3. 三层访问边界
+## 3. 访问边界
+
+GitHub 访问分为“读取”和“修改”两条能力链，不能混为一谈。
+
+### 普通对话读取
+
+普通「对话」页也可以读取 GitHub。它不需要先进入 Workspace，也不需要 ConstructionLock。
+
+前提是：
+- GitHub 全局访问已开启；
+- GitHub 身份授权有效；
+- App 已有可用 GitHub Repository / Branch 资源配置；
+- 当前 API 对话允许使用 GitHub 读取能力。
+
+目标链路：
+
+普通对话 → API → GitHub → Repository / Branch → 文件读取 → AI
+
+### 工作区读取
+
+Workspace 对话读取当前 Workspace 绑定的 Repository / Branch。两个 AI 可以共享该读取能力。
+
+### 修改
+
+修改属于另一条链路：
+
+施工 AI → Workspace / Repository / Branch → ConstructionLock → updateFile → Commit
+
+普通对话读取成功，并不意味着普通对话拥有修改权限。
+
+### 全局访问
 
 ### 全局访问
 
@@ -192,7 +222,22 @@ GitHub 页面必须区分：
 
 不能把所有异常都显示成“未连接”。
 
-## 11. 与 A-BridgeFS 协作闭环的关系
+## 11. 普通对话 GitHub 读取验收
+
+第一阶段先验证读取，不把修改链混入本次问题。
+
+必须能够完成：
+
+1. 普通对话页选择 / 使用 API；
+2. GitHub 全局访问与授权状态有效；
+3. 普通对话能够定位当前 GitHub Repository / Branch；
+4. AI 能读取至少一个真实文件；
+5. AI 回答能够引用或分析真实仓库内容；
+6. 关闭 GitHub 访问后，普通对话不能继续发起 GitHub API 请求，并显示真实错误状态。
+
+只有以上链路实际可用，才认为“普通对话 GitHub 读取已打通”。
+
+## 12. 与 A-BridgeFS 协作闭环的关系
 
 ```
 对话 / 协作 AI
@@ -214,7 +259,7 @@ Repository / Branch
 
 GitHub 是真实执行资源之一，不是 UI 装饰。
 
-## 12. 当前边界
+## 13. 当前边界
 
 本阶段：
 
@@ -234,7 +279,7 @@ GitHub 是真实执行资源之一，不是 UI 装饰。
 - 自动调度器
 
 
-## 13. 与双 AI 施工权模型的关系
+## 14. 与双 AI 施工权模型的关系
 
 GitHub 模块不决定哪个 AI 承担决策、施工或检查角色；正式架构不设固定 Decision AI / Worker AI 身份。
 
