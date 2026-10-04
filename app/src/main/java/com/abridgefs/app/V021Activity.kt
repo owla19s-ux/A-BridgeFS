@@ -40,9 +40,7 @@ class V021Activity : Activity() {
     private var page = Page.WORKSPACE
     private val executor = Executors.newSingleThreadExecutor()
     private var pendingReceipt: String? = null
-    private var collaborationRunningConversationId: String? = null
     private var standaloneSendingConversationId: String? = null
-    private var collaborationTaskActionRunningId: String? = null
     private val receiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: android.content.Context, intent: android.content.Intent) {
             val status = intent.getStringExtra("status") ?: "UNKNOWN"
@@ -272,8 +270,7 @@ class V021Activity : Activity() {
         root.addView(header("工作区", "管理协作资源与权限"))
         root.addView(workspaceSelectorCard())
         root.addView(workspaceCard())
-        root.addView(collaborationCard())
-        root.addView(collaborationTaskCard())
+        root.addView(requestAssistanceCard())
         root.addView(workspaceDirectoryCard())
         root.addView(localFilePermissionCard())
         root.addView(apiSummaryCard())
@@ -390,187 +387,11 @@ class V021Activity : Activity() {
         return box
     }
 
-    private fun collaborationCard(): View {
-        val box = card()
-        val collaborationProfiles = collaborationProfileIds()
-        val configured = collaborationProfiles.first.isNotBlank() && collaborationProfiles.second.isNotBlank()
-        box.addView(TextView(this).apply { text = "AI 协作"; textSize = 16f; typeface = Typeface.DEFAULT_BOLD })
-        box.addView(TextView(this).apply {
-            text = "两个 AI 共享工作区资源；API 是连接资源，不再代表固定的阶段身份。"
-            textSize = 13f
-            setTextColor(color(R.color.bridgefs_text_secondary))
-            setPadding(0, dp(4), 0, dp(8))
-        })
-        box.addView(TextView(this).apply {
-            text = if (configured) {
-                "参与 AI：" + (apis().firstOrNull { it.id == collaborationProfiles.first }?.name ?: "AI A") +
-                    " ↔ " + (apis().firstOrNull { it.id == collaborationProfiles.second }?.name ?: "AI B")
-            } else {
-                "请先选择两个不同的 API Profile 作为本轮协作参与者"
-            }
-            textSize = 13f
-            setTextColor(color(R.color.bridgefs_text_secondary))
-            setPadding(0, dp(2), 0, dp(8))
-        })
-        box.addView(actionButton("选择两个协作 AI") { selectCollaborationProfiles() })
-        box.addView(actionButton("进入协作对话") {
-            if (!configured) {
-                Toast.makeText(this, "请先选择两个协作 AI", Toast.LENGTH_SHORT).show()
-            } else {
-                page = Page.WORKSPACE_CHAT
-                render()
-            }
-        }, LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(4) })
-        return box
-    }
 
-    private fun collaborationTaskCard(): View {
-        val box = card()
-        val workspace = project
-        val conversation = workspace?.activeConversation()
-        val task = if (workspace != null && conversation != null) {
-            CollaborationTaskStore(this).latest(workspace.id, conversation.id)
-        } else {
-            null
-        }
-        box.addView(TextView(this).apply {
-            text = "协作任务"
-            textSize = 16f
-            typeface = Typeface.DEFAULT_BOLD
-        })
-        if (task == null) {
-            box.addView(TextView(this).apply {
-                text = "当前协作对话还没有任务。发送协作目标后，这里会显示分析、施工与 Verify 状态。"
-                textSize = 13f
-                setTextColor(color(R.color.bridgefs_text_secondary))
-                setPadding(0, dp(5), 0, dp(8))
-            })
-            return box
-        }
 
-        val members = workspace?.aiMembers?.take(2).orEmpty()
-        val memberA = members.getOrNull(0)
-        val memberB = members.getOrNull(1)
-        val holder = task.constructionHolderAiMemberId?.let { id ->
-            members.firstOrNull { it.id == id }
-        }
-        val holderName = holder?.name
-        box.addView(TextView(this).apply {
-            text = "状态：${collaborationTaskStatusLabel(task.status)}"
-            textSize = 14f
-            typeface = Typeface.DEFAULT_BOLD
-            setPadding(0, dp(5), 0, dp(2))
-        })
-        box.addView(TextView(this).apply {
-            text = buildString {
-                append("任务：")
-                append(task.objective)
-                if (!task.lastCommitSha.isNullOrBlank()) {
-                    append("\nCommit：")
-                    append(task.lastCommitSha)
-                }
-                if (!holderName.isNullOrBlank()) {
-                    append("\n施工者：")
-                    append(holderName)
-                }
-            }
-            textSize = 12f
-            setTextColor(color(R.color.bridgefs_text_secondary))
-            setPadding(0, dp(2), 0, dp(8))
-        })
 
-        if (members.size >= 2 &&
-            (task.status == CollaborationTaskRecord.STATUS_WAITING_CONSTRUCTION ||
-                task.status == CollaborationTaskRecord.STATUS_CONSTRUCTING)
-        ) {
-            val holderLabel = holder?.name?.ifBlank { null } ?: "未指定"
-            box.addView(actionButton(
-                if (task.status == CollaborationTaskRecord.STATUS_CONSTRUCTING)
-                    "切换施工 AI（当前：${holderLabel}）"
-                else
-                    "选择施工 AI（当前：${holderLabel}）"
-            ) {
-                val labels = members.map { member ->
-                    val apiName = apis().firstOrNull { it.id == member.apiProfileId }?.name
-                    if (apiName.isNullOrBlank()) member.name else "${member.name} · $apiName"
-                }.toTypedArray()
-                val selected = members.indexOfFirst { it.id == holder?.id }.let { if (it >= 0) it else -1 }
-                AlertDialog.Builder(this@V021Activity)
-                    .setTitle("选择本阶段施工 AI")
-                    .setSingleChoiceItems(labels, selected) { dialog, which ->
-                        val selectedMember = members[which]
-                        runCatching {
-                            val coordinator = CollaborationCoordinator(
-                                this,
-                                workspace!!.id,
-                                conversation!!.id,
-                                memberA?.apiProfileId.orEmpty(),
-                                memberB?.apiProfileId.orEmpty()
-                            )
-                            coordinator.selectConstructionHolder(task.taskId, selectedMember.id)
-                            dialog.dismiss()
-                            render()
-                        }.onFailure {
-                            Toast.makeText(this, "设置施工 AI 失败：${it.message ?: "未知错误"}", Toast.LENGTH_LONG).show()
-                        }
-                    }
-                    .setNegativeButton("取消", null)
-                    .show()
-            })
-        }
 
-        if (task.status == CollaborationTaskRecord.STATUS_WAITING_VERIFY ||
-            task.status == CollaborationTaskRecord.STATUS_VERIFY_PASSED ||
-            task.status == CollaborationTaskRecord.STATUS_CONSTRUCTION_WRITING
-        ) {
-            val actionRunning = collaborationTaskActionRunningId == task.taskId
-            val verifyButton = actionButton(if (actionRunning) "Verify处理中…" else "检查当前 Commit") {
-                if (collaborationTaskActionRunningId == task.taskId) return@actionButton
-                collaborationTaskActionRunningId = task.taskId
-                render()
-                executor.execute {
-                    try {
-                        val coordinator = CollaborationCoordinator(
-                            this,
-                            workspace!!.id,
-                            conversation!!.id,
-                            memberA?.apiProfileId.orEmpty(),
-                            memberB?.apiProfileId.orEmpty()
-                        )
-                        val result = coordinator.verifyTask(task.taskId)
-                        runOnUiThread {
-                            Toast.makeText(this, result.message, Toast.LENGTH_LONG).show()
-                            collaborationTaskActionRunningId = null
-                            render()
-                        }
-                    } catch (e: Exception) {
-                        runOnUiThread {
-                            collaborationTaskActionRunningId = null
-                            Toast.makeText(this, "Verify 失败：${e.message ?: "未知错误"}", Toast.LENGTH_LONG).show()
-                            render()
-                        }
-                    }
-                }
-            }
-            verifyButton.isEnabled = !actionRunning
-            box.addView(verifyButton)
-        }
-        return box
-    }
 
-    private fun collaborationTaskStatusLabel(status: String): String = when (status) {
-        CollaborationTaskRecord.STATUS_CREATED -> "已创建"
-        CollaborationTaskRecord.STATUS_RUNNING -> "协作处理中"
-        CollaborationTaskRecord.STATUS_WAITING_CONSTRUCTION -> "等待进入施工"
-        CollaborationTaskRecord.STATUS_CONSTRUCTING -> "施工中"
-        CollaborationTaskRecord.STATUS_WAITING_VERIFY -> "等待 Verify"
-        CollaborationTaskRecord.STATUS_VERIFY_PASSED -> "Verify 已通过，等待继续"
-        CollaborationTaskRecord.STATUS_CONSTRUCTION_WRITING -> "GitHub 写入恢复中"
-        CollaborationTaskRecord.STATUS_COMPLETE -> "已完成"
-        CollaborationTaskRecord.STATUS_FAILED -> "失败"
-        CollaborationTaskRecord.STATUS_CANCELLED -> "已取消"
-        else -> status
-    }
 
     private fun apiCard(a:ApiProfile): View {
         val box = card()
@@ -1049,7 +870,7 @@ class V021Activity : Activity() {
             if (collaborationRunningConversationId == conversation.id) {
                 Toast.makeText(this@V021Activity, "本轮协作还在进行，请等待结果。", Toast.LENGTH_SHORT).show()
             } else {
-                sendWorkspaceCollaboration(input, conversation)
+                sendProjectMessage(input, conversation)
                 input.text.clear()
             }
         }
@@ -1301,137 +1122,92 @@ class V021Activity : Activity() {
             .setNegativeButton("取消",null).show()
     }
 
-    private fun runCollaboration(current: BridgeProject, objective: String) {
-        val workspaceId = current.id
-        val conversationId = current.activeConversation().id
-        executor.execute {
-            runCatching {
-                val ids = collaborationProfileIds()
-                require(ids.first.isNotBlank() && ids.second.isNotBlank()) { "请先选择两个协作 AI" }
-                val coordinator = CollaborationCoordinator(
-                    this, workspaceId, conversationId, ids.first, ids.second
-                )
-                val turns = coordinator.runDiscussion(objective)
-                val profileStore = ApiProfileStore(this)
-                val profileById = mapOf(
-                    ids.first to profileStore.find(ids.first),
-                    ids.second to profileStore.find(ids.second)
-                )
-                val collaborationMessages = turns.map { turn ->
-                    val profile = profileById[turn.profileId]
-                    BridgeChatMessage(
-                        role = "assistant",
-                        content = turn.content,
-                        apiId = profile?.id,
-                        apiName = profile?.name?.ifBlank { turn.speaker },
-                        apiAvatar = profile?.avatar?.ifBlank {
-                            profile?.name?.trim()?.take(1)?.ifBlank { turn.speaker.takeLast(1) }
-                        }
-                    )
-                }
-                runOnUiThread {
-                    collaborationRunningConversationId = null
-                    val target = projects.firstOrNull { it.id == workspaceId }
-                        ?.conversations?.firstOrNull { it.id == conversationId }
-                    if (target == null) {
-                        render()
-                        return@runOnUiThread
-                    }
-                    val progressIndex = target.messages.indexOfLast {
-                        it.role == "tool" && it.content.startsWith("[协作进行中]")
-                    }
-                    if (progressIndex >= 0) {
-                        target.messages.removeAt(progressIndex)
-                        target.messages.add(
-                            progressIndex,
-                            BridgeChatMessage("tool", "[协作讨论完成]\n两 个 AI 已完成本轮讨论。现在可以由你决定是否进入施工，以及选择哪一个 AI 施工。")
-                        )
-                    }
-                    target.messages += collaborationMessages
-                    store.save(projects)
-                    render()
-                }
-            }.onFailure { e ->
-                val reason = e.message ?: e::class.simpleName ?: "未知错误"
-                AppLogger.log(this, AppLogger.Category.COLLABORATION, "ROUND_FAILED", reason)
-                runOnUiThread {
-                    collaborationRunningConversationId = null
-                    val target = projects.firstOrNull { it.id == workspaceId }
-                        ?.conversations?.firstOrNull { it.id == conversationId }
-                    if (target == null) {
-                        render()
-                        return@runOnUiThread
-                    }
-                    val progressIndex = target.messages.indexOfLast {
-                        it.role == "tool" && it.content.startsWith("[协作进行中]")
-                    }
-                    if (progressIndex >= 0) {
-                        target.messages.removeAt(progressIndex)
-                        target.messages.add(progressIndex, BridgeChatMessage("tool", "[协作失败]\n" + reason))
-                    } else {
-                        target.messages += BridgeChatMessage("tool", "[协作失败]\n" + reason)
-                    }
-                    store.save(projects)
-                    render()
-                }
-            }
-        }
+
+
+
+
+
+
+    private fun requestAssistanceCard(): View {
+        val box = card()
+        box.addView(TextView(this).apply {
+            text = "请求 AI 协助"
+            textSize = 16f
+            typeface = Typeface.DEFAULT_BOLD
+        })
+        box.addView(TextView(this).apply {
+            text = "默认 AI 负责当前 Project 工作，需要其他 AI 时再主动请求协助。"
+            textSize = 13f
+            setTextColor(color(R.color.bridgefs_text_secondary))
+            setPadding(0, dp(4), 0, dp(8))
+        })
+        box.addView(actionButton("请求 AI 协助") {
+            Toast.makeText(this, "AI 协助入口已保留，协助流程正在迁移到 Project 模型。", Toast.LENGTH_SHORT).show()
+        })
+        return box
     }
 
-    private fun collaborationProfileIds(): Pair<String, String> {
-        val members = project?.aiMembers?.take(2).orEmpty()
-        return Pair(
-            members.getOrNull(0)?.apiProfileId.orEmpty(),
-            members.getOrNull(1)?.apiProfileId.orEmpty()
-        )
-    }
-
-    private fun selectCollaborationProfiles() {
-        val list = apis()
-        if (list.size < 2) {
-            Toast.makeText(this, "至少需要两个 API Profile", Toast.LENGTH_SHORT).show()
+    private fun sendProjectMessage(input: EditText, conversation: BridgeConversation) {
+        val text = input.text.toString().trim()
+        if (text.isBlank()) return
+        val current = project ?: return
+        if (!AccessPolicy.isApiEnabled(this)) {
+            Toast.makeText(this, "API 全局访问已关闭", Toast.LENGTH_SHORT).show()
             return
         }
-        val current = collaborationProfileIds()
-        var first = list.indexOfFirst { it.id == current.first }.takeIf { it >= 0 } ?: 0
-        var second = list.indexOfFirst { it.id == current.second }.takeIf { it >= 0 } ?: if (first == 0) 1 else 0
-        val labels = list.map { it.name.ifBlank { "未命名 API" } }.toTypedArray()
-        fun save() {
-            project?.let { workspace ->
-                if (workspace.aiMembers.size < 2) {
-                    while (workspace.aiMembers.size < 2) {
-                        workspace.aiMembers += BridgeAiMember(UUID.randomUUID().toString(), "AI " + ('A'.code + workspace.aiMembers.size).toChar())
+        val member = current.defaultMemberId?.let { id -> current.aiMembers.firstOrNull { it.id == id } }
+            ?: current.aiMembers.firstOrNull()
+        val profileId = member?.apiProfileId
+        val profile = profileId?.let { id -> apis().firstOrNull { it.id == id } }
+        if (profile == null) {
+            Toast.makeText(this, "当前 Project 尚未配置默认 AI", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        conversation.messages += BridgeChatMessage("user", text)
+        store.save(projects)
+        render()
+        executor.execute {
+            try {
+                val address = current.workspaceDirectory?.trim().orEmpty()
+                val github = current.github.repository?.trim().orEmpty()
+                val branch = current.github.branch?.trim().orEmpty()
+                val projectInfo = buildString {
+                    append("当前 Project：").append(current.name)
+                    if (address.isNotBlank()) append("\nLocal Project Address：").append(address)
+                    if (github.isNotBlank()) {
+                        append("\nGitHub Repository：").append(github)
+                        if (branch.isNotBlank()) append("\nGitHub Branch：").append(branch)
                     }
                 }
-                workspace.aiMembers[0].apiProfileId = list[first].id
-                workspace.aiMembers[1].apiProfileId = list[second].id
-                store.save(projects)
+                val answer = BridgeApiClient(
+                    BridgeApiConfig(normalizeBaseUrl(profile.baseUrl), profile.key, profile.model)
+                ).chat(
+                    conversation.messages,
+                    BridgeCommandSpec.aiSystemPrompt(prefs.getInt("command_limit", 3).coerceIn(1, 20)) +
+                        "\n\n[Project 信息]\n" + projectInfo +
+                        "\n你是当前 Project 的默认 AI。先直接回答用户问题；只有用户明确要求执行工作时，才进入后续工作流程。不要自动启动其他 AI 协作，不要使用 Decision AI / Worker AI / AI A / AI B 等旧角色。"
+                )
+                runOnUiThread {
+                    conversation.messages += BridgeChatMessage(
+                        "assistant",
+                        answer,
+                        apiId = profile.id,
+                        apiName = profile.name.ifBlank { "默认 AI" },
+                        apiAvatar = profile.avatar.ifBlank { profile.name.trim().take(1).ifBlank { "AI" } }
+                    )
+                    store.save(projects)
+                    render()
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    conversation.messages += BridgeChatMessage("tool", "[API 错误]\n" + (e.message ?: "未知错误"))
+                    store.save(projects)
+                    render()
+                }
             }
         }
-        AlertDialog.Builder(this)
-            .setTitle("先选择 AI A")
-            .setSingleChoiceItems(labels, first) { dialog, which ->
-                first = which
-                if (second == first) second = (first + 1) % list.size
-                save()
-                dialog.dismiss()
-                AlertDialog.Builder(this)
-                    .setTitle("再选择 AI B")
-                    .setSingleChoiceItems(labels, second) { dialog2, which2 ->
-                        if (which2 == first) {
-                            Toast.makeText(this, "AI A 与 AI B 必须使用不同的 API Profile", Toast.LENGTH_SHORT).show()
-                        } else {
-                            second = which2
-                            save()
-                            dialog2.dismiss()
-                            render()
-                        }
-                    }
-                    .setNegativeButton("取消", null)
-                    .show()
-            }
-            .setNegativeButton("取消", null)
-            .show()
+        input.text.clear()
     }
 
     private fun sendStandalone(input: EditText, conversation: BridgeConversation) {
@@ -1511,26 +1287,7 @@ class V021Activity : Activity() {
         }
     }
 
-    private fun sendWorkspaceCollaboration(input: EditText, conversation: BridgeConversation) {
-        val text = input.text.toString().trim()
-        if (text.isBlank()) return
-        val current = project ?: return
-        if (!AccessPolicy.isApiEnabled(this)) {
-            Toast.makeText(this, "API 全局访问已关闭", Toast.LENGTH_SHORT).show()
-            return
-        }
-        val ids = collaborationProfileIds()
-        if (ids.first.isBlank() || ids.second.isBlank() || ids.first == ids.second) {
-            Toast.makeText(this, "请先在工作区选择两个不同的协作 AI", Toast.LENGTH_SHORT).show()
-            return
-        }
-        conversation.messages += BridgeChatMessage("user", text)
-        conversation.messages += BridgeChatMessage("tool", "[协作进行中]\nAI A 与 AI B 正在自然讨论。讨论结束后由你决定是否进入施工，以及选择哪一个 AI 施工。")
-        collaborationRunningConversationId = conversation.id
-        store.save(projects)
-        render()
-        runCollaboration(current, text)
-    }
+
 
     private fun executeAiCommands(answer: String, conversation: BridgeConversation, limit: Int) {
         val blocks = BridgeRequest.extractAll(answer)
