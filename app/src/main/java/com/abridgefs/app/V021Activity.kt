@@ -1349,6 +1349,57 @@ class V021Activity : Activity() {
         }
     }
 
+    private fun executeProjectGitHubCommands(answer: String, project: BridgeProject, conversation: BridgeConversation): Boolean {
+        val blocks = GitHubRequest.extractAll(answer)
+        if (blocks.isEmpty()) return false
+        val commands = blocks.flatMap { GitHubRequest.parse(it) }
+        if (commands.isEmpty()) { addProjectReceipt(conversation, "FAILED", "GitHub command", GitHubRequest.lastError ?: "未识别 GitHub 指令"); return true }
+        val limit = prefs.getInt("command_limit", 3).coerceIn(1, 20)
+        if (commands.size > limit) { addProjectReceipt(conversation, "DENIED", "GitHub command batch", "本轮 GitHub 指令数量超过限制 " + limit); return true }
+        val member = project.defaultMemberId?.let { id -> project.aiMembers.firstOrNull { it.id == id } } ?: project.aiMembers.firstOrNull()
+        val memberId = member?.id
+        if (memberId.isNullOrBlank()) { addProjectReceipt(conversation, "DENIED", "GitHub construction", "当前 Project 没有可用的 Default AI Member"); return true }
+        executor.execute {
+            try {
+                val lock = ConstructionLockStore(this).acquire(project, memberId)
+                val token = GitHubTokenStore(this).state().accessToken?.takeIf { it.isNotBlank() } ?: error("GitHub 尚未授权")
+                val service = GitHubWorkspaceService(this, GitHubApiClient(this, token), project.github, project)
+                var lastCommit = ""
+                for (command in commands) {
+                    when (command) {
+                        is GitHubCommand.Write -> {
+                            val existing = runCatching { service.file(command.path) }.getOrNull()
+                            check(existing == null) { "目标文件已存在，请使用 edit：" + command.path }
+                            val result = service.updateFile(command.path, command.content, "AI: update " + command.path, "", memberId)
+                            lastCommit = result.optJSONObject("commit")?.optString("sha").orEmpty()
+                        }
+                        is GitHubCommand.Edit -> {
+                            val raw = service.file(command.path)
+                            val sha = raw.optString("sha").takeIf { it.isNotBlank() } ?: error("无法取得文件 SHA：" + command.path)
+                            val oldContent = service.readText(command.path)
+                            check(oldContent.contains(command.old)) { "GitHub 文件未找到待替换内容：" + command.path }
+                            val newContent = oldContent.replaceFirst(command.old, command.new)
+                            val result = service.updateFile(command.path, newContent, "AI: edit " + command.path, sha, memberId)
+                            lastCommit = result.optJSONObject("commit")?.optString("sha").orEmpty()
+                        }
+                    }
+                }
+                val verify = if (lastCommit.isNotBlank()) service.workflowRunsForCommit(lastCommit, 10) else JSONObject()
+                val runs = verify.optJSONArray("workflow_runs")
+                val summary = buildString {
+                    append("GitHub 修改完成")
+                    if (lastCommit.isNotBlank()) append("\nCommit: ").append(lastCommit)
+                    if (runs != null) append("\nActions runs: ").append(runs.length())
+                    append("\nConstructionLock: ").append(lock.holderAiMemberId)
+                }
+                ConstructionLockStore(this).release(project, memberId)
+                runOnUiThread { addProjectReceipt(conversation, "SUCCEEDED", "GitHub construction", summary) }
+            } catch (e: Exception) {
+                runOnUiThread { addProjectReceipt(conversation, "FAILED", "GitHub construction", e.message ?: "GitHub 施工失败") }
+            }
+        }
+        return true
+    }
     private fun dispatchProjectCommand(command: String, project: BridgeProject, conversation: BridgeConversation) {
         val root = project.workspaceDirectory?.trim().orEmpty()
         if (root.isBlank()) {
