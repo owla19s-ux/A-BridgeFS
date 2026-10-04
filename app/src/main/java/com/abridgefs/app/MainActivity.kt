@@ -861,7 +861,7 @@ class MainActivity : Activity() {
                 if (title == "AI 与 API") {
                     startActivity(Intent(this, ApiSettingsActivity::class.java))
                 } else if (title == "连接与访问") {
-                    startActivity(Intent(this, GlobalAccessActivity::class.java))
+                    startActivity(Intent(this, SettingsCategoryActivity::class.java).putExtra("category", "系统"))
                 } else {
                     startActivity(Intent(this, SettingsCategoryActivity::class.java).putExtra("category", title))
                 }
