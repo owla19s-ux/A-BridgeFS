@@ -8,12 +8,12 @@ import java.io.File
 class BridgeService : Service() {
     override fun onCreate() {
         super.onCreate()
-        val c = NotificationChannel("bridge", "A-BridgeFS", NotificationManager.IMPORTANCE_LOW)
+        val c = NotificationChannel("bridge", "APS", NotificationManager.IMPORTANCE_LOW)
         getSystemService(NotificationManager::class.java).createNotificationChannel(c)
         startForeground(
             1,
             Notification.Builder(this, "bridge")
-                .setContentTitle("A-BridgeFS")
+                .setContentTitle("APS")
                 .setContentText("本地执行服务运行中")
                 .setSmallIcon(android.R.drawable.stat_notify_sync)
                 .build()
