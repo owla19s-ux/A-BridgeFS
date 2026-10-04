@@ -12,7 +12,7 @@
 
 ## 一、检查来源
 
-1. `docs/REQUIREMENTS.md`：用户确认的功能要求。
+1. `PROJECT/SPEC/APS-PRODUCT-SPEC.md`：用户确认的功能要求。
 2. `docs/STATUS.md`：当前实现状态。
 3. GitHub Issue #29 及其子任务：当前问题与施工顺序。
 4. 当前施工分支代码：确认实际调用链和 UI 行为。
