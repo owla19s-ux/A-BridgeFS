@@ -52,7 +52,6 @@ class V021Activity : Activity() {
             val message = intent.getStringExtra("message") ?: ""
             val projectId = intent.getStringExtra("projectId")
             val conversationId = intent.getStringExtra("conversationId")
-            val workspaceId = intent.getStringExtra("workspaceId")
             val standaloneConversationId = intent.getStringExtra("standaloneConversationId")
             val receipt = BridgeReceiptRecord(status, command, message, intent.getLongExtra("time", System.currentTimeMillis()), intent.getStringExtra("receiptId")?.takeIf { it.isNotBlank() } ?: UUID.randomUUID().toString())
             pendingReceipt = formatReceipt(receipt)
