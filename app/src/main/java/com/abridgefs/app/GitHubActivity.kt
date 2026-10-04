@@ -265,10 +265,6 @@ class GitHubActivity : android.app.Activity() {
                                     branch = selected.optString("default_branch").ifBlank { null }
                                     accountLogin = authStore.state().login
                                 }
-                                GitHubConversationConfigStore(this).save(
-                                    selected.optString("full_name"),
-                                    selected.optString("default_branch").ifBlank { null }
-                                )
                                 save()
                                 render()
                             }.show()
