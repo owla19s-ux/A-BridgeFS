@@ -410,3 +410,70 @@ Verification
 ```
 
 并在这个基础上继续发展 APS，而不是继续被旧 Workspace 架构牵着走。
+
+
+## 七、APS「浴火重生」落地定义
+
+本次重建正式定义为：**不是迁移旧 APS，而是让 APS 在新方向、新架构下重新落地。**
+
+旧 `main` 只作为当前可运行基线、已验证能力参考、旧代码零件库和历史实现证据；`architecture-rebuild` 才是新 APS 的主要施工场。
+
+### 1. 方向
+APS 以 Project-centered 为当前产品主方向。核心边界围绕 Project / Project Member / Project Conversation / Address / Service / Module / Task / Execution / Result / Evidence / Verification 展开。GitHub、Local 等是能力接入方式，不再反过来定义核心业务模型。
+
+不恢复 Decision AI / Worker AI、固定 AI A/B、旧 Workspace 中心模型和旧悬浮球体系。
+
+### 2. 架构
+新架构不以旧文件和旧包结构为边界，遵循：
+
+`UI → Domain / State → Store → Service → Module / Address → Infrastructure → Execution → Result / Evidence → Verification`
+
+Activity 只承担页面承载、生命周期、导航和页面级状态协调，不重新成为业务总管家。
+
+旧类如果功能正确但结构错误，可以重构后留下；不能因为已有代码就让旧结构成为新 APS 的骨架。
+
+### 3. 命名
+**旧命名不保留为兼容理由。**如果旧名称已经不能准确表达新模型，应直接按实际职责改名。例如 Workspace、GitHubWorkspace、workspaceId、BridgeAiMember / aiMembers 等，均按新模型重新判断和命名；不进行机械全局替换。
+
+### 4. 旧代码处理方式
+旧代码是待筛选资产，不是默认迁移资产：
+
+| 情况 | 做法 |
+|---|---|
+| 能力正确 + 结构合理 | 复用 |
+| 能力正确 + 命名旧 | 改名 |
+| 能力正确 + 结构旧 | 重构后复用 |
+| 只有局部逻辑有价值 | 提取 |
+| 与新架构冲突 | 重写 |
+| 无调用 / 已废弃 | 删除 |
+| 暂时无法判断 | 暂留并标记 |
+
+目标是最大化复用有效能力，同时最小化旧架构残留。
+
+### 5. 清洗方式
+清洗不是最后一次性处理，而是：**边重建、边清洗、边验证。**发现旧结构后立即判断是否仍属于 APS、是否有真实有效调用、能否自然落入新职责、是否应提取或删除。确认废弃后尽早删除，避免新代码再次依赖。
+
+所有激进清理只在 `architecture-rebuild` 进行，`main` 保持安全基线。
+
+### 6. 悬浮球处理
+旧 A-BridgeFS 悬浮球正式列为**不迁移**。旧 Overlay / Floating Ball UI 不作为新 APS 资产。旧 `FileBridgeService` 中若存在有价值的纯文件执行能力可以提取；旧悬浮球及专属结构直接废弃。未来需要悬浮能力时重新设计、重新实现。
+
+### 7. 落地方式
+不采用“先把 main 全部复制到分支，再慢慢整理”。采用：
+
+`新骨架 → 选择旧能力 → 新结构适配 → UI 打通 → 真实构建 → 实机验证 → 下一链路`
+
+第一阶段建立 Project 主链，而不是一次性迁移所有旧功能。每完成一条完整链路就构建、验证；发现模型或职责边界不合理，就在当前链路解决。
+
+### 8. “浴火重生”的最终标准
+- APS 核心命名直接表达当前产品模型；
+- 旧 Workspace 不再主导代码组织；
+- Activity 不承担巨量业务逻辑；
+- Project / Member / Conversation / Address / Service / Module 边界清楚；
+- 旧悬浮球不存在于新 APS；
+- 留下的是有效能力，而不是历史包袱；
+- UI、业务、底层、模块真实打通；
+- 关键链路均能构建、运行、验证；
+- 新能力优先通过清晰边界扩展，而不是继续向旧巨型类堆逻辑。
+
+> **旧 APS 可以留下它有价值的“能力”，但新 APS 不再继承它的“时代”。**
