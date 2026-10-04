@@ -754,7 +754,7 @@ class V021Activity : Activity() {
         }
         root.addView(textButton("← 返回工作区") { page = Page.WORKSPACE; render() },
             LinearLayout.LayoutParams(-1, dp(34)))
-        root.addView(header("协作对话", "当前工作区内的双 AI 协作现场"))
+        root.addView(header("项目对话", "当前项目的主要对话入口"))
 
         val workspace = project ?: return
         val conversation = workspace.activeConversation()
@@ -765,10 +765,10 @@ class V021Activity : Activity() {
             setPadding(dp(14), dp(8), dp(8), dp(8))
             background = colorDrawable(R.color.bridgefs_input_surface, 14)
             setOnClickListener {
-                val labels = workspace.conversations.map { it.name.ifBlank { "未命名 Project 对话" } }.toTypedArray()
+                val labels = workspace.conversations.map { it.name.ifBlank { "未命名项目对话" } }.toTypedArray()
                 val currentIndex = workspace.conversations.indexOfFirst { it.id == workspace.activeConversationId }.coerceAtLeast(0)
                 AlertDialog.Builder(this@V021Activity)
-                    .setTitle("切换协作对话")
+                    .setTitle("切换项目对话")
                     .setSingleChoiceItems(labels, currentIndex) { dialog, which ->
                         workspace.activeConversationId = workspace.conversations[which].id
                         store.save(projects)
@@ -782,12 +782,12 @@ class V021Activity : Activity() {
         selector.addView(LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             addView(TextView(this@V021Activity).apply {
-                text = "当前 Project 对话"
+                text = "当前项目对话"
                 textSize = 12f
                 setTextColor(color(R.color.bridgefs_text_secondary))
             })
             addView(TextView(this@V021Activity).apply {
-                text = conversation.name.ifBlank { "未命名协作对话" }
+                text = conversation.name.ifBlank { "未命名项目对话" }
                 textSize = 16f
                 typeface = Typeface.DEFAULT_BOLD
                 setTextColor(color(R.color.bridgefs_text_primary))
