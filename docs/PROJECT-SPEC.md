@@ -1,11 +1,11 @@
-# A-BridgeFS 项目需求功能书
+# APS 项目需求功能书
 
 更新时间：2026-10-04
 
 > 记录 ≠ 确认。状态随讨论、施工和真实验证推进。
 
 ## 一、当前项目方向
-A-BridgeFS 定位为：
+APS 定位为：
 
 **AI 项目工作与真实执行环境的 Android 工作台。**
 
@@ -61,7 +61,7 @@ PROPOSAL / QUESTION / DECISION / TASK / PROGRESS / REQUEST_WRITE / GRANT_WRITE /
 Commit 后必须确认：
 Commit SHA → Check Run / Workflow Run → Job → 实际结果
 
-### R-006 A-BridgeFS 协作回执
+### R-006 APS 协作回执
 状态：开发中
 
 用户看到项目当前状态：
