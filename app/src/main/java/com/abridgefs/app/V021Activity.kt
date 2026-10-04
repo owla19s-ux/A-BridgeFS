@@ -1605,8 +1605,8 @@ class V021Activity : Activity() {
     }
 
     private fun dispatchToBridge(command: String, conversation: BridgeConversation) {
-        val workspace = project
-        val root = workspace?.workspaceDirectory.orEmpty().trim()
+        val currentProject = project
+        val root = currentProject?.localAddress.orEmpty().trim()
         if (root.isBlank()) {
             recordReceipt(conversation, "FAILED", "AI command", "当前 Project 未设置 Local Project Address，指令未执行。")
             return
