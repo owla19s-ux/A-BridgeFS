@@ -548,11 +548,65 @@ class V021Activity : Activity() {
             }
         }
         box.addView(actionButton("管理成员") {
-            Toast.makeText(this, "Project Members 管理入口已接入模型，详细编辑将在 T2 完成。", Toast.LENGTH_SHORT).show()
+            manageProjectMembers()
         }, LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(8) })
         return box
     }
 
+    private fun manageProjectMembers() {
+        val current = project ?: return
+        val labels = current.aiMembers.map { member ->
+            val profile = member.apiProfileId?.let { id -> apis().firstOrNull { it.id == id } }
+            val marker = if (current.defaultMemberId == member.id) "（默认 AI）" else ""
+            member.name.ifBlank { "未命名 AI" } + "  ·  " + (profile?.name ?: "未绑定 API") + " " + marker
+        }.toTypedArray()
+        AlertDialog.Builder(this).setTitle("Project Members")
+            .setItems(labels) { _, which -> editProjectMember(current.aiMembers[which]) }
+            .setPositiveButton("新增成员") { _, _ -> editProjectMember(null) }
+            .setNegativeButton("关闭", null).show()
+    }
+
+    private fun editProjectMember(member: BridgeAiMember?) {
+        val current = project ?: return
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(8), 0, dp(8), 0) }
+        val name = field("成员名称", member?.name)
+        val profiles = apis()
+        val labels = mutableListOf("未绑定 API Profile")
+        labels += profiles.map { it.name.ifBlank { "未命名 API" } }
+        val spinner = Spinner(this)
+        spinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, labels)
+        val selected = member?.apiProfileId?.let { id -> profiles.indexOfFirst { it.id == id }.takeIf { it >= 0 }?.plus(1) } ?: 0
+        spinner.setSelection(selected)
+        box.addView(name)
+        box.addView(TextView(this).apply { text = "API Profile"; textSize = 12f; setTextColor(color(R.color.bridgefs_text_secondary)); setPadding(0, dp(10), 0, dp(4)) })
+        box.addView(spinner, LinearLayout.LayoutParams(-1, dp(48)))
+        val default = CheckBox(this).apply { text = "设为当前 Project 的默认 AI"; isChecked = member?.id == current.defaultMemberId }
+        box.addView(default)
+        val dialog = AlertDialog.Builder(this).setTitle(if (member == null) "新增 Project Member" else "编辑 Project Member").setView(box)
+            .setPositiveButton("保存", null).setNeutralButton("删除", null).setNegativeButton("取消", null).create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val memberName = name.text.toString().trim()
+                if (memberName.isBlank()) { name.error = "请输入成员名称"; return@setOnClickListener }
+                val profileId = profiles.getOrNull(spinner.selectedItemPosition - 1)?.id
+                val target = member ?: BridgeAiMember(UUID.randomUUID().toString(), memberName, profileId)
+                if (member == null) current.aiMembers += target else { target.name = memberName; target.apiProfileId = profileId }
+                if (default.isChecked || current.defaultMemberId == null) current.defaultMemberId = target.id
+                else if (current.defaultMemberId == target.id) current.defaultMemberId = current.aiMembers.firstOrNull { it.id != target.id }?.id
+                store.save(projects); dialog.dismiss(); render()
+            }
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
+                if (member == null) { dialog.dismiss(); return@setOnClickListener }
+                AlertDialog.Builder(this).setTitle("删除 Project Member").setMessage("确定删除「" + member.name + "」？")
+                    .setPositiveButton("删除") { _, _ ->
+                        current.aiMembers.removeAll { it.id == member.id }
+                        if (current.defaultMemberId == member.id) current.defaultMemberId = current.aiMembers.firstOrNull()?.id
+                        store.save(projects); dialog.dismiss(); render()
+                    }.setNegativeButton("取消", null).show()
+            }
+        }
+        dialog.show()
+    }
     private fun apiCard(a:ApiProfile): View {
         val box = card()
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
