@@ -136,6 +136,11 @@ class CollaborationCoordinator(
     private val conversationId: String,
     private val aiAProfileId: String,
     private val aiBProfileId: String,
+    /**
+     * Legacy constructor value retained for compatibility with existing callers.
+     * Actual construction authority is always read from the persisted task
+     * constructionHolderAiMemberId at execution time.
+     */
     private val constructionAiMemberId: String? = null
 ) {
     private val transport = CollaborationTransport(context, workspaceId, conversationId)
@@ -559,7 +564,7 @@ class CollaborationCoordinator(
         return messages
     }
 
-    /** Execute exactly one AI B → AI A round. */
+    /** Execute one bounded collaboration round; the user-selected construction holder owns actual writes. */
     fun dispatchOneAiBRound(aiBSystemPrompt: String, aiASystemPrompt: String): List<CollaborationProtocol.Message> {
         val current = currentTask() ?: return emptyList()
         // A persisted TASK/DECISION_RESPONSE may remain unhandled after a process
@@ -650,8 +655,10 @@ class CollaborationCoordinator(
     ): CollaborationProtocol.Message {
         require(request.type == CollaborationProtocol.Type.FILE_CHANGE_REQUEST)
         require(request.taskId == taskMessage.taskId)
-        val memberId = constructionAiMemberId?.takeIf { it.isNotBlank() }
-            ?: error("AI B AI Member 未绑定，不能进入自动施工")
+        val task = CollaborationTaskStore(context).get(taskMessage.taskId)
+            ?: error("协作任务不存在")
+        val memberId = task.constructionHolderAiMemberId?.takeIf { it.isNotBlank() }
+            ?: error("当前任务尚未由用户指定施工 AI，不能进入自动施工")
         val workspace = BridgeProjectStore(context).load().firstOrNull { it.id == workspaceId }
             ?: error("工作区不存在：" + workspaceId)
         require(workspace.github.writeEnabled) { "当前工作区未允许 GitHub 修改" }
@@ -673,10 +680,11 @@ class CollaborationCoordinator(
         require(allowPaths.any { matches(it, path) }) { "施工路径不在 allow_paths：" + path }
         require(allowOperations.contains(operation)) { "施工操作不在 allow_operations：" + operation }
         val current = CollaborationTaskStore(context).get(taskMessage.taskId) ?: error("协作任务不存在")
-        if (current.status != CollaborationTaskRecord.STATUS_CONSTRUCTING) {
-            requestConstruction(taskMessage.taskId, memberId)
-        } else {
-            require(current.constructionHolderAiMemberId == memberId) { "当前 AI B 未持有施工锁" }
+        require(current.status == CollaborationTaskRecord.STATUS_CONSTRUCTING) {
+            "当前协作任务未进入施工阶段"
+        }
+        require(current.constructionHolderAiMemberId == memberId) {
+            "当前施工 AI 与任务施工权不一致"
         }
         val token = GitHubTokenStore(context).state().accessToken?.takeIf { it.isNotBlank() } ?: error("GitHub 尚未授权")
         val service = GitHubWorkspaceService(context, GitHubApiClient(context, token), workspace.github, workspace)
