@@ -24,11 +24,11 @@ internal fun ApsActivity.settingSwitch(name: String, checked: Boolean, onChanged
     internal fun ApsActivity.messageBubble(name: String, text: String) =
         LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(10), dp(8), dp(10), dp(8))
+            setPadding(dp(14), dp(12), dp(14), dp(12))
             background = round(c(R.color.bridgefs_surface), dp(12))
             addView(TextView(this@ApsActivity).apply {
                 this.text = name
-                textSize = 11f
+                textSize = 12f
                 typeface = Typeface.DEFAULT_BOLD
                 setTextColor(c(R.color.bridgefs_text_secondary))
             })
@@ -60,12 +60,14 @@ internal fun ApsActivity.settingSwitch(name: String, checked: Boolean, onChanged
                 setText(pendingTaskMentions.joinToString(" ") + " ")
                 setSelection(text.length)
             }
-            setPadding(dp(12), dp(8), dp(12), dp(8))
-            background = round(c(R.color.bridgefs_input_surface), dp(14))
+            setPadding(dp(14), dp(8), dp(14), dp(8))
+            background = round(c(R.color.bridgefs_input_surface), dp(16))
         }
         bar.addView(input, LinearLayout.LayoutParams(0, dp(52), 1f))
         bar.addView(Button(this).apply {
             text = "发送"
+            minHeight = 0
+            minimumHeight = 0
             setOnClickListener {
                 if (input.text.toString().trim().isNotBlank()) {
                     toast("输入已进入当前工作流（UI 壳）")
@@ -99,7 +101,7 @@ internal fun ApsActivity.settingSwitch(name: String, checked: Boolean, onChanged
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(14), 0, dp(14), 0)
-            background = round(c(R.color.bridgefs_input_surface), dp(12))
+            background = round(c(R.color.bridgefs_input_surface), dp(14))
             setOnClickListener { click() }
         }
 
