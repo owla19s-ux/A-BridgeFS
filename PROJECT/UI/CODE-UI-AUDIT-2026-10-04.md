@@ -43,7 +43,23 @@ A-BridgeFS 已具备较完整底层能力，当前主要问题已从“有没有
 7. 是否存在错误、等待、成功状态；
 8. 是否能够实际测试。
 
-### 2. 协作运行时仍有旧模型残留
+### 2. 普通对话 GitHub 读取链未打通
+
+当前普通对话选择 API 后，主要进入 `BridgeApiClient` 的 API 对话链；GitHub 配置则主要挂在 Workspace / `GitHubWorkspaceService`。两条链目前没有形成“普通对话可读取 GitHub”的完整连接。
+
+因此当前存在一个明确的功能断点：
+
+普通对话 → API → X → GitHub Repository / 文件读取
+
+这不是“工作区 GitHub 功能缺失”，而是**普通对话读取能力没有接入 GitHub 资源**。
+
+第一阶段只补读取：
+- 不增加 GitHub Agent；
+- 不把普通对话变成施工模式；
+- 不开放修改；
+- 只让普通对话能够确认并读取真实 GitHub 仓库。
+
+### 3. 协作运行时仍有旧模型残留
 
 正式架构已经取消固定 Decision AI / Worker AI。
 
@@ -73,7 +89,7 @@ Verify
 
 代码中仍存在 `DECISION_AI / WORKER`、旧提示词及固定路由方法。这些只能作为迁移残留，不得作为新功能设计基础。
 
-### 3. ConstructionLock / GitHub / Verify 底层方向正确
+### 4. ConstructionLock / GitHub / Verify 底层方向正确
 
 目前确认：
 
@@ -86,7 +102,7 @@ Verify
 
 这些是当前应保留的底层基础，不因 UI 整理重新设计。
 
-### 4. 工作区页面存在“配置集合化”倾向
+### 5. 工作区页面存在“配置集合化”倾向
 
 当前工作区同时展示 GitHub、AI 协作、任务、目录、权限、API 等多个卡片，更像配置总表而不是工作台。
 
@@ -110,7 +126,7 @@ Verify
 
 本轮不直接改 UI。
 
-### 5. Activity / 版本遗留需要继续核对
+### 6. Activity / 版本遗留需要继续核对
 
 当前代码同时存在 `MainActivity`、`V021Activity`、`GitHubActivity`、`ApiSettingsActivity`、`GlobalAccessActivity`、`SettingsCategoryActivity`。目前新 UI 主体明显集中在 `V021Activity`，需要继续确认其他页面哪些仍为正式入口、哪些属于历史/过渡代码。
 
@@ -125,6 +141,7 @@ Verify
 | 工作区 UI | 开发中 |
 | 对话 UI | 开发中 |
 | 配置 UI | 开发中 |
+| 普通对话 → GitHub 读取 | 阻塞 / 待施工 | 当前普通对话 API 链尚未接入 GitHub 读取 |
 | UI ↔ 业务闭环 | 开发中，当前主要审查目标 |
 | 旧 Decision / Worker 路由 | 迁移中，不得继续扩展 |
 | UI 架构整理 | 已设计未施工 |
@@ -135,6 +152,7 @@ Verify
 
 - 工作区：创建/切换 → 持久化 → 当前状态 → GitHub → 目录 → 权限
 - 对话：选择 AI/API → 输入 → 发送 → 请求 → 回复 → 持久化 → 回显
+- 普通对话 GitHub：API → GitHub 授权 → Repository / Branch → 文件读取 → AI 回答
 - 双 AI：两个 AI → 共享工作区 → 任务 → 动态角色 → ConstructionLock → 施工
 - GitHub：文件变更意图 → FILE_CHANGE_REQUEST → 权限 → Lock → updateFile → Commit
 - Verify：Commit → WAITING_VERIFY → Actions → 精确 SHA → PASS/FAIL → Lock 释放 → 状态回写
