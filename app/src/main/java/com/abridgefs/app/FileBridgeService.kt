@@ -62,10 +62,9 @@ val text=intent.getStringExtra("bridgefs_external_command").orEmpty()
 val rootPath=intent.getStringExtra("bridgefs_root").orEmpty()
 val projectId=intent.getStringExtra("projectId")
 val conversationId=intent.getStringExtra("conversationId")
-val workspaceId=intent.getStringExtra("workspaceId")
 val standaloneConversationId=intent.getStringExtra("standaloneConversationId")
 commandExecutor.submit {
-val result=executeExternalCommand(rootPath,text,projectId,conversationId,workspaceId,standaloneConversationId)
+val result=executeExternalCommand(rootPath,text,projectId,conversationId,standaloneConversationId)
 broadcastReceipt(result.first,result.second,result.third,projectId,conversationId,workspaceId,standaloneConversationId)
 }
 }
