@@ -36,7 +36,7 @@ class V021Activity : Activity() {
     private lateinit var navChat: TextView
     private lateinit var navConfig: TextView
     private var apiId = ""
-    private enum class Page { WORKSPACE, CHAT, WORKSPACE_CHAT, NEW_CHAT, CONFIG }
+    private enum class Page { WORKSPACE, CHAT, NEW_CHAT, CONFIG }
     private var page = Page.WORKSPACE
     private val executor = Executors.newSingleThreadExecutor()
     private var pendingReceipt: String? = null
@@ -81,7 +81,7 @@ class V021Activity : Activity() {
                 }
                 store.save(projects)
                 removePendingReceipt(intent.getStringExtra("receiptId"))
-                if (page == Page.WORKSPACE_CHAT && target?.id == project?.id) render()
+                if (page == Page.WORKSPACE && target?.id == project?.id) render()
                 else Toast.makeText(this@V021Activity, "收到执行回执：$status", Toast.LENGTH_SHORT).show()
             }
         }
@@ -107,10 +107,10 @@ class V021Activity : Activity() {
                 ?.takeIf { id -> standaloneConversations.any { it.id == id } }
                 ?: standaloneConversations.first().id
         }
-        val activeWorkspaceId = prefs.getString("active_workspace_id", null)
-        project = projects.firstOrNull { it.id == activeWorkspaceId } ?: projects.first()
+        val activeProjectId = prefs.getString("active_project_id", null)
+        project = projects.firstOrNull { it.id == activeProjectId } ?: projects.first()
         migrateLegacyWorkspaceDirectory()
-        prefs.edit().putString("active_workspace_id", project?.id).apply()
+        prefs.edit().putString("active_project_id", project?.id).apply()
         apiId = project?.activeConversation()?.apiId ?: apis().firstOrNull()?.id.orEmpty()
         registerReceiver(receiver, IntentFilter("com.bridgefs.RESULT"), Context.RECEIVER_NOT_EXPORTED)
         recoverPendingReceipt()
@@ -196,7 +196,7 @@ class V021Activity : Activity() {
         ViewCompat.setOnApplyWindowInsetsListener(content) { view, insets ->
             val ime = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
             val system = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom
-            val chatPage = page == Page.CHAT || page == Page.WORKSPACE_CHAT
+            val chatPage = page == Page.CHAT || page == Page.WORKSPACE
             view.setPadding(0, 0, 0, if (chatPage) ime else 0)
             view.tag = system
             insets
@@ -239,7 +239,6 @@ class V021Activity : Activity() {
         when (page) {
             Page.WORKSPACE -> renderWorkspace()
             Page.CHAT -> renderChat()
-            Page.WORKSPACE_CHAT -> renderWorkspaceChat()
             Page.NEW_CHAT -> renderNewChat()
             Page.CONFIG -> renderConfig()
         }
@@ -247,7 +246,7 @@ class V021Activity : Activity() {
     }
 
     private fun updateNav() {
-        val selectedPage = if (page == Page.WORKSPACE_CHAT) Page.WORKSPACE else page
+        val selectedPage = page
         listOf(
             navWorkspace to Page.WORKSPACE,
             navChat to Page.CHAT,
@@ -450,7 +449,7 @@ class V021Activity : Activity() {
                     val created = store.newProject(name)
                     projects += created
                     project = created
-                    prefs.edit().putString("active_workspace_id", created.id).apply()
+                    prefs.edit().putString("active_project_id", created.id).apply()
                     apiId = created.activeConversation().apiId ?: apis().firstOrNull()?.id.orEmpty()
                     store.save(projects)
                     render()
@@ -893,122 +892,6 @@ class V021Activity : Activity() {
         }
         standaloneSendButton.isEnabled = standaloneSendingConversationId != conversation.id
         composer.addView(standaloneSendButton, LinearLayout.LayoutParams(dp(78), dp(52)).apply { marginStart = dp(6) })
-        root.addView(composer)
-        content.addView(root)
-    }
-
-    private fun renderWorkspaceChat() {
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(14), dp(10), dp(14), dp(8))
-        }
-        root.addView(textButton("← 返回工作区") { page = Page.WORKSPACE; render() },
-            LinearLayout.LayoutParams(-1, dp(34)))
-        root.addView(header("项目对话", "当前项目的主要对话入口"))
-
-        val workspace = project ?: return
-        val conversation = workspace.activeConversation()
-
-        val selector = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(14), dp(8), dp(8), dp(8))
-            background = colorDrawable(R.color.bridgefs_input_surface, 14)
-            setOnClickListener {
-                val labels = workspace.conversations.map { it.name.ifBlank { "未命名项目对话" } }.toTypedArray()
-                val currentIndex = workspace.conversations.indexOfFirst { it.id == workspace.activeConversationId }.coerceAtLeast(0)
-                AlertDialog.Builder(this@V021Activity)
-                    .setTitle("切换项目对话")
-                    .setSingleChoiceItems(labels, currentIndex) { dialog, which ->
-                        workspace.activeConversationId = workspace.conversations[which].id
-                        store.save(projects)
-                        dialog.dismiss()
-                        render()
-                    }
-                    .setNegativeButton("取消", null)
-                    .show()
-            }
-        }
-        selector.addView(LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            addView(TextView(this@V021Activity).apply {
-                text = "当前项目对话"
-                textSize = 12f
-                setTextColor(color(R.color.bridgefs_text_secondary))
-            })
-            addView(TextView(this@V021Activity).apply {
-                text = conversation.name.ifBlank { "未命名项目对话" }
-                textSize = 16f
-                typeface = Typeface.DEFAULT_BOLD
-                setTextColor(color(R.color.bridgefs_text_primary))
-                setPadding(0, dp(3), 0, 0)
-            })
-        }, LinearLayout.LayoutParams(0, -2, 1f))
-        selector.addView(TextView(this).apply {
-            text = "切换 ›"
-            textSize = 13f
-            gravity = Gravity.CENTER
-            setTextColor(color(R.color.bridgefs_accent))
-        }, LinearLayout.LayoutParams(dp(72), dp(44)))
-        root.addView(selector, LinearLayout.LayoutParams(-1, dp(64)).apply { bottomMargin = dp(6) })
-
-        root.addView(TextView(this).apply {
-            val directory = workspace.workspaceDirectory.orEmpty().ifBlank { "未设置" }
-            text = "工作目录：$directory"
-            textSize = 12f
-            setTextColor(if (workspace.workspaceDirectory.isNullOrBlank()) color(R.color.bridgefs_text_secondary) else color(R.color.bridgefs_text_primary))
-            setPadding(dp(4), 0, dp(4), dp(6))
-        })
-
-        root.addView(textButton("＋ 新建 Project 对话") {
-            val input = field("Project 对话名称", "Project 对话 " + (workspace.conversations.size + 1))
-            AlertDialog.Builder(this@V021Activity)
-                .setTitle("新建 Project 对话")
-                .setView(input)
-                .setPositiveButton("创建") { _, _ ->
-                    val created = BridgeConversation(
-                        UUID.randomUUID().toString(),
-                        input.text.toString().trim().ifBlank { "协作对话 " + (workspace.conversations.size + 1) }
-                    )
-                    workspace.conversations += created
-                    workspace.activeConversationId = created.id
-                    store.save(projects)
-                    render()
-                }
-                .setNegativeButton("取消", null)
-                .show()
-        }, LinearLayout.LayoutParams(-1, dp(42)).apply { bottomMargin = dp(4) })
-
-        val messages = ScrollView(this)
-        val messageBox = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(0, dp(8), 0, dp(8))
-        }
-        conversation.messages.forEach { m -> messageBox.addView(messageBubble(m)) }
-        messages.addView(messageBox)
-        root.addView(messages, LinearLayout.LayoutParams(-1, 0, 1f))
-        messages.post { messages.fullScroll(View.FOCUS_DOWN) }
-
-        val composer = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.BOTTOM
-            setPadding(0, dp(6), 0, 0)
-        }
-        val input = EditText(this).apply {
-            hint = "输入问题或工作目标……"
-            textSize = 14f
-            minLines = 1
-            maxLines = 4
-            setPadding(dp(12), dp(8), dp(12), dp(8))
-            background = colorDrawable(R.color.bridgefs_input_surface, 14)
-            setTextColor(color(R.color.bridgefs_text_primary))
-            setHintTextColor(color(R.color.bridgefs_text_secondary))
-        }
-        composer.addView(input, LinearLayout.LayoutParams(0, dp(52), 1f))
-        val sendButton = actionButton("发送") {
-            sendProjectMessage(input, conversation)
-        }
-        composer.addView(sendButton, LinearLayout.LayoutParams(dp(82), dp(52)).apply { marginStart = dp(6) })
         root.addView(composer)
         content.addView(root)
     }
