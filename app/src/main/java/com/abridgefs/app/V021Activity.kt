@@ -376,7 +376,7 @@ class V021Activity : Activity() {
             projectScroll.smoothScrollTo(0, 0)
         }, LinearLayout.LayoutParams(dp(44), dp(36)))
         displayBar.addView(textButton("↓") {
-            projectScroll.post { smoothScrollTo(0, getChildAt(0).measuredHeight) }
+            projectScroll.post { projectScroll.smoothScrollTo(0, projectScroll.getChildAt(0).measuredHeight) }
         }, LinearLayout.LayoutParams(dp(44), dp(36)))
 
         val composer = LinearLayout(this).apply {
