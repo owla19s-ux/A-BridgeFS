@@ -20,6 +20,9 @@ class ApsActivity : Activity() {
     internal var externalAccess = false
     internal val pendingTaskMentions = linkedSetOf<String>()
     internal var projectInput: EditText? = null
+    internal val projectStore by lazy { BridgeProjectStore(this) }
+    internal var projects: MutableList<BridgeProject> = mutableListOf()
+    internal var currentProject: BridgeProject? = null
     internal var conversationGroup = "默认分组"
     internal var currentConversation = "新会话 1"
     internal var selectedApi = "未绑定"
@@ -33,6 +36,13 @@ class ApsActivity : Activity() {
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        projects = projectStore.load()
+        if (projects.isEmpty()) {
+            val project = projectStore.newProject("默认项目")
+            projects += project
+            projectStore.save(projects)
+        }
+        currentProject = projects.firstOrNull()
         buildShell()
     }
 
