@@ -448,11 +448,13 @@ class V021Activity : Activity() {
             return box
         }
 
-        val memberA = workspace?.aiMembers?.getOrNull(0)
-        val memberB = workspace?.aiMembers?.getOrNull(1)
-        val holderName = task.constructionHolderAiMemberId?.let { id ->
-            workspace?.aiMembers?.firstOrNull { it.id == id }?.name
+        val members = workspace?.aiMembers?.take(2).orEmpty()
+        val memberA = members.getOrNull(0)
+        val memberB = members.getOrNull(1)
+        val holder = task.constructionHolderAiMemberId?.let { id ->
+            members.firstOrNull { it.id == id }
         }
+        val holderName = holder?.name
         box.addView(TextView(this).apply {
             text = "状态：${collaborationTaskStatusLabel(task.status)}"
             textSize = 14f
@@ -477,23 +479,44 @@ class V021Activity : Activity() {
             setPadding(0, dp(2), 0, dp(8))
         })
 
-        if (task.status == CollaborationTaskRecord.STATUS_WAITING_CONSTRUCTION && memberB != null) {
-            box.addView(actionButton("施工 AI 申请施工锁") {
-                runCatching {
-                    val coordinator = CollaborationCoordinator(
-                        this,
-                        workspace!!.id,
-                        conversation!!.id,
-                        memberA?.apiProfileId.orEmpty(),
-                        memberB.apiProfileId.orEmpty(),
-                        memberB.id
-                    )
-                    coordinator.requestConstruction(task.taskId, memberB.id)
-                    AppLogger.log(this, AppLogger.Category.COLLABORATION, "CONSTRUCTION_REQUESTED_UI", "taskId=${task.taskId}")
-                    render()
-                }.onFailure {
-                    Toast.makeText(this, "申请施工失败：${it.message ?: "未知错误"}", Toast.LENGTH_LONG).show()
-                }
+        if (members.size >= 2 &&
+            (task.status == CollaborationTaskRecord.STATUS_WAITING_CONSTRUCTION ||
+                task.status == CollaborationTaskRecord.STATUS_CONSTRUCTING)
+        ) {
+            val holderLabel = holder?.name?.ifBlank { null } ?: "未指定"
+            box.addView(actionButton(
+                if (task.status == CollaborationTaskRecord.STATUS_CONSTRUCTING)
+                    "切换施工 AI（当前：$" + "{holderLabel}）"
+                else
+                    "选择施工 AI（当前：$" + "{holderLabel}）"
+            ) {
+                val labels = members.map { member ->
+                    val apiName = apis().firstOrNull { it.id == member.apiProfileId }?.name
+                    if (apiName.isNullOrBlank()) member.name else "${member.name} · $apiName"
+                }.toTypedArray()
+                val selected = members.indexOfFirst { it.id == holder?.id }.let { if (it >= 0) it else -1 }
+                AlertDialog.Builder(this@V021Activity)
+                    .setTitle("选择本阶段施工 AI")
+                    .setSingleChoiceItems(labels, selected) { dialog, which ->
+                        val selectedMember = members[which]
+                        runCatching {
+                            val coordinator = CollaborationCoordinator(
+                                this,
+                                workspace!!.id,
+                                conversation!!.id,
+                                memberA?.apiProfileId.orEmpty(),
+                                memberB?.apiProfileId.orEmpty(),
+                                selectedMember.id
+                            )
+                            coordinator.selectConstructionHolder(task.taskId, selectedMember.id)
+                            dialog.dismiss()
+                            render()
+                        }.onFailure {
+                            Toast.makeText(this, "设置施工 AI 失败：${it.message ?: "未知错误"}", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                    .setNegativeButton("取消", null)
+                    .show()
             })
         }
 
