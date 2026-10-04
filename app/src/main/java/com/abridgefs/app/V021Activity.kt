@@ -478,7 +478,7 @@ class V021Activity : Activity() {
         })
 
         if (task.status == CollaborationTaskRecord.STATUS_WAITING_CONSTRUCTION && memberB != null) {
-            box.addView(actionButton("Worker AI 申请施工锁") {
+            box.addView(actionButton("施工 AI 申请施工锁") {
                 runCatching {
                     val coordinator = CollaborationCoordinator(
                         this,
@@ -516,7 +516,7 @@ class V021Activity : Activity() {
                         val result = coordinator.retryAfterVerifyFailure(
                             task.taskId,
                             "你是 Decision AI。上一 Commit 的 GitHub Actions Verify 已失败。请分析失败结果并给出下一步修复指令，不得直接宣布完成。",
-                            "你是 Worker AI。根据 Decision AI 的修复指令进行有限范围施工。"
+                            "你是 施工 AI。根据 Decision AI 的修复指令进行有限范围施工。"
                         )
                         runOnUiThread {
                             Toast.makeText(this, result.message, Toast.LENGTH_LONG).show()
@@ -558,7 +558,7 @@ class V021Activity : Activity() {
                         val result = coordinator.verifyAndContinue(
                             task.taskId,
                             "你是 Decision AI。只根据真实 Verify 结果决定是否完成任务或继续施工。",
-                            "你是 Worker AI。根据 Decision AI 的施工指令执行有限范围内的下一步。"
+                            "你是 施工 AI。根据 Decision AI 的施工指令执行有限范围内的下一步。"
                         )
                         runOnUiThread {
                             Toast.makeText(this, result.message, Toast.LENGTH_LONG).show()
@@ -1334,13 +1334,13 @@ class V021Activity : Activity() {
                 val coordinator = CollaborationCoordinator(this, workspaceId, conversationId, ids.first, ids.second, workerMemberId)
                 val messages = coordinator.runObjective(
                     objective = objective,
-                    decisionSystemPrompt = "你是本轮协作的规划参与者。你必须只返回一个合法 JSON 对象，不要 Markdown、代码围栏或解释文字。协议版本必须为 0.1；from 只能是 decision_ai，to 只能是 worker；type 必须是 TASK。task_id 必须原样使用输入消息的 task_id。payload 必须包含 objective、scope、acceptance、autonomy、context_refs。当前阶段只负责分析、拆解与提出任务，不执行本地文件或 GitHub 操作。",
-                    workerSystemPrompt = "你是本轮协作的执行参与者。你必须只返回一个合法 JSON 对象，不要 Markdown、代码围栏或解释文字。协议版本必须为 0.1；from 只能是 worker；对 Decision AI 的回复 to 必须是 decision_ai；type 只能使用 DECISION_REQUEST、PROGRESS、BLOCKED 或 FILE_CHANGE_REQUEST。COMMIT、VERIFY、COMPLETE 由 A-BridgeFS 根据真实施工与 Verify 状态产生。不要使用 executor、assistant、user 等角色名。需要实际修改文件时，必须返回 FILE_CHANGE_REQUEST，并在 payload 中提供 path、operation、content、commit_message；只能修改 TASK.scope 允许的路径和操作。不要自行调用 GitHub 或本地文件 API，实际写入由 A-BridgeFS 权限层执行。"
+                    decisionSystemPrompt = "你是本轮协作的规划参与者。你必须只返回一个合法 JSON 对象，不要 Markdown、代码围栏或解释文字。协议版本必须为 0.2；from 只能是 ai_a，to 只能是 ai_b；type 必须是 TASK。task_id 必须原样使用输入消息的 task_id。payload 必须包含 objective、scope、acceptance、autonomy、context_refs。当前阶段只负责分析、拆解与提出任务，不执行本地文件或 GitHub 操作。",
+                    workerSystemPrompt = "你是本轮协作的执行参与者。你必须只返回一个合法 JSON 对象，不要 Markdown、代码围栏或解释文字。协议版本必须为 0.2；from 只能是 ai_b；对 AI A 的回复 to 必须是 ai_a；type 只能使用 DECISION_REQUEST、PROGRESS、BLOCKED 或 FILE_CHANGE_REQUEST。COMMIT、VERIFY、COMPLETE 由 A-BridgeFS 根据真实施工与 Verify 状态产生。不要使用 executor、assistant、user 等角色名。需要实际修改文件时，必须返回 FILE_CHANGE_REQUEST，并在 payload 中提供 path、operation、content、commit_message；只能修改 TASK.scope 允许的路径和操作。不要自行调用 GitHub 或本地文件 API，实际写入由 A-BridgeFS 权限层执行。"
                 )
                 val profileStore = ApiProfileStore(this)
                 val profileByRole = mapOf(
-                    CollaborationProtocol.Role.DECISION_AI to profileStore.find(ids.first),
-                    CollaborationProtocol.Role.WORKER to profileStore.find(ids.second)
+                    CollaborationProtocol.Role.AI_A to profileStore.find(ids.first),
+                    CollaborationProtocol.Role.AI_B to profileStore.find(ids.second)
                 )
                 val collaborationMessages = messages.map { message ->
                     val profile = profileByRole[message.from]
@@ -1398,13 +1398,13 @@ class V021Activity : Activity() {
 
     private fun formatCollaborationMessage(message: CollaborationProtocol.Message): String {
         val roleName = when (message.from) {
-            CollaborationProtocol.Role.DECISION_AI -> "Decision AI"
-            CollaborationProtocol.Role.WORKER -> "Worker"
+            CollaborationProtocol.Role.AI_A -> "AI A"
+            CollaborationProtocol.Role.AI_B -> "AI B"
             CollaborationProtocol.Role.HUMAN -> "用户"
         }
         val targetName = when (message.to) {
-            CollaborationProtocol.Role.DECISION_AI -> "Decision AI"
-            CollaborationProtocol.Role.WORKER -> "Worker"
+            CollaborationProtocol.Role.AI_A -> "AI A"
+            CollaborationProtocol.Role.AI_B -> "AI B"
             CollaborationProtocol.Role.HUMAN -> "用户"
         }
         val payload = message.payload
