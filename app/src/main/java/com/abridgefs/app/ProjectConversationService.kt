@@ -59,7 +59,7 @@ class ProjectConversationService(private val context: Context) {
 
         return runCatching {
             val answer = BridgeApiClient(
-                BridgeApiConfig(normalizeBaseUrl(profile.baseUrl), profile.key, profile.model)
+                BridgeApiConfig(profile.baseUrl.trimEnd('/'), profile.key, profile.model)
             ).chat(
                 conversation.messages,
                 BridgeCommandSpec.aiSystemPrompt(
