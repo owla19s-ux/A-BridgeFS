@@ -519,44 +519,6 @@ class V021Activity : Activity() {
             })
         }
 
-        if (task.status == CollaborationTaskRecord.STATUS_FAILED && !task.constructionHolderAiMemberId.isNullOrBlank()) {
-            val actionRunning = collaborationTaskActionRunningId == task.taskId
-            val repairButton = actionButton(if (actionRunning) "修复处理中…" else "根据 Verify 失败结果继续修复") {
-                if (collaborationTaskActionRunningId == task.taskId) return@actionButton
-                collaborationTaskActionRunningId = task.taskId
-                render()
-                executor.execute {
-                    try {
-                        val coordinator = CollaborationCoordinator(
-                            this,
-                            workspace!!.id,
-                            conversation!!.id,
-                            memberA?.apiProfileId.orEmpty(),
-                            memberB?.apiProfileId.orEmpty()
-                        )
-                        val result = coordinator.retryAfterVerifyFailure(
-                            task.taskId,
-                            "你是 AI A。上一 Commit 的 GitHub Actions Verify 已失败。请分析失败结果并给出下一步修复指令，不得直接宣布完成。",
-                            "你是协作执行参与者。请根据 AI A 的修复指令推进本轮任务；真正的文件写入必须由用户当前指定的施工权持有者执行。"
-                        )
-                        runOnUiThread {
-                            Toast.makeText(this, result.message, Toast.LENGTH_LONG).show()
-                            collaborationTaskActionRunningId = null
-                            render()
-                        }
-                    } catch (e: Exception) {
-                        runOnUiThread {
-                            collaborationTaskActionRunningId = null
-                            Toast.makeText(this, "修复轮启动失败：${e.message ?: "未知错误"}", Toast.LENGTH_LONG).show()
-                            render()
-                        }
-                    }
-                }
-            }
-            repairButton.isEnabled = !actionRunning
-            box.addView(repairButton)
-        }
-
         if (task.status == CollaborationTaskRecord.STATUS_WAITING_VERIFY ||
             task.status == CollaborationTaskRecord.STATUS_VERIFY_PASSED ||
             task.status == CollaborationTaskRecord.STATUS_CONSTRUCTION_WRITING
@@ -573,14 +535,9 @@ class V021Activity : Activity() {
                             workspace!!.id,
                             conversation!!.id,
                             memberA?.apiProfileId.orEmpty(),
-                            memberB?.apiProfileId.orEmpty(),
-                            memberB?.id
+                            memberB?.apiProfileId.orEmpty()
                         )
-                        val result = coordinator.verifyAndContinue(
-                            task.taskId,
-                            "你是 AI A。只根据真实 Verify 结果决定是否完成任务或继续施工。",
-                            "你是协作执行参与者。根据 AI A 的施工指令推进下一步；真正的文件写入必须由用户当前指定的施工权持有者执行。"
-                        )
+                        val result = coordinator.verifyTask(task.taskId)
                         runOnUiThread {
                             Toast.makeText(this, result.message, Toast.LENGTH_LONG).show()
                             collaborationTaskActionRunningId = null
