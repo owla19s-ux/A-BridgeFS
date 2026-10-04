@@ -42,7 +42,6 @@ class V021Activity : Activity() {
     private var pendingReceipt: String? = null
     private var collaborationRunningConversationId: String? = null
     private var standaloneSendingConversationId: String? = null
-    private var collaborationTaskActionRunningId: String? = null
     private val receiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: android.content.Context, intent: android.content.Intent) {
             val status = intent.getStringExtra("status") ?: "UNKNOWN"
@@ -409,230 +408,22 @@ class V021Activity : Activity() {
             setTextColor(color(R.color.bridgefs_text_secondary))
             setPadding(0, dp(2), 0, dp(8))
         })
+        val latestTask = project?.let { ws ->
+            CollaborationTaskStore(this).latest(ws.id, ws.activeConversation().id)
+        }
+        if (latestTask != null) {
+            box.addView(TextView(this).apply {
+                text = "协作状态：" + collaborationTaskStatusLabel(latestTask.status) +
+                    (latestTask.lastCommitSha?.takeIf { it.isNotBlank() }?.let { " · Commit " + it.take(7) } ?: "")
+                textSize = 12f
+                setTextColor(color(R.color.bridgefs_text_secondary))
+                setPadding(0, 0, 0, dp(6))
+            })
+        }
         box.addView(actionButton("进入协作对话") {
             page = Page.WORKSPACE_CHAT
             render()
         }, LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(4) })
-        return box
-    }
-
-    private fun collaborationTaskCard(): View {
-        val box = card()
-        val workspace = project
-        val conversation = workspace?.activeConversation()
-        val task = if (workspace != null && conversation != null) {
-            CollaborationTaskStore(this).latest(workspace.id, conversation.id)
-        } else {
-            null
-        }
-        box.addView(TextView(this).apply {
-            text = "协作任务"
-            textSize = 16f
-            typeface = Typeface.DEFAULT_BOLD
-        })
-        if (task == null) {
-            box.addView(TextView(this).apply {
-                text = "当前协作对话还没有任务。发送协作目标后，这里会显示分析、施工与 Verify 状态。"
-                textSize = 13f
-                setTextColor(color(R.color.bridgefs_text_secondary))
-                setPadding(0, dp(5), 0, dp(8))
-            })
-            return box
-        }
-
-        val memberA = workspace?.aiMembers?.getOrNull(0)
-        val memberB = workspace?.aiMembers?.getOrNull(1)
-        val holderName = task.constructionHolderAiMemberId?.let { id ->
-            workspace?.aiMembers?.firstOrNull { it.id == id }?.name
-        }
-        box.addView(TextView(this).apply {
-            text = "状态：${collaborationTaskStatusLabel(task.status)}"
-            textSize = 14f
-            typeface = Typeface.DEFAULT_BOLD
-            setPadding(0, dp(5), 0, dp(2))
-        })
-        box.addView(TextView(this).apply {
-            text = buildString {
-                append("任务：")
-                append(task.objective)
-                if (!task.lastCommitSha.isNullOrBlank()) {
-                    append("\nCommit：")
-                    append(task.lastCommitSha)
-                }
-                if (!holderName.isNullOrBlank()) {
-                    append("\n施工者：")
-                    append(holderName)
-                }
-            }
-            textSize = 12f
-            setTextColor(color(R.color.bridgefs_text_secondary))
-            setPadding(0, dp(2), 0, dp(8))
-        })
-
-        if (task.status == CollaborationTaskRecord.STATUS_WAITING_CONSTRUCTION && memberB != null) {
-            box.addView(actionButton("Worker AI 申请施工锁") {
-                runCatching {
-                    val coordinator = CollaborationCoordinator(
-                        this,
-                        workspace!!.id,
-                        conversation!!.id,
-                        memberA?.apiProfileId.orEmpty(),
-                        memberB.apiProfileId.orEmpty(),
-                        memberB.id
-                    )
-                    coordinator.requestConstruction(task.taskId, memberB.id)
-                    AppLogger.log(this, AppLogger.Category.COLLABORATION, "CONSTRUCTION_REQUESTED_UI", "taskId=${task.taskId}")
-                    render()
-                }.onFailure {
-                    Toast.makeText(this, "申请施工失败：${it.message ?: "未知错误"}", Toast.LENGTH_LONG).show()
-                }
-            })
-        }
-
-        if (task.status == CollaborationTaskRecord.STATUS_FAILED && !task.constructionHolderAiMemberId.isNullOrBlank()) {
-            val actionRunning = collaborationTaskActionRunningId == task.taskId
-            val repairButton = actionButton(if (actionRunning) "修复处理中…" else "根据 Verify 失败结果继续修复") {
-                if (collaborationTaskActionRunningId == task.taskId) return@actionButton
-                collaborationTaskActionRunningId = task.taskId
-                render()
-                executor.execute {
-                    try {
-                        val coordinator = CollaborationCoordinator(
-                            this,
-                            workspace!!.id,
-                            conversation!!.id,
-                            memberA?.apiProfileId.orEmpty(),
-                            memberB?.apiProfileId.orEmpty(),
-                            memberB?.id
-                        )
-                        val result = coordinator.retryAfterVerifyFailure(
-                            task.taskId,
-                            "你是 Decision AI。上一 Commit 的 GitHub Actions Verify 已失败。请分析失败结果并给出下一步修复指令，不得直接宣布完成。",
-                            "你是 Worker AI。根据 Decision AI 的修复指令进行有限范围施工。"
-                        )
-                        runOnUiThread {
-                            Toast.makeText(this, result.message, Toast.LENGTH_LONG).show()
-                            collaborationTaskActionRunningId = null
-                            render()
-                        }
-                    } catch (e: Exception) {
-                        runOnUiThread {
-                            collaborationTaskActionRunningId = null
-                            Toast.makeText(this, "修复轮启动失败：${e.message ?: "未知错误"}", Toast.LENGTH_LONG).show()
-                            render()
-                        }
-                    }
-                }
-            }
-            repairButton.isEnabled = !actionRunning
-            box.addView(repairButton)
-        }
-
-        if (task.status == CollaborationTaskRecord.STATUS_WAITING_VERIFY ||
-            task.status == CollaborationTaskRecord.STATUS_VERIFY_PASSED ||
-            task.status == CollaborationTaskRecord.STATUS_CONSTRUCTION_WRITING
-        ) {
-            val actionRunning = collaborationTaskActionRunningId == task.taskId
-            val verifyButton = actionButton(if (actionRunning) "Verify处理中…" else "检查当前 Commit") {
-                if (collaborationTaskActionRunningId == task.taskId) return@actionButton
-                collaborationTaskActionRunningId = task.taskId
-                render()
-                executor.execute {
-                    try {
-                        val coordinator = CollaborationCoordinator(
-                            this,
-                            workspace!!.id,
-                            conversation!!.id,
-                            memberA?.apiProfileId.orEmpty(),
-                            memberB?.apiProfileId.orEmpty(),
-                            memberB?.id
-                        )
-                        val result = coordinator.verifyAndContinue(
-                            task.taskId,
-                            "你是 Decision AI。只根据真实 Verify 结果决定是否完成任务或继续施工。",
-                            "你是 Worker AI。根据 Decision AI 的施工指令执行有限范围内的下一步。"
-                        )
-                        runOnUiThread {
-                            Toast.makeText(this, result.message, Toast.LENGTH_LONG).show()
-                            collaborationTaskActionRunningId = null
-                            render()
-                        }
-                    } catch (e: Exception) {
-                        runOnUiThread {
-                            collaborationTaskActionRunningId = null
-                            Toast.makeText(this, "Verify 失败：${e.message ?: "未知错误"}", Toast.LENGTH_LONG).show()
-                            render()
-                        }
-                    }
-                }
-            }
-            verifyButton.isEnabled = !actionRunning
-            box.addView(verifyButton)
-        }
-        return box
-    }
-
-    private fun collaborationTaskStatusLabel(status: String): String = when (status) {
-        CollaborationTaskRecord.STATUS_CREATED -> "已创建"
-        CollaborationTaskRecord.STATUS_RUNNING -> "协作处理中"
-        CollaborationTaskRecord.STATUS_WAITING_CONSTRUCTION -> "等待进入施工"
-        CollaborationTaskRecord.STATUS_CONSTRUCTING -> "施工中"
-        CollaborationTaskRecord.STATUS_WAITING_VERIFY -> "等待 Verify"
-        CollaborationTaskRecord.STATUS_VERIFY_PASSED -> "Verify 已通过，等待继续"
-        CollaborationTaskRecord.STATUS_CONSTRUCTION_WRITING -> "GitHub 写入恢复中"
-        CollaborationTaskRecord.STATUS_COMPLETE -> "已完成"
-        CollaborationTaskRecord.STATUS_FAILED -> "失败"
-        CollaborationTaskRecord.STATUS_CANCELLED -> "已取消"
-        else -> status
-    }
-
-    private fun apiCard(a:ApiProfile): View {
-        val box = card()
-        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        row.addView(TextView(this).apply {
-            text = a.name.ifBlank { "未命名 API" }
-            textSize = 16f
-            typeface = Typeface.DEFAULT_BOLD
-        }, LinearLayout.LayoutParams(0, dp(40), 1f))
-        row.addView(textButton("修改") { editApi(a) }, LinearLayout.LayoutParams(dp(64), dp(38)))
-        row.addView(textButton("移除") { removeApi(a) }, LinearLayout.LayoutParams(dp(64), dp(38)).apply { marginStart = dp(6) })
-        box.addView(row)
-        box.addView(TextView(this).apply {
-            text = a.model.ifBlank { "未设置模型" }
-            textSize = 13f
-            setTextColor(color(R.color.bridgefs_text_secondary))
-            setPadding(0, dp(4), 0, dp(8))
-        })
-        box.addView(TextView(this).apply {
-            text = "API 仅表示连接资源；文件/GitHub 修改权限由工作区与对话权限控制。"
-            textSize = 12f
-            setTextColor(color(R.color.bridgefs_text_secondary))
-            setPadding(0, dp(4), 0, 0)
-        })
-        return box
-    }
-
-    private fun apiSummaryCard(): View {
-        val box = card()
-        val list = apis()
-        box.addView(TextView(this).apply {
-            text = "AI 与 API"
-            textSize = 16f
-            typeface = Typeface.DEFAULT_BOLD
-        })
-        box.addView(TextView(this).apply {
-            text = if (list.isEmpty()) {
-                "尚未配置 API。普通对话和 AI 协作都需要至少一个可用 API。"
-            } else {
-                "已配置 ${list.size} 个 API；当前工作区的协作 AI 从这里选择。"
-            }
-            textSize = 12f
-            setTextColor(color(R.color.bridgefs_text_secondary))
-            setPadding(0, dp(4), 0, dp(8))
-        })
-        box.addView(actionButton("管理 API") {
-            startActivity(Intent(this, ApiSettingsActivity::class.java))
-        }, LinearLayout.LayoutParams(-1, dp(42)))
         return box
     }
 
