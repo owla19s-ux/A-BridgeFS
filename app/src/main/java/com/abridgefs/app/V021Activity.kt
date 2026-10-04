@@ -96,7 +96,7 @@ class V021Activity : Activity() {
             window.decorView.systemUiVisibility or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
 
         projects = store.load()
-        if (projects.isEmpty()) projects += store.newProject("默认工作区")
+        if (projects.isEmpty()) projects += store.newProject("默认项目")
         standaloneConversations = conversationStore.load()
         if (standaloneConversations.isEmpty()) {
             standaloneConversations += conversationStore.newConversation("默认对话", apis().firstOrNull()?.id)
@@ -208,7 +208,7 @@ class V021Activity : Activity() {
             setPadding(dp(8), dp(6), dp(8), dp(6))
             background = colorDrawable(R.color.bridgefs_surface, 0)
         }
-        navWorkspace = navItem("⌂\n工作区", Page.WORKSPACE)
+        navWorkspace = navItem("⌂\n项目", Page.WORKSPACE)
         navChat = navItem("◯\n对话", Page.CHAT)
         navConfig = navItem("⚙\n配置", Page.CONFIG)
         nav.addView(navWorkspace, LinearLayout.LayoutParams(0, dp(58), 1f))
@@ -466,7 +466,7 @@ class V021Activity : Activity() {
         val auth = GitHubTokenStore(this).state()
         val connected = AccessPolicy.isGithubEnabled(this) && !auth.accessToken.isNullOrBlank()
         box.addView(TextView(this).apply {
-            text = project?.name ?: "默认工作区"
+            text = project?.name ?: "默认项目"
             textSize = 18f
             typeface = Typeface.DEFAULT_BOLD
         })
@@ -598,12 +598,12 @@ class V021Activity : Activity() {
         val rootPath = project?.workspaceDirectory.orEmpty().trim()
 
         box.addView(TextView(this).apply {
-            text = "工作目录"
+            text = "Local Project Address"
             textSize = 16f
             typeface = Typeface.DEFAULT_BOLD
         })
         box.addView(TextView(this).apply {
-            text = if (rootPath.isBlank()) "尚未选择。AI 本地执行需要先指定一个工作目录。" else rootPath
+            text = if (rootPath.isBlank()) "尚未设置。本地项目工作需要先指定地址。" else rootPath
             textSize = 13f
             setTextColor(
                 if (rootPath.isBlank()) color(R.color.bridgefs_text_secondary)
@@ -611,12 +611,12 @@ class V021Activity : Activity() {
             )
             setPadding(0, dp(6), 0, dp(10))
         })
-        box.addView(actionButton(if (rootPath.isBlank()) "选择工作目录" else "更换工作目录") {
+        box.addView(actionButton(if (rootPath.isBlank()) "选择项目地址" else "更换项目地址") {
             openWorkspaceDirectoryPicker()
         }, LinearLayout.LayoutParams(-1, dp(44)))
         if (rootPath.isNotBlank()) {
             box.addView(TextView(this).apply {
-                text = "AI 本地指令将使用当前工作区的这个目录。"
+                text = "AI 本地工作将使用当前 Project Address。"
                 textSize = 12f
                 setTextColor(color(R.color.bridgefs_text_secondary))
                 setPadding(0, dp(7), 0, 0)
@@ -635,13 +635,13 @@ class V021Activity : Activity() {
             typeface = Typeface.DEFAULT_BOLD
         })
         box.addView(TextView(this).apply {
-            text = "控制当前工作区的 AI 是否可以执行需要修改本地文件的指令。"
+            text = "控制当前 Project 的 AI 是否可以执行需要修改本地文件的指令。"
             textSize = 12f
             setTextColor(color(R.color.bridgefs_text_secondary))
             setPadding(0, dp(4), 0, dp(8))
         })
         box.addView(CheckBox(this).apply {
-            text = "允许当前工作区进行本地文件修改"
+            text = "允许当前 Project 进行本地文件修改"
             isChecked = enabled
             setOnCheckedChangeListener { _, checked ->
                 project?.localFileModifyEnabled = checked
@@ -695,12 +695,12 @@ class V021Activity : Activity() {
 
         val workspace = project
         if (workspace == null) {
-            Toast.makeText(this, "当前没有可用工作区。", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "当前没有可用 Project。", Toast.LENGTH_SHORT).show()
             return
         }
         workspace.workspaceDirectory = path
         store.save(projects)
-        Toast.makeText(this, "当前工作区目录已设置：$path", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "当前 Project Address 已设置：$path", Toast.LENGTH_SHORT).show()
         render()
     }
 
