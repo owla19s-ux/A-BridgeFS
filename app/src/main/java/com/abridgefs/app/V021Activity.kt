@@ -1391,7 +1391,7 @@ class V021Activity : Activity() {
         return true
     }
     private fun dispatchProjectCommand(command: String, project: BridgeProject, conversation: BridgeConversation) {
-        val root = project.workspaceDirectory?.trim().orEmpty()
+        val root = project.localAddress?.trim().orEmpty()
         if (root.isBlank()) {
             addProjectReceipt(conversation, "FAILED", "AI command", "当前 Project 未设置 Local Project Address，指令未执行。")
             return
@@ -1405,7 +1405,6 @@ class V021Activity : Activity() {
             .putExtra("bridgefs_root", root)
             .putExtra("projectId", project.id)
             .putExtra("conversationId", conversation.id)
-            .putExtra("workspaceId", project.id)
         runCatching { startForegroundService(intent) }.onFailure {
             addProjectReceipt(conversation, "FAILED", "AI command", "启动 BridgeFS 执行服务失败：" + (it.message ?: "未知错误"))
         }
