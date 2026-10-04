@@ -1374,7 +1374,7 @@ class V021Activity : Activity() {
                         is GitHubCommand.Write -> {
                             val existing = runCatching { service.file(command.path) }.getOrNull()
                             check(existing == null) { "目标文件已存在，请使用 edit：" + command.path }
-                            val result = service.updateFile(command.path, command.content, "AI: update " + command.path, "", memberId)
+                            val result = service.createFile(command.path, command.content, "AI: create " + command.path, memberId)
                             lastCommit = result.optJSONObject("commit")?.optString("sha").orEmpty()
                         }
                         is GitHubCommand.Edit -> {
