@@ -68,6 +68,12 @@ class ProjectGitHubService(
         return client.getWorkflowRun(owner, name, runId)
     }
 
+    fun workflowArtifacts(runId: Long): JSONObject {
+        requireRead()
+        val (owner, name) = repositoryParts()
+        return client.listWorkflowArtifacts(owner, name, runId)
+    }
+
     fun readText(path: String): String {
         val raw = file(path)
         val encoded = raw.optString("content").replace("\\n", "").trim()
