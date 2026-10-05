@@ -37,7 +37,7 @@ class ApsActivity : Activity() {
     internal var projectAccessOpen = false
     internal val conversationGroupNames = linkedSetOf("默认分组")
     internal val conversationNames = linkedSetOf("新会话 1")
-    private val receiptContinuationCounts = mutableMapOf<String, Int>()
+    internal val receiptContinuationCounts = mutableMapOf<String, Int>()
     private val maxReceiptContinuations = 5
     private val receiptReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
