@@ -104,7 +104,7 @@ class ProjectConversationService(private val context: Context) {
             if (commandBlocks.isNotEmpty()) {
                 val parsedCommands = CommandParser.parse(commandBlocks.joinToString("\n"))
                 val needsConstruction = parsedCommands.any {
-                    it is Command.Write || it is Command.Edit || it is Command.Mkdir
+                    it is Command.Write || it is Command.Edit || it is Command.Mkdir || it is Command.Commit
                 }
                 if (needsConstruction && project.githubAddress.isConfigured() && project.githubAddress.writeEnabled) {
                     val defaultMemberId = project.defaultMemberId
