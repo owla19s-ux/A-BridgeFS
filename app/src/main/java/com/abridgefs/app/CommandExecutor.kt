@@ -52,14 +52,10 @@ class CommandExecutor(private val root:File, private val context:Context, privat
   val member=aiMemberId?.takeIf{it.isNotBlank()}?:return "[Tool: Commit] $p\n  ✗ 当前操作没有绑定 AI Member\n  — 已中止"
   val f=file(p)?:return "[Tool: Commit] $p\n  ✗ 路径非法或越界\n  — 已中止"
   return try{
-   val token=GitHubTokenStore(context).state().accessToken.orEmpty()
-   val service=ProjectGitHubService(context,GitHubApiClient(context,token),currentProject.githubAddress,currentProject)
-   val result=service.commitLocalFile(f,p,m,member)
-   val sha=result.optJSONObject("commit")?.optString("sha").orEmpty()
-   val verify = runCatching { ProjectVerifyService(service).forCommit(sha) }.getOrNull()
-   val verifyLine = if (verify == null) "  — Verify：未查询" else ProjectVerifyService(service).receiptLine(verify)
-   "[Tool: Commit] $p\n  ✓ 已提交到 GitHub\n  ✓ Commit: "+if(sha.isBlank())"已创建" else sha+"\n"+verifyLine
-  }catch(e:Exception){"[Tool: Commit] $p\n  ✗ 提交失败："+(e.message?:"未知错误")+"\n  — 已中止"}
+   ProjectCommitService(context,currentProject,member).commit(f,p,m).receipt
+  }catch(e:Exception){
+   "[Tool: Commit] $p\n  ✗ 提交失败：" + (e.message ?: "未知错误") + "\n  — 已中止"
+  }
  }
  private fun grep(k:String):String{
   val s=StringBuilder("[Tool: Grep] $k\n");val start=System.nanoTime();var files=0;var results=0;var stopped=false
