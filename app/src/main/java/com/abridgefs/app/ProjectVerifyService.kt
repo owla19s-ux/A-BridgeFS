@@ -37,6 +37,8 @@ class ProjectVerifyService(
         return Result(commitSha, runId, status, conclusion, state)
     }
 
+    fun jobs(result: Result): org.json.JSONArray? = result.runId?.let { github.workflowRun(it).optJSONArray("jobs") }
+
     fun receiptLine(result: Result): String = when (result.state) {
         Result.State.NOT_QUERIED -> "  — Verify：未查询"
         Result.State.NOT_TRIGGERED -> "  — Verify：未触发（当前 Commit 没有对应 Actions Run）"
