@@ -12,6 +12,8 @@ class ProjectVerifyService(
         val runId: Long? = null,
         val status: String? = null,
         val conclusion: String? = null,
+        val jobCount: Int = 0,
+        val failedJobCount: Int = 0,
         val state: State
     ) {
         enum class State { NOT_QUERIED, NOT_TRIGGERED, RUNNING, PASSED, FAILED }
@@ -34,7 +36,22 @@ class ProjectVerifyService(
             status != null -> Result.State.RUNNING
             else -> Result.State.NOT_QUERIED
         }
-        return Result(commitSha, runId, status, conclusion, state)
+        val base = Result(commitSha, runId, status, conclusion, state = state)
+        return withJobSummary(base)
+    }
+
+    private fun withJobSummary(result: Result): Result {
+        val jobs = result.runId?.let { github.workflowRun(it).optJSONArray("jobs") }
+        if (jobs == null) return result
+        var failed = 0
+        for (index in 0 until jobs.length()) {
+            val job = jobs.optJSONObject(index)
+            val jobConclusion = job?.optString("conclusion")?.takeIf { it.isNotBlank() && it != "null" }
+            if (jobConclusion != null && jobConclusion != "success" && jobConclusion != "skipped") {
+                failed++
+            }
+        }
+        return result.copy(jobCount = jobs.length(), failedJobCount = failed)
     }
 
     fun jobs(result: Result): org.json.JSONArray? = result.runId?.let { github.workflowRun(it).optJSONArray("jobs") }
@@ -43,7 +60,7 @@ class ProjectVerifyService(
         Result.State.NOT_QUERIED -> "  — Verify：未查询"
         Result.State.NOT_TRIGGERED -> "  — Verify：未触发（当前 Commit 没有对应 Actions Run）"
         Result.State.RUNNING -> "  — Verify：Run #${result.runId ?: 0} status=${result.status ?: "unknown"}，仍在运行"
-        Result.State.PASSED -> "  ✓ Verify：Run #${result.runId ?: 0} status=${result.status ?: "completed"} conclusion=success"
-        Result.State.FAILED -> "  ✗ Verify：Run #${result.runId ?: 0} status=${result.status ?: "completed"} conclusion=${result.conclusion ?: "failed"}"
+        Result.State.PASSED -> "  ✓ Verify：Run #${result.runId ?: 0} status=${result.status ?: "completed"} conclusion=success\n  — Jobs：${result.jobCount}，失败 ${result.failedJobCount}"
+        Result.State.FAILED -> "  ✗ Verify：Run #${result.runId ?: 0} status=${result.status ?: "completed"} conclusion=${result.conclusion ?: "failed"}\n  — Jobs：${result.jobCount}，失败 ${result.failedJobCount}"
     }
 }
