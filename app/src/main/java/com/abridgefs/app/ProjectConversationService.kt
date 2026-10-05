@@ -102,6 +102,29 @@ class ProjectConversationService(private val context: Context) {
                 .filter { it.isNotBlank() }
                 .toList()
             if (commandBlocks.isNotEmpty()) {
+                val parsedCommands = CommandParser.parse(commandBlocks.joinToString("\n"))
+                val needsConstruction = parsedCommands.any {
+                    it is Command.Write || it is Command.Edit || it is Command.Mkdir
+                }
+                if (needsConstruction && project.githubAddress.isConfigured() && project.githubAddress.writeEnabled) {
+                    val defaultMemberId = project.defaultMemberId
+                        ?: project.aiMembers.firstOrNull()?.id
+                    if (defaultMemberId.isNullOrBlank()) {
+                        return Result(
+                            answer = answer,
+                            error = "需要 GitHub 施工权，但当前 Project 没有可用 AI Member"
+                        )
+                    }
+                    runCatching {
+                        ConstructionLockStore(context).acquire(project, defaultMemberId)
+                    }.getOrElse {
+                        return Result(
+                            answer = answer,
+                            error = "[ConstructionLock]
+" + (it.message ?: "无法取得施工权")
+                        )
+                    }
+                }
                 val intent = android.content.Intent(context, FileBridgeService::class.java).apply {
                     putExtra("bridgefs_external_command", commandBlocks.joinToString("\n"))
                     putExtra("bridgefs_root", project.localAddress.orEmpty())
