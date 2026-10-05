@@ -107,7 +107,8 @@ if (confirm != null) {
     return Triple("DENIED", confirm.toString(), "该操作需要用户确认，Service 不允许绕过确认直接执行")
 }
 return try{
-val results=commands.map{CommandExecutor(rootFile,this).execute(it)}
+val memberId = project?.defaultMemberId ?: project?.aiMembers?.firstOrNull()?.id
+val results=commands.map{CommandExecutor(rootFile,this,project,memberId).execute(it)}
 val message=results.joinToString("\n\n")
 val status=if(results.any{it.contains("✗")})"FAILED" else "SUCCEEDED"
 Triple(status,commands.joinToString(" | "){it.toString()},message)
