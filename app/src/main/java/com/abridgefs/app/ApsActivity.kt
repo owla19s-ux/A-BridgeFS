@@ -51,7 +51,13 @@ class ApsActivity : Activity() {
                 receiptId = intent.getStringExtra("receiptId") ?: java.util.UUID.randomUUID().toString()
             )
             projectStore.save(projects)
-            render()
+            Thread {
+                val result = ProjectConversationService(this@ApsActivity).sendReceipt(project, conversation, conversation.executions.last())
+                runOnUiThread {
+                    projectStore.save(projects)
+                    render()
+                }
+            }.start()
         }
     }
 
