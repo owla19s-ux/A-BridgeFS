@@ -1,6 +1,10 @@
 package com.abridgefs.app
 
 import android.app.Activity
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.Bundle
 import android.graphics.Typeface
 import android.view.*
@@ -33,6 +37,23 @@ class ApsActivity : Activity() {
     internal var projectAccessOpen = false
     internal val conversationGroupNames = linkedSetOf("默认分组")
     internal val conversationNames = linkedSetOf("新会话 1")
+    private val receiptReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val projectId = intent.getStringExtra("projectId") ?: return
+            val conversationId = intent.getStringExtra("conversationId") ?: return
+            val project = projects.firstOrNull { it.id == projectId } ?: return
+            val conversation = project.conversations.firstOrNull { it.id == conversationId } ?: return
+            conversation.executions += BridgeReceiptRecord(
+                status = intent.getStringExtra("status") ?: "UNKNOWN",
+                command = intent.getStringExtra("command") ?: "",
+                message = intent.getStringExtra("message") ?: "",
+                time = intent.getLongExtra("time", System.currentTimeMillis()),
+                receiptId = intent.getStringExtra("receiptId") ?: java.util.UUID.randomUUID().toString()
+            )
+            projectStore.save(projects)
+            render()
+        }
+    }
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
@@ -44,6 +65,7 @@ class ApsActivity : Activity() {
             projectStore.save(projects)
         }
         currentProject = projects.firstOrNull()
+        registerReceiver(receiptReceiver, IntentFilter("com.bridgefs.RESULT"), Context.RECEIVER_NOT_EXPORTED)
         buildShell()
     }
 
@@ -80,6 +102,11 @@ class ApsActivity : Activity() {
         }
         setContentView(root)
         render()
+    }
+
+    override fun onDestroy() {
+        runCatching { unregisterReceiver(receiptReceiver) }
+        super.onDestroy()
     }
 
     internal fun render() {
