@@ -25,19 +25,19 @@ internal fun ApsActivity.messageBubble(name: String, text: String): LinearLayout
         orientation = LinearLayout.VERTICAL
         setPadding(dp(14), dp(12), dp(14), dp(12))
         background = round(c(R.color.bridgefs_surface), dp(12))
-        addView(TextView(this@ApsActivity).apply {
+        addView(TextView(activity).apply {
             this.text = name
             textSize = 12f
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(c(R.color.bridgefs_text_secondary))
         })
-        addView(TextView(this@ApsActivity).apply {
+        addView(TextView(activity).apply {
             this.text = text
             textSize = 13f
             setTextColor(c(R.color.bridgefs_text_primary))
             setPadding(0, dp(3), 0, 0)
         })
-        addView(TextView(this@ApsActivity).apply {
+        addView(TextView(activity).apply {
             this.text = "复制"
             textSize = 11f
             setTextColor(c(R.color.bridgefs_text_secondary))
