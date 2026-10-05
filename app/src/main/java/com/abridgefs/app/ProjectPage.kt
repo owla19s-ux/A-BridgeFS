@@ -143,7 +143,7 @@ internal fun ApsActivity.projectPage() {
         if (displayOpen) {
             content.addView(Button(this@projectPage).apply {
                 text = "Request AI Assistance"
-                setOnClickListener { toast("协助链将在项目对话闭环后接入") }
+                setOnClickListener { requestProjectAssistance() }
             }, LinearLayout.LayoutParams(-1, dp(44)).apply { topMargin = dp(8) })
         }
         host.addView(ScrollView(this@projectPage).apply {
