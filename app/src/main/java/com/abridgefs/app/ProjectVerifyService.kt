@@ -14,6 +14,8 @@ class ProjectVerifyService(
         val conclusion: String? = null,
         val jobCount: Int = 0,
         val failedJobCount: Int = 0,
+        val artifactCount: Int = 0,
+        val artifactNames: List<String> = emptyList(),
         val state: State
     ) {
         enum class State { NOT_QUERIED, NOT_TRIGGERED, RUNNING, PASSED, FAILED }
@@ -51,7 +53,19 @@ class ProjectVerifyService(
                 failed++
             }
         }
-        return result.copy(jobCount = jobs.length(), failedJobCount = failed)
+        val artifacts = result.runId?.let { github.workflowArtifacts(it).optJSONArray("artifacts") }
+        val names = mutableListOf<String>()
+        if (artifacts != null) {
+            for (index in 0 until artifacts.length()) {
+                artifacts.optJSONObject(index)?.optString("name")?.takeIf { it.isNotBlank() }?.let(names::add)
+            }
+        }
+        return result.copy(
+            jobCount = jobs.length(),
+            failedJobCount = failed,
+            artifactCount = names.size,
+            artifactNames = names
+        )
     }
 
     fun jobs(result: Result): org.json.JSONArray? = result.runId?.let { github.workflowRun(it).optJSONArray("jobs") }
@@ -60,7 +74,7 @@ class ProjectVerifyService(
         Result.State.NOT_QUERIED -> "  — Verify：未查询"
         Result.State.NOT_TRIGGERED -> "  — Verify：未触发（当前 Commit 没有对应 Actions Run）"
         Result.State.RUNNING -> "  — Verify：Run #${result.runId ?: 0} status=${result.status ?: "unknown"}，仍在运行"
-        Result.State.PASSED -> "  ✓ Verify：Run #${result.runId ?: 0} status=${result.status ?: "completed"} conclusion=success\n  — Jobs：${result.jobCount}，失败 ${result.failedJobCount}"
-        Result.State.FAILED -> "  ✗ Verify：Run #${result.runId ?: 0} status=${result.status ?: "completed"} conclusion=${result.conclusion ?: "failed"}\n  — Jobs：${result.jobCount}，失败 ${result.failedJobCount}"
+        Result.State.PASSED -> "  ✓ Verify：Run #${result.runId ?: 0} status=${result.status ?: "completed"} conclusion=success\n  — Jobs：${result.jobCount}，失败 ${result.failedJobCount}\n  — Artifacts：${result.artifactCount}${if (result.artifactNames.isEmpty()) "" else "（" + result.artifactNames.joinToString(", ") + "）"}"
+        Result.State.FAILED -> "  ✗ Verify：Run #${result.runId ?: 0} status=${result.status ?: "completed"} conclusion=${result.conclusion ?: "failed"}\n  — Jobs：${result.jobCount}，失败 ${result.failedJobCount}\n  — Artifacts：${result.artifactCount}${if (result.artifactNames.isEmpty()) "" else "（" + result.artifactNames.joinToString(", ") + "）"}"
     }
 }
