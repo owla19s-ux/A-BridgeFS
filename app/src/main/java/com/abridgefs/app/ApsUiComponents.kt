@@ -47,6 +47,37 @@ internal fun ApsActivity.messageBubble(name: String, text: String): LinearLayout
     }
 }
 
+internal fun ApsActivity.requestProjectAssistance() {
+    val project = currentProject ?: run {
+        toast("当前没有可用 Project")
+        return
+    }
+    val conversation = project.activeConversation()
+    val targets = pendingTaskMentions.toList()
+    val request = if (targets.isEmpty()) {
+        "请协助检查并推进当前 Project 的工作。先根据当前项目资料给出下一步可执行方案。"
+    } else {
+        targets.joinToString(" ") + " 请协助处理这些任务。先读取当前 Project 的相关资料，判断需要修改什么，并给出下一步可执行方案。"
+    }
+
+    conversation.messages += BridgeChatMessage("user", request)
+    projectStore.save(projects)
+    toast("正在请求当前 Project AI")
+    Thread {
+        val result = ProjectConversationService(this).send(project, conversation, request)
+        runOnUiThread {
+            if (result.answer != null) {
+                conversation.messages += BridgeChatMessage("assistant", result.answer)
+            } else {
+                conversation.messages += BridgeChatMessage("system", result.error ?: "协助请求失败")
+            }
+            projectStore.save(projects)
+            pendingTaskMentions.clear()
+            render()
+        }
+    }.start()
+}
+
 internal fun ApsActivity.inputBar(hint: String) {
     val bar = LinearLayout(this).apply {
         orientation = LinearLayout.HORIZONTAL
