@@ -120,8 +120,7 @@ class ProjectConversationService(private val context: Context) {
                     }.getOrElse {
                         return Result(
                             answer = answer,
-                            error = "[ConstructionLock]
-" + (it.message ?: "无法取得施工权")
+                            error = "[ConstructionLock]\n" + (it.message ?: "无法取得施工权")
                         )
                     }
                 }
