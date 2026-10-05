@@ -88,7 +88,11 @@ class ProjectGitHubService(
         requireWritePermission(aiMemberId)
         check(localFile.isFile) { "本地文件不存在：$relativePath" }
         val (owner, name) = repositoryParts()
-        val remoteResult = runCatching { client.getFile(owner, name, relativePath, address.branch) }\n        val remote = remoteResult.getOrElse { error ->\n            val message = error.message.orEmpty()\n            if (message.startsWith("GitHub API 404:")) null else throw error\n        }
+        val remoteResult = runCatching { client.getFile(owner, name, relativePath, address.branch) }
+        val remote = remoteResult.getOrElse { error ->
+            val message = error.message.orEmpty()
+            if (message.startsWith("GitHub API 404:")) null else throw error
+        }
         return if (remote == null) {
             client.createFile(owner, name, relativePath, localFile.readText(Charsets.UTF_8), message, address.branch)
         } else {
