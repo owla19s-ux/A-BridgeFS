@@ -19,6 +19,31 @@ class ProjectConversationService(private val context: Context) {
 
     private val apiProfiles by lazy { ApiProfileStore(context) }
 
+    fun sendReceipt(
+        project: BridgeProject,
+        conversation: BridgeConversation,
+        receipt: BridgeReceiptRecord
+    ): Result {
+        val feedback = buildString {
+            append("上一轮本地 Project 操作已经执行完成。以下是 A-BridgeFS Receipt，请根据结果继续当前工作。")
+            append("\n\n[Receipt]")
+            append("\nStatus：").append(receipt.status)
+            append("\nCommand：").append(receipt.command)
+            append("\nMessage：").append(receipt.message)
+            append("\nReceipt ID：").append(receipt.receiptId)
+            append("\n\n如果操作失败、被拒绝或需要确认，请先判断原因；如果仍需要继续施工，请输出下一步需要执行的 [bridgefs] 指令。不要声称尚未收到的操作已经成功。")
+        }
+        conversation.messages += BridgeChatMessage("user", feedback)
+        val result = send(project, conversation, feedback)
+        if (result.answer != null) {
+            conversation.messages += BridgeChatMessage("assistant", result.answer)
+        } else {
+            conversation.messages += BridgeChatMessage("system", result.error ?: "Receipt 处理失败")
+        }
+        BridgeProjectStore(context).save(mutableListOf(project))
+        return result
+    }
+
     fun send(project: BridgeProject, conversation: BridgeConversation, userText: String): Result {
         if (!AccessPolicy.isApiEnabled(context)) {
             return Result(error = "API 全局访问已关闭")
@@ -71,7 +96,7 @@ class ProjectConversationService(private val context: Context) {
                     githubPrompt +
                     "\n你是当前 Project 的默认 AI。先直接回答用户问题；只有用户明确要求执行工作时，才进入后续工作流程。不要自动启动其他 AI 协作，也不要恢复已经废弃的固定阶段角色模型。"
             )
-            val commandBlocks = Regex("""(?s)\\[bridgefs\\](.*?)\\[/bridgefs\\]""")
+            val commandBlocks = Regex("""(?s)\[bridgefs\](.*?)\[/bridgefs\]""")
                 .findAll(answer)
                 .map { it.groupValues[1].trim() }
                 .filter { it.isNotBlank() }
