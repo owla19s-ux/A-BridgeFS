@@ -56,7 +56,17 @@ class CommandExecutor(private val root:File, private val context:Context, privat
    val result=ProjectGitHubService(context,GitHubApiClient(context,token),currentProject.githubAddress,currentProject)
     .commitLocalFile(f,p,m,member)
    val sha=result.optJSONObject("commit")?.optString("sha").orEmpty()
-   "[Tool: Commit] $p\n  ✓ 已提交到 GitHub\n  ✓ Commit: "+if(sha.isBlank())"已创建" else sha
+   val verify = runCatching { if (sha.isBlank()) null else service.workflowRunsForCommit(sha, 10) }.getOrNull()
+   val runs = verify?.optJSONArray("workflow_runs")
+   val verifyLine = when {
+    verify == null -> "  — Verify：未查询"
+    runs == null || runs.length() == 0 -> "  — Verify：未触发（当前 Commit 没有对应 Actions Run）"
+    else -> {
+     val run = runs.optJSONObject(0)
+     "  ✓ Verify：Run #${run?.optLong("id", 0L)} status=${run?.optString("status", "unknown")} conclusion=${run?.optString("conclusion", "unknown")}"
+    }
+   }
+   "[Tool: Commit] $p\n  ✓ 已提交到 GitHub\n  ✓ Commit: "+if(sha.isBlank())"已创建" else sha+"\n"+verifyLine
   }catch(e:Exception){"[Tool: Commit] $p\n  ✗ 提交失败："+(e.message?:"未知错误")+"\n  — 已中止"}
  }
  private fun grep(k:String):String{
