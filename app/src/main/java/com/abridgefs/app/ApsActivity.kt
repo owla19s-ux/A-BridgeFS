@@ -37,6 +37,8 @@ class ApsActivity : Activity() {
     internal var projectAccessOpen = false
     internal val conversationGroupNames = linkedSetOf("默认分组")
     internal val conversationNames = linkedSetOf("新会话 1")
+    private val receiptContinuationCounts = mutableMapOf<String, Int>()
+    private val maxReceiptContinuations = 5
     private val receiptReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             val projectId = intent.getStringExtra("projectId") ?: return
@@ -51,8 +53,23 @@ class ApsActivity : Activity() {
                 receiptId = intent.getStringExtra("receiptId") ?: java.util.UUID.randomUUID().toString()
             )
             projectStore.save(projects)
+
+            val receipt = conversation.executions.last()
+            val continuationCount = (receiptContinuationCounts[conversation.id] ?: 0) + 1
+            receiptContinuationCounts[conversation.id] = continuationCount
+
+            if (continuationCount > maxReceiptContinuations) {
+                conversation.messages += BridgeChatMessage(
+                    "system",
+                    "本轮连续施工已达到 " + maxReceiptContinuations + " 次自动续接上限，已暂停。请确认当前状态后再继续。"
+                )
+                projectStore.save(projects)
+                render()
+                return
+            }
+
             Thread {
-                val result = ProjectConversationService(this@ApsActivity).sendReceipt(project, conversation, conversation.executions.last())
+                val result = ProjectConversationService(this@ApsActivity).sendReceipt(project, conversation, receipt)
                 runOnUiThread {
                     projectStore.save(projects)
                     render()
