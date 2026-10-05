@@ -1,7 +1,7 @@
 package com.abridgefs.app
 
 enum class FileAction {
-    LIST, READ, WRITE, EDIT
+    LIST, READ, WRITE, EDIT, COMMIT
 }
 
 enum class Decision {
@@ -41,8 +41,10 @@ object PermissionPolicy {
         if (modifyAllowed == false) {
             allowed.remove(FileAction.WRITE)
             allowed.remove(FileAction.EDIT)
+            allowed.remove(FileAction.COMMIT)
             confirm.remove(FileAction.WRITE)
             confirm.remove(FileAction.EDIT)
+            confirm.remove(FileAction.COMMIT)
         }
         val root = project?.localAddress ?: prefs.getString("root_path", "").orEmpty()
         return Authorization(root, allowed, confirm)
@@ -53,6 +55,7 @@ object PermissionPolicy {
         is Command.Read, is Command.Search, is Command.Grep, is Command.Path, is Command.CopyPath -> FileAction.READ
         is Command.Write, is Command.Mkdir -> FileAction.WRITE
         is Command.Edit -> FileAction.EDIT
+        is Command.Commit -> FileAction.COMMIT
     }
 
     fun check(command: Command, authorization: Authorization): Decision =
