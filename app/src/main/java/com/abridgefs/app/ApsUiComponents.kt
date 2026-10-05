@@ -53,6 +53,7 @@ internal fun ApsActivity.requestProjectAssistance() {
         return
     }
     val conversation = project.activeConversation()
+    receiptContinuationCounts.remove(conversation.id)
     val targets = pendingTaskMentions.toList()
     val request = if (targets.isEmpty()) {
         "请协助检查并推进当前 Project 的工作。先根据当前项目资料给出下一步可执行方案。"
@@ -110,6 +111,7 @@ internal fun ApsActivity.inputBar(hint: String) {
                     return@setOnClickListener
                 }
                 val conversation = project.activeConversation()
+                receiptContinuationCounts.remove(conversation.id)
                 conversation.messages += BridgeChatMessage("user", text)
                 projectStore.save(projects)
                 input.isEnabled = false
