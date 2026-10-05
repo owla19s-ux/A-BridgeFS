@@ -79,6 +79,24 @@ class ProjectGitHubService(
         }
     }
 
+    fun commitLocalFile(
+        localFile: java.io.File,
+        relativePath: String,
+        message: String,
+        aiMemberId: String
+    ): JSONObject {
+        requireWritePermission(aiMemberId)
+        check(localFile.isFile) { "本地文件不存在：$relativePath" }
+        val (owner, name) = repositoryParts()
+        val remote = runCatching { client.getFile(owner, name, relativePath, address.branch) }.getOrNull()
+        return if (remote == null) {
+            client.createFile(owner, name, relativePath, localFile.readText(Charsets.UTF_8), message, address.branch)
+        } else {
+            val remoteSha = remote.optString("sha").ifBlank { error("GitHub 文件缺少 SHA：$relativePath") }
+            client.updateFile(owner, name, relativePath, localFile.readText(Charsets.UTF_8), message, address.branch, remoteSha)
+        }
+    }
+
     fun createFile(path: String, content: String, message: String, aiMemberId: String): JSONObject {
         requireWritePermission(aiMemberId)
         val (owner, name) = repositoryParts()
