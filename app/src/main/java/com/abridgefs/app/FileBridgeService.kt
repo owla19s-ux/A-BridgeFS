@@ -116,7 +116,11 @@ Triple("FAILED",text,"执行异常："+(e.message ?: "未知错误"))
 }
 }
 
-private fun broadcastReceipt(status:String,command:String,message:String){\nbroadcastReceipt(status,command,message,null,null,null)\n}\n\nprivate fun broadcastReceipt(status:String,command:String,message:String,projectId:String?,conversationId:String?,standaloneConversationId:String?){
+private fun broadcastReceipt(status:String,command:String,message:String){
+    broadcastReceipt(status,command,message,null,null,null)
+}
+
+private fun broadcastReceipt(status:String,command:String,message:String,projectId:String?,conversationId:String?,standaloneConversationId:String?){
 val now=System.currentTimeMillis()
 val pending=org.json.JSONObject()
     .put("receiptId",java.util.UUID.randomUUID().toString())
