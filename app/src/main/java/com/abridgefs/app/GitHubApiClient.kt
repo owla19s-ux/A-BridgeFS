@@ -71,6 +71,9 @@ class GitHubApiClient(
     fun getWorkflowRun(owner: String, repo: String, runId: Long): JSONObject =
         get("/repos/${owner}/${repo}/actions/runs/${runId}")
 
+    fun listWorkflowArtifacts(owner: String, repo: String, runId: Long, perPage: Int = 100): JSONObject =
+        get("/repos/${owner}/${repo}/actions/runs/${runId}/artifacts?per_page=${perPage.coerceIn(1, 100)}")
+
     private fun get(path: String): JSONObject {
         ensureEnabled()
         return JSONObject(readResponse(open(path)))
