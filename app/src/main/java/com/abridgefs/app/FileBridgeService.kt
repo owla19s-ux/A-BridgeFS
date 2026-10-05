@@ -106,8 +106,25 @@ if (confirm != null) {
     AppLogger.log(this, "EXECUTION_DENIED", "reason=confirmation_required command=" + confirm)
     return Triple("DENIED", confirm.toString(), "该操作需要用户确认，Service 不允许绕过确认直接执行")
 }
-return try{
+val constructionRequired = commands.any {
+    it is Command.Write || it is Command.Edit || it is Command.Mkdir || it is Command.Commit
+}
 val memberId = project?.defaultMemberId ?: project?.aiMembers?.firstOrNull()?.id
+if (constructionRequired && project != null) {
+    if (memberId.isNullOrBlank()) {
+        return Triple("DENIED", text, "需要施工权，但当前 Project 没有可用 AI Member")
+    }
+    if (!project.githubAddress.isConfigured() || !project.githubAddress.writeEnabled) {
+        return Triple("DENIED", text, "当前 Project 未配置可写 GitHub Address，不能取得施工权")
+    }
+    runCatching {
+        ConstructionLockStore(this).acquire(project, memberId)
+    }.getOrElse {
+        AppLogger.log(this, "EXECUTION_DENIED", "reason=construction_lock command=" + commands.joinToString(" | "))
+        return Triple("DENIED", text, "[ConstructionLock]\n" + (it.message ?: "无法取得施工权"))
+    }
+}
+return try{
 val results=commands.map{CommandExecutor(rootFile,this,project,memberId).execute(it)}
 val message=results.joinToString("\n\n")
 val status=if(results.any{it.contains("✗")})"FAILED" else "SUCCEEDED"
