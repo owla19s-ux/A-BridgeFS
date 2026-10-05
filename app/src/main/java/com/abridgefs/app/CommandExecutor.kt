@@ -4,12 +4,12 @@ import android.content.ClipboardManager
 import android.content.Context
 import java.io.File
 import java.nio.charset.StandardCharsets
-class CommandExecutor(private val root:File, private val context:Context){
+class CommandExecutor(private val root:File, private val context:Context, private val project:BridgeProject? = null, private val aiMemberId:String? = null){
  fun execute(c:Command):String{
   val started=System.currentTimeMillis()
   AppLogger.log(context,"COMMAND_RECEIVED",c.toString())
   return try{
-   val result=when(c){Command.ListTree->list();is Command.Read->read(c.path);is Command.Write->write(c.path,c.content);is Command.Edit->edit(c.path,c.old,c.new);is Command.Search->search(c.glob);is Command.Grep->grep(c.keyword);is Command.Path->path(c.path);is Command.CopyPath->copyPath(c.path);is Command.Mkdir->mkdir(c.path)}
+   val result=when(c){Command.ListTree->list();is Command.Read->read(c.path);is Command.Write->write(c.path,c.content);is Command.Edit->edit(c.path,c.old,c.new);is Command.Search->search(c.glob);is Command.Grep->grep(c.keyword);is Command.Path->path(c.path);is Command.CopyPath->copyPath(c.path);is Command.Mkdir->mkdir(c.path);is Command.Commit->commit(c.path,c.message)}
    val status=when { result.contains("✗") -> "FAIL"; result.contains("⚠") -> "WARN"; else -> "SUCCESS" }
    AppLogger.log(context,"COMMAND_RESULT","status=$status durationMs=${System.currentTimeMillis()-started} command=${c::class.simpleName}")
    result
@@ -47,6 +47,18 @@ class CommandExecutor(private val root:File, private val context:Context){
  private fun mkdir(p:String):String{val f=file(p)?:return "[Tool: Mkdir] $p\n  ✗ 路径非法或越界";if(f.exists())return "[Tool: Mkdir] $p\n  ✓ 已存在 ${f.absolutePath}";return try{if(f.mkdirs()||f.isDirectory)"[Tool: Mkdir] $p\n  ✓ 已创建 ${f.absolutePath}" else "[Tool: Mkdir] $p\n  ✗ 创建失败"}catch(e:Exception){"[Tool: Mkdir] $p\n  ✗ 创建失败：${e.message}"} }
  private fun path(p:String):String{val f=file(p)?:return "[Tool: Path] $p\n  ✗ 路径非法或越界\n  — 已中止";return "[Tool: Path] $p\n  ✓ ${f.absolutePath}"}
  private fun copyPath(p:String):String{val f=file(p)?:return "[Tool: CopyPath] $p\n  ✗ 路径非法或越界\n  — 已中止";return try{val cm=context.getSystemService(Context.CLIPBOARD_SERVICE)as ClipboardManager;cm.setPrimaryClip(ClipData.newPlainText("BridgeFS路径",f.absolutePath));"[Tool: CopyPath] $p\n  ✓ 已复制：${f.absolutePath}"}catch(e:Exception){"[Tool: CopyPath] $p\n  ✗ 复制失败：${e.message}\n  — 已中止"}}
+ private fun commit(p:String,m:String):String{
+  val currentProject=project?:return "[Tool: Commit] $p\n  ✗ 当前操作没有绑定 Project\n  — 已中止"
+  val member=aiMemberId?.takeIf{it.isNotBlank()}?:return "[Tool: Commit] $p\n  ✗ 当前操作没有绑定 AI Member\n  — 已中止"
+  val f=file(p)?:return "[Tool: Commit] $p\n  ✗ 路径非法或越界\n  — 已中止"
+  return try{
+   val token=GitHubTokenStore(context).state().accessToken.orEmpty()
+   val result=ProjectGitHubService(context,GitHubApiClient(context,token),currentProject.githubAddress,currentProject)
+    .commitLocalFile(f,p,m,member)
+   val sha=result.optJSONObject("commit")?.optString("sha").orEmpty()
+   "[Tool: Commit] $p\n  ✓ 已提交到 GitHub\n  ✓ Commit: "+if(sha.isBlank())"已创建" else sha
+  }catch(e:Exception){"[Tool: Commit] $p\n  ✗ 提交失败："+(e.message?:"未知错误")+"\n  — 已中止"}
+ }
  private fun grep(k:String):String{
   val s=StringBuilder("[Tool: Grep] $k\n");val start=System.nanoTime();var files=0;var results=0;var stopped=false
   val binaryExt=setOf("png","jpg","jpeg","gif","webp","bmp","mp3","wav","m4a","aac","mp4","mkv","avi","webm","pdf","zip","rar","7z","apk","so","dex","bin","db","sqlite","ttf","otf")
