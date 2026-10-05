@@ -27,7 +27,7 @@ object CommandParser {
  private val wrapperOpen = Regex("(?is)\\[bridgefs\\]")
  private val wrapperClose = Regex("(?is)\\[/bridgefs\\]")
  private val simple = Regex(
-     "(?is)\\[(list)\\]|\\[(read|search|grep|path|copy-path|mkdir)\\s*:\\s*([^\\]]+?)\\]"
+     "(?is)\\[(list)\\]|\\[(read|search|grep|path|copy-path|mkdir|commit)\\s*:\\s*([^\\]]+?)\\]"
  )
  private val write = Regex(
      "(?is)\\[write\\s*:\\s*([^\\]]+?)\\]\\s*(.*?)\\[/write\\]"
