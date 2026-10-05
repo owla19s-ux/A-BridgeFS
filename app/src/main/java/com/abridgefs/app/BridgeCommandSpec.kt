@@ -116,7 +116,7 @@ A-BridgeFS 的「对话」和 BridgeFS 本地执行是两条连接起来的链�
 11. 权限设置可能允许、要求确认或拒绝某项操作。
 12. A-BridgeFS 执行结果以 Receipt 为准，AI 不应在收到 Receipt 前声称本地操作已经成功。
 
-五、Receipt（执行回执）
+五、Commit（提交）\n\n[commit: 相对路径 | 提交信息]\n\n将指定 Project 本地文件提交到当前 Project GitHub Address 的 Repository / Branch。Commit 不是普通本地文件写入；必须经过 Project GitHub 写权限与 ConstructionLock。\n\n六、Receipt（执行回执）
 
 每次 AI 指令进入执行链后，A-BridgeFS 都会记录结果。
 
@@ -161,9 +161,9 @@ A-BridgeFS 的工作区、权限和执行上限由软件本身控制。AI 只负
             "- write 只能创建新文件；如果文件已存在，应使用 edit。\n" +
             "- edit 必须提供旧内容和新内容，并用 ==== 分隔。\n" +
             "- search 是文件名搜索，grep 是文件内容搜索。\n" +
-            "- 不要输出 delete、move、rename、shell 或其他未开放指令。\n" +
+            "- commit 必须使用 [commit: 相对路径 | 提交信息]。\n- commit 只提交明确指定的文件，不执行整个目录的隐式提交。\n- 不要输出 delete、move、rename、shell 或其他未开放指令。\n" +
             "- 不要假设本地操作已经成功。必须依据 A-BridgeFS 提供的 Receipt 判断结果。\n" +
-            "- 当前版本的 Receipt 不会自动成为模型输入；用户需要将回执带回对话后，你才能继续依据回执工作。\n\n" +
+            "- Receipt 可以由 APS 自动送回当前 Project AI；AI 必须依据 Receipt 决定是否继续。\n- 连续施工有自动续接上限，达到上限后必须停止等待人工确认。\n\n" +
             "完整规范：\n" + documentation
     }
 }
