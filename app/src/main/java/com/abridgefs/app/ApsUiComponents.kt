@@ -45,6 +45,7 @@ internal fun ApsActivity.messageBubble(name: String, text: String): LinearLayout
             setOnClickListener { toast("复制将在消息接线阶段启用") }
         })
     }
+}
 
 internal fun ApsActivity.inputBar(hint: String) {
     val bar = LinearLayout(this).apply {
