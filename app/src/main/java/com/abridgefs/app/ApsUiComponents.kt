@@ -19,8 +19,9 @@ internal fun ApsActivity.settingSwitch(name: String, checked: Boolean, onChanged
         setOnCheckedChangeListener { _, value -> onChanged(value) }
     }
 
-internal fun ApsActivity.messageBubble(name: String, text: String) =
-    LinearLayout(this).apply {
+internal fun ApsActivity.messageBubble(name: String, text: String): LinearLayout {
+    val activity = this
+    return LinearLayout(activity).apply {
         orientation = LinearLayout.VERTICAL
         setPadding(dp(14), dp(12), dp(14), dp(12))
         background = round(c(R.color.bridgefs_surface), dp(12))
