@@ -41,10 +41,6 @@ class ApsActivity : Activity() {
     private val maxReceiptContinuations = 5
     private val receiptReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            val projectId = intent.getStringExtra("projectId") ?: return
-            val conversationId = intent.getStringExtra("conversationId") ?: return
-            val project = projects.firstOrNull { it.id == projectId } ?: return
-            val conversation = project.conversations.firstOrNull { it.id == conversationId } ?: return
             val receiptId = intent.getStringExtra("receiptId").orEmpty()
             if (receiptId.isNotBlank()) {
                 val prefs = getSharedPreferences("bridgefs", Context.MODE_PRIVATE)
@@ -56,12 +52,18 @@ class ApsActivity : Activity() {
                 }
                 prefs.edit().putString("pending_receipts", remaining.toString()).apply()
             }
+
+            val projectId = intent.getStringExtra("projectId")?.takeIf { it.isNotBlank() } ?: return
+            val conversationId = intent.getStringExtra("conversationId")?.takeIf { it.isNotBlank() } ?: return
+            val project = projects.firstOrNull { it.id == projectId } ?: return
+            val conversation = project.conversations.firstOrNull { it.id == conversationId } ?: return
+
             conversation.executions += BridgeReceiptRecord(
                 status = intent.getStringExtra("status") ?: "UNKNOWN",
                 command = intent.getStringExtra("command") ?: "",
                 message = intent.getStringExtra("message") ?: "",
                 time = intent.getLongExtra("time", System.currentTimeMillis()),
-                receiptId = intent.getStringExtra("receiptId") ?: java.util.UUID.randomUUID().toString()
+                receiptId = receiptId.ifBlank { java.util.UUID.randomUUID().toString() }
             )
             projectStore.save(projects)
 
@@ -80,7 +82,7 @@ class ApsActivity : Activity() {
             }
 
             Thread {
-                val result = ProjectConversationService(this@ApsActivity).sendReceipt(project, conversation, receipt)
+                ProjectConversationService(this@ApsActivity).sendReceipt(project, conversation, receipt)
                 runOnUiThread {
                     projectStore.save(projects)
                     render()
