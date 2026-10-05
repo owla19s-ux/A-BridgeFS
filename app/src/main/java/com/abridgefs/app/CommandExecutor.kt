@@ -53,8 +53,8 @@ class CommandExecutor(private val root:File, private val context:Context, privat
   val f=file(p)?:return "[Tool: Commit] $p\n  ✗ 路径非法或越界\n  — 已中止"
   return try{
    val token=GitHubTokenStore(context).state().accessToken.orEmpty()
-   val result=ProjectGitHubService(context,GitHubApiClient(context,token),currentProject.githubAddress,currentProject)
-    .commitLocalFile(f,p,m,member)
+   val service=ProjectGitHubService(context,GitHubApiClient(context,token),currentProject.githubAddress,currentProject)
+   val result=service.commitLocalFile(f,p,m,member)
    val sha=result.optJSONObject("commit")?.optString("sha").orEmpty()
    val verify = runCatching { if (sha.isBlank()) null else service.workflowRunsForCommit(sha, 10) }.getOrNull()
    val runs = verify?.optJSONArray("workflow_runs")
