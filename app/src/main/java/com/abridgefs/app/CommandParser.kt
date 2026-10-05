@@ -10,6 +10,7 @@ sealed class Command {
  data class Path(val path:String):Command()
  data class CopyPath(val path:String):Command()
  data class Mkdir(val path:String):Command()
+ data class Commit(val path:String,val message:String):Command()
 }
 
 object CommandParser {
@@ -60,6 +61,14 @@ object CommandParser {
      "path" -> Command.Path(value)
      "copy-path" -> Command.CopyPath(value)
      "mkdir" -> Command.Mkdir(value)
+     "commit" -> {
+      val parts = value.split("|", limit = 2)
+      if (parts.size != 2 || parts[0].trim().isBlank() || parts[1].trim().isBlank()) {
+       lastError = "commit 格式应为 [commit: 相对路径 | 提交信息]"
+       return@forEach
+      }
+      Command.Commit(parts[0].trim(), parts[1].trim())
+     }
      else -> return@forEach
     }
    }
