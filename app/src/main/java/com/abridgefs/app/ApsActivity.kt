@@ -45,6 +45,17 @@ class ApsActivity : Activity() {
             val conversationId = intent.getStringExtra("conversationId") ?: return
             val project = projects.firstOrNull { it.id == projectId } ?: return
             val conversation = project.conversations.firstOrNull { it.id == conversationId } ?: return
+            val receiptId = intent.getStringExtra("receiptId").orEmpty()
+            if (receiptId.isNotBlank()) {
+                val prefs = getSharedPreferences("bridgefs", Context.MODE_PRIVATE)
+                val queue = org.json.JSONArray(prefs.getString("pending_receipts", "[]") ?: "[]")
+                val remaining = org.json.JSONArray()
+                for (i in 0 until queue.length()) {
+                    val item = queue.optJSONObject(i)
+                    if (item?.optString("receiptId") != receiptId) remaining.put(item)
+                }
+                prefs.edit().putString("pending_receipts", remaining.toString()).apply()
+            }
             conversation.executions += BridgeReceiptRecord(
                 status = intent.getStringExtra("status") ?: "UNKNOWN",
                 command = intent.getStringExtra("command") ?: "",
@@ -90,6 +101,7 @@ class ApsActivity : Activity() {
         currentProject = projects.firstOrNull()
         registerReceiver(receiptReceiver, IntentFilter("com.bridgefs.RESULT"), Context.RECEIVER_NOT_EXPORTED)
         buildShell()
+        recoverPendingReceipts()
     }
 
     private fun buildShell() {
@@ -125,6 +137,25 @@ class ApsActivity : Activity() {
         }
         setContentView(root)
         render()
+    }
+
+    private fun recoverPendingReceipts() {
+        val prefs = getSharedPreferences("bridgefs", Context.MODE_PRIVATE)
+        val queue = org.json.JSONArray(prefs.getString("pending_receipts", "[]") ?: "[]")
+        for (i in 0 until queue.length()) {
+            val item = queue.optJSONObject(i) ?: continue
+            val intent = Intent("com.bridgefs.RESULT").apply {
+                putExtra("receiptId", item.optString("receiptId"))
+                putExtra("status", item.optString("status"))
+                putExtra("command", item.optString("command"))
+                putExtra("message", item.optString("message"))
+                putExtra("projectId", item.optString("projectId"))
+                putExtra("conversationId", item.optString("conversationId"))
+                putExtra("standaloneConversationId", item.optString("standaloneConversationId"))
+                putExtra("time", item.optLong("time", System.currentTimeMillis()))
+            }
+            receiptReceiver.onReceive(this, intent)
+        }
     }
 
     override fun onDestroy() {
