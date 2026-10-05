@@ -13,7 +13,8 @@ class ProjectConversationService(private val context: Context) {
     data class Result(
         val answer: String? = null,
         val error: String? = null,
-        val isGithubReadError: Boolean = false
+        val isGithubReadError: Boolean = false,
+        val executionRequested: Boolean = false
     )
 
     private val apiProfiles by lazy { ApiProfileStore(context) }
@@ -70,8 +71,23 @@ class ProjectConversationService(private val context: Context) {
                     githubPrompt +
                     "\n你是当前 Project 的默认 AI。先直接回答用户问题；只有用户明确要求执行工作时，才进入后续工作流程。不要自动启动其他 AI 协作，也不要恢复已经废弃的固定阶段角色模型。"
             )
+            val commandBlocks = Regex("""(?s)\\[bridgefs\\](.*?)\\[/bridgefs\\]""")
+                .findAll(answer)
+                .map { it.groupValues[1].trim() }
+                .filter { it.isNotBlank() }
+                .toList()
+            if (commandBlocks.isNotEmpty()) {
+                val intent = android.content.Intent(context, FileBridgeService::class.java).apply {
+                    putExtra("bridgefs_external_command", commandBlocks.joinToString("\n"))
+                    putExtra("bridgefs_root", project.localAddress.orEmpty())
+                    putExtra("projectId", project.id)
+                    putExtra("conversationId", conversation.id)
+                }
+                context.startService(intent)
+            }
             Result(
-                answer = answer
+                answer = answer,
+                executionRequested = commandBlocks.isNotEmpty()
             )
         }.getOrElse {
             Result(error = "[API 错误]\n" + (it.message ?: "未知错误"))
