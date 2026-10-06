@@ -191,6 +191,13 @@ class BridgeProjectStore(private val context: Context) {
         prefs.edit().putString(key, array.toString()).apply()
     }
 
+    fun saveProject(project: BridgeProject) {
+        val projects = load()
+        val index = projects.indexOfFirst { it.id == project.id }
+        if (index >= 0) projects[index] = project else projects += project
+        save(projects)
+    }
+
     fun newProject(name: String): BridgeProject {
         val project = BridgeProject(UUID.randomUUID().toString(), name)
         val conversation = BridgeConversation(UUID.randomUUID().toString(), "项目对话")
