@@ -2,7 +2,7 @@ name: Android Build and Release
 
 on:
   push:
-    branches: ['main', 'architecture-rebuild']
+    branches: ['main']
   workflow_dispatch:
 
 concurrency:
