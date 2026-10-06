@@ -64,74 +64,11 @@ val projectId=intent.getStringExtra("projectId")
 val conversationId=intent.getStringExtra("conversationId")
 val standaloneConversationId=intent.getStringExtra("standaloneConversationId")
 commandExecutor.submit {
-val result=executeExternalCommand(requestedRoot,text,projectId,conversationId,standaloneConversationId)
+val result=FileBridgeExecutionEngine(this).executeExternalCommand(requestedRoot,text,projectId,conversationId,standaloneConversationId)
 broadcastReceipt(result.first,result.second,result.third,projectId,conversationId,standaloneConversationId)
 }
 }
 return START_NOT_STICKY
-}
-
-private fun executeExternalCommand(requestedRoot:String,text:String,projectId:String?,conversationId:String?,standaloneConversationId:String?):Triple<String,String,String>{
-val commands=CommandParser.parse(text)
-if(commands.isEmpty()){
-return Triple("FAILED",text,CommandParser.lastError ?: "未识别到可执行指令")
-}
-val prefs = getSharedPreferences("bridgefs", 0)
-val limit = prefs.getInt("command_limit", 3).coerceIn(1, 20)
-if (commands.size > limit) {
-    AppLogger.log(this, "EXECUTION_DENIED", "reason=command_limit count=" + commands.size + " limit=" + limit)
-    return Triple("DENIED", text, "本轮指令数量 " + commands.size + " 超过限制 " + limit + "，未执行。")
-}
-val project = projectId?.let { id -> BridgeProjectStore(this).load().firstOrNull { it.id == id } }
-val projectConversation = project?.let { current -> conversationId?.let { id -> current.conversations.firstOrNull { it.id == id } } ?: current.activeConversation() }
-val standaloneConversation = standaloneConversationId?.let { id ->
-    BridgeConversationStore(this).load().firstOrNull { it.id == id }
-}
-val auth = PermissionPolicy.authorization(this, project, projectConversation ?: standaloneConversation)
-val rootPath = auth.root.ifBlank { requestedRoot }
-val rootFile=File(rootPath)
-if(rootPath.isBlank() || !rootFile.isDirectory || isProtectedWorkspace(rootPath)) {
-    return Triple("FAILED", text, "Project Local Address 无效或属于受保护区域：" + rootPath)
-}
-if (project != null && requestedRoot.isNotBlank() && File(requestedRoot).canonicalPath != rootFile.canonicalPath) {
-    return Triple("DENIED", text, "请求的 Local Address 与当前 Project Address 不一致")
-}
-val denied = commands.firstOrNull { PermissionPolicy.check(it, auth) == Decision.DENY }
-if (denied != null) {
-    AppLogger.log(this, "EXECUTION_DENIED", "reason=permission command=" + denied)
-    return Triple("DENIED", denied.toString(), "当前权限设置禁止该操作")
-}
-val confirm = commands.firstOrNull { PermissionPolicy.check(it, auth) == Decision.CONFIRM }
-if (confirm != null) {
-    AppLogger.log(this, "EXECUTION_DENIED", "reason=confirmation_required command=" + confirm)
-    return Triple("DENIED", confirm.toString(), "该操作需要用户确认，Service 不允许绕过确认直接执行")
-}
-val constructionRequired = commands.any {
-    it is Command.Write || it is Command.Edit || it is Command.Mkdir || it is Command.Commit
-}
-val memberId = project?.defaultMemberId ?: project?.aiMembers?.firstOrNull()?.id
-if (constructionRequired && project != null) {
-    if (memberId.isNullOrBlank()) {
-        return Triple("DENIED", text, "需要施工权，但当前 Project 没有可用 AI Member")
-    }
-    // ConstructionLock is scoped to Project + Repository + Branch. A Local-only
-    // Project uses the LOCAL/PROJECT identity; GitHub write permission is checked
-    // separately by the Commit service instead of blocking local file work.
-    runCatching {
-        ConstructionLockStore(this).acquire(project, memberId)
-    }.getOrElse {
-        AppLogger.log(this, "EXECUTION_DENIED", "reason=construction_lock command=" + commands.joinToString(" | "))
-        return Triple("DENIED", text, "[ConstructionLock]\n" + (it.message ?: "无法取得施工权"))
-    }
-}
-return try{
-val results=commands.map{CommandExecutor(rootFile,this,project,memberId).execute(it)}
-val message=results.joinToString("\n\n")
-val status=if(results.any{it.contains("✗")})"FAILED" else "SUCCEEDED"
-Triple(status,commands.joinToString(" | "){it.toString()},message)
-}catch(e:Exception){
-Triple("FAILED",text,"执行异常："+(e.message ?: "未知错误"))
-}
 }
 
 private fun broadcastReceipt(status:String,command:String,message:String){
