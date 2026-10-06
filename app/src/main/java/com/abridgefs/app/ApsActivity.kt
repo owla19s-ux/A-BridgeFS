@@ -37,8 +37,6 @@ class ApsActivity : Activity() {
     internal var apiSelectorOpen = false
     internal var conversationManagementOpen = false
     internal var projectAccessOpen = false
-    internal val receiptContinuationCounts = mutableMapOf<String, Int>()
-    private val maxReceiptContinuations = 5
     private val receiptReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             val receiptId = intent.getStringExtra("receiptId").orEmpty()
@@ -52,19 +50,22 @@ class ApsActivity : Activity() {
                 }
                 prefs.edit().putString("pending_receipts", remaining.toString()).apply()
             }
-            val projectId = intent.getStringExtra("projectId")?.takeIf { it.isNotBlank() } ?: return
-            val conversationId = intent.getStringExtra("conversationId")?.takeIf { it.isNotBlank() } ?: return
-            val project = projects.firstOrNull { it.id == projectId } ?: return
-            val conversation = project.conversations.firstOrNull { it.id == conversationId } ?: return
-            conversation.executions += BridgeReceiptRecord(
+
+            ProjectContinuationCoordinator.onReceipt(
+                context = this@ApsActivity,
+                projectId = intent.getStringExtra("projectId"),
+                conversationId = intent.getStringExtra("conversationId"),
+                receiptId = receiptId.ifBlank { null },
                 status = intent.getStringExtra("status") ?: "UNKNOWN",
                 command = intent.getStringExtra("command") ?: "",
                 message = intent.getStringExtra("message") ?: "",
-                time = intent.getLongExtra("time", System.currentTimeMillis()),
-                receiptId = receiptId.ifBlank { java.util.UUID.randomUUID().toString() }
+                time = intent.getLongExtra("time", System.currentTimeMillis())
             )
-            projectStore.save(projects)
-            projectStore.save(projects)
+
+            projects = projectStore.load()
+            currentProject = currentProject?.id?.let { id ->
+                projects.firstOrNull { it.id == id }
+            } ?: projects.firstOrNull()
             render()
         }
     }
