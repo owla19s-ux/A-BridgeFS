@@ -72,12 +72,11 @@ class ProjectTaskStateService(private val context: Context) {
         require(project.taskState.status == "RUNNING" || project.taskState.status == "WAITING") { "当前任务不能完成" }
 
         val activeTaskId = project.taskState.activeTaskId
-        activeTaskId?.let { id ->
-            project.tasks.firstOrNull { it.id == id }?.let {
-                it.completed = true
-                it.status = "COMPLETED"
-            }
-        }
+        val activeTask = project.tasks.firstOrNull { it.id == activeTaskId }
+            ?: error("当前施工任务不存在")
+        activeTask.completed = true
+        activeTask.status = "COMPLETED"
+        project.taskState = BridgeTaskExecutionState()
         project.taskState = BridgeTaskExecutionState()
         store.saveProject(project)
         return project
