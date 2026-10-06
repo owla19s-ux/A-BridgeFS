@@ -130,22 +130,25 @@ class BridgeProjectStore(private val context: Context) {
 
         val activeId = project.taskState.activeTaskId
         val activeTask = activeId?.let { id -> project.tasks.firstOrNull { it.id == id } }
+
         if (activeTask == null || activeTask.completed) {
             project.taskState = BridgeTaskExecutionState()
             project.tasks.filter { it.status == "RUNNING" }.forEach { it.status = "WAITING" }
             return
         }
 
-        project.taskState.maxContinuations = project.taskState.maxContinuations.coerceIn(0, 50)
-        project.taskState.continuationCount = project.taskState.continuationCount.coerceAtLeast(0)
-
         project.tasks.filter { it.id != activeTask.id && it.status == "RUNNING" }
             .forEach { it.status = "WAITING" }
 
-        if (project.taskState.status == "RUNNING") {
-            activeTask.status = "RUNNING"
-        } else if (activeTask.status == "RUNNING") {
-            activeTask.status = "WAITING"
+        when (project.taskState.status) {
+            "RUNNING" -> activeTask.status = "RUNNING"
+            "WAITING", "LIMIT_REACHED", "FAILED", "COMPLETED" -> {
+                if (!activeTask.completed) activeTask.status = "WAITING"
+            }
+            else -> {
+                project.taskState = BridgeTaskExecutionState()
+                activeTask.status = "WAITING"
+            }
         }
     }
 
