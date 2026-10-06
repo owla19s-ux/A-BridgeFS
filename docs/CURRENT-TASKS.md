@@ -2,7 +2,7 @@
 
 更新时间：2026-10-06
 
-> 本文件只维护**当前仍需施工 / 验收的任务**。
+> 本文件只维护当前仍需施工 / 验收的任务。
 > 产品模型、架构原则、UI 正式设计和仓库操作规则分别由 PROJECT 与对应 docs 负责，本文件不重复定义。
 
 ## 1. 当前施工主线
@@ -67,14 +67,7 @@ Permission
 - 不先做脱离链路的全仓库重构；
 - 一个文件不长期承担多个独立业务职责；
 - 能复用的底层能力保留，错误的业务语义替换；
-- 每段接通后再进入下一段。
-
-第一阶段重点：
-- Project Address 统一入口；
-- Project → API Profile / Default AI 关系接通；
-- Project Conversation 独立职责；
-- Permission 改为 Project / Conversation 边界；
-- 最终通过真实 Project Address 完成读取。
+- 每段接通后先做对应云端验证，再进入下一段。
 
 ### T3 — Task / Execution
 **状态：开发中**
@@ -87,8 +80,9 @@ Permission
 - Commit Service 校验 Task / Member。
 
 待验证：
-- 真机允许 / 确认 / 拒绝；
-- pause / complete / clear 后禁止继续写入。
+- 模块测试：Task 状态、Permission、ConstructionLock、CommandParser；
+- 契约测试：Task → Execution → Lock → Commit；
+- 真机只保留云端无法可靠证明的行为，如权限、生命周期和实际设备交互。
 
 ### T4 — GitHub / Commit / Verify
 **状态：开发中**
@@ -101,47 +95,51 @@ Permission
 - Verify Run / Jobs / Artifacts。
 
 待验证：
-- Commit → Actions → Verify 正式 APK 闭环；
-- NOT_TRIGGERED / RUNNING / PASSED / FAILED 语义。
+- 云端业务链：Commit → Actions → Verify；
+- NOT_TRIGGERED / RUNNING / PASSED / FAILED 语义；
+- 必要的真实 GitHub 环境行为。
 
 ### T5 — Project 主链 Integration
 **状态：开发中**
 
 主链：
 
-```text
+```
 Project → Address → Default Member → Conversation → Permission
 → Task → Execution → ConstructionLock → Commit → Verify
 ```
+
+新增工程验证任务：
+- 盘点并建立 `src/test`；
+- 盘点并建立 `src/androidTest`；
+- 建立 Gradle 测试依赖与执行入口；
+- 建立第一批模块测试；
+- 建立核心契约测试；
+- 建立 Project 主链云端测试；
+- 再评估 CI 测试闸门如何逐步接入。
+
+测试体系必须支持未来增加 API、其他 Address / Module、远程能力和更多 Project，而不能绑定当前 GitHub 实现。
 
 ### T6 — 独立「对话」与「设置」
 **状态：UI 已确认 / 开发中**
 
 ### T7 — 正式 APK / 真机验收
-**状态：待主链收口**
+**状态：待云端主链收口后验收**
 
+范围：
+- 安装 / 启动；
+- UI 操作；
+- 键盘与输入区；
+- 生命周期；
+- 系统权限；
+- 实际 API / GitHub；
+- 最终用户体验。
 
-**状态：已设计未完整实现**
-
-目标：
-
-```
-任务
- ↓
-勾选
- ↓
-@任务进入输入框
- ↓
-Project Conversation
- ↓
-Request AI Assistance
-```
-
-协助仍是按需动作，不形成固定 AI A / B 状态机。
+APK 后置，不作为日常开发测试工具。
 
 ## 2. 当前优先级
 
-T1 UI 收口 → T2 Conversation → T3 Task/Execution → T4 GitHub/Verify → T5 Integration → T6 独立对话/设置 → T7 真机验收
+T1 UI 收口 → T2 Conversation → T3 Task/Execution → T4 GitHub/Verify → T5 云端测试体系与主链 Integration → T6 独立对话/设置 → T7 真机验收
 
 ## 3. 明确不做
 
@@ -151,7 +149,7 @@ T1 UI 收口 → T2 Conversation → T3 Task/Execution → T4 GitHub/Verify → 
 - 复杂 Project Dashboard；
 - 无限 Agent Loop；
 - GitHub 第二套 Workspace 模型；
-- 现在提前建设 Secretary / Orchestrator。
+- 现在提前建设 Secretary / Orchestrator；
 - ProjectContinuationCoordinator 与 continuation 运行链。
 
 ## 4. 任务维护规则
@@ -160,7 +158,7 @@ T1 UI 收口 → T2 Conversation → T3 Task/Execution → T4 GitHub/Verify → 
 2. 施工优先按真实链路推进，而不是按文件数量推进。
 3. 一个文件不长期承担多个独立业务职责。
 4. 旧结构在链路经过时迁移、拆分或删除，不另开一轮无目标的大规模重构。
-5. 已完成任务从“当前施工重点”中移出。
+5. 已完成任务从当前施工重点中移出。
 6. 历史过程写入 STATUS 或专项历史文档。
 7. 架构决策写入 PROJECT，不在本表形成第二套规格。
 8. 每次施工后只更新实际发生变化的任务状态。
