@@ -83,15 +83,18 @@ class ProjectConversationService(private val context: Context) {
                 executionError = parsed.error
                 if (executionError == null && parsed.commands.isNotEmpty()) {
                     val activeTaskId = project.taskState.activeTaskId
-                    if (activeTaskId != null) {
+                    if (activeTaskId == null) {
+                        executionError = "当前 Project 没有正在施工的 Task，请先选择并开始施工任务"
+                    } else {
                         val activeTask = project.tasks.firstOrNull { it.id == activeTaskId }
                         if (activeTask == null) {
                             executionError = "当前施工任务不存在"
                         } else if (activeTask.completed) {
                             executionError = "当前施工任务已完成，不能继续施工"
+                        } else if (project.taskState.status != "RUNNING") {
+                            executionError = "当前 Task 不处于 RUNNING 状态，请先开始施工"
                         } else {
                             activeTask.status = "RUNNING"
-                            project.taskState.status = "RUNNING"
                         }
                     }
                     if (executionError != null) {
