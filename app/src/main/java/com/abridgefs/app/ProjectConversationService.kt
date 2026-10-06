@@ -102,24 +102,40 @@ class ProjectConversationService(private val context: Context) {
                 .map { it.groupValues[1].trim() }
                 .filter { it.isNotBlank() }
                 .toList()
+            var executionError: String? = null
             if (commandBlocks.isNotEmpty()) {
-                val parsedCommands = CommandParser.parse(commandBlocks.joinToString("\n"))
-                val needsConstruction = parsedCommands.any {
-                    it is Command.Write || it is Command.Edit || it is Command.Mkdir || it is Command.Commit
+                val parsedCommands = runCatching {
+                    CommandParser.parse(commandBlocks.joinToString("\n"))
+                }.getOrElse {
+                    executionError = "AI 返回的 BridgeFS 指令无法解析：" + (it.message ?: "未知错误")
+                    emptyList()
                 }
-                // ConstructionLock is acquired at the FileBridgeService execution boundary,
-                // after PermissionPolicy has confirmed the requested commands are executable.
-                val intent = android.content.Intent(context, FileBridgeService::class.java).apply {
-                    putExtra("bridgefs_external_command", commandBlocks.joinToString("\n"))
-                    putExtra("bridgefs_root", project.localAddress.orEmpty())
-                    putExtra("projectId", project.id)
-                    putExtra("conversationId", conversation.id)
+                if (executionError == null) {
+                    val authorization = PermissionPolicy.authorization(context, project, conversation)
+                    val decisions = parsedCommands.map { it to PermissionPolicy.check(it, authorization) }
+                    when {
+                        decisions.any { it.second == Decision.DENY } ->
+                            executionError = "检测到被禁止的施工指令，未执行。请调整 Project/执行权限后再继续。"
+                        decisions.any { it.second == Decision.CONFIRM } ->
+                            executionError = "检测到需要确认的施工指令，当前版本不会自动执行。请先明确授权后再继续。"
+                        authorization.root.isBlank() ->
+                            executionError = "当前 Project 未配置 Local Project Address，施工指令未执行。"
+                        else -> {
+                            val intent = android.content.Intent(context, FileBridgeService::class.java).apply {
+                                putExtra("bridgefs_external_command", commandBlocks.joinToString("\n"))
+                                putExtra("bridgefs_root", authorization.root)
+                                putExtra("projectId", project.id)
+                                putExtra("conversationId", conversation.id)
+                            }
+                            context.startService(intent)
+                        }
+                    }
                 }
-                context.startService(intent)
             }
             Result(
                 answer = answer,
-                executionRequested = commandBlocks.isNotEmpty()
+                error = executionError,
+                executionRequested = commandBlocks.isNotEmpty() && executionError == null
             )
         }.getOrElse {
             Result(error = "[API 错误]\n" + (it.message ?: "未知错误"))
