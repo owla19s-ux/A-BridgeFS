@@ -75,6 +75,21 @@ class ProjectConversationService(private val context: Context) {
                 val parsed = CommandParser.parse(commandBlocks.joinToString("\n"))
                 executionError = parsed.error
                 if (executionError == null && parsed.commands.isNotEmpty()) {
+                    val activeTaskId = project.taskState.activeTaskId
+                    if (activeTaskId != null) {
+                        val activeTask = project.tasks.firstOrNull { it.id == activeTaskId }
+                        if (activeTask == null) {
+                            executionError = "当前施工任务不存在"
+                        } else if (activeTask.completed) {
+                            executionError = "当前施工任务已完成，不能继续施工"
+                        } else {
+                            activeTask.status = "RUNNING"
+                            project.taskState.status = "RUNNING"
+                        }
+                    }
+                    if (executionError != null) {
+                        return@runCatching Result(answer = answer, error = executionError, executionRequested = false)
+                    }
                     val intent = android.content.Intent(context, FileBridgeService::class.java).apply {
                         putExtra("bridgefs_external_command", commandBlocks.joinToString("\n"))
                         putExtra("bridgefs_root", project.localAddress.orEmpty())
