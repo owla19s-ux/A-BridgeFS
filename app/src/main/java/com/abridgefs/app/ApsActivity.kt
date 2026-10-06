@@ -14,6 +14,7 @@ import androidx.core.view.WindowInsetsCompat
 
 class ApsActivity : Activity() {
     internal lateinit var host: FrameLayout
+    private lateinit var bottomNav: LinearLayout
     private var page = 0
     internal var projectConfigOpen = false
     internal var projectChatOpen = true
@@ -149,6 +150,7 @@ class ApsActivity : Activity() {
         }, LinearLayout.LayoutParams(dp(48), dp(46)).apply {
             marginStart = dp(3)
         })
+        bottomNav = nav
         root.addView(nav)
         ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -183,7 +185,22 @@ class ApsActivity : Activity() {
         super.onDestroy()
     }
 
+    private fun updateBottomNav() {
+        if (!::bottomNav.isInitialized) return
+        for (i in 0..2) {
+            val item = bottomNav.getChildAt(i) as? TextView ?: continue
+            val selected = page == i
+            item.typeface = if (selected) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+            item.setTextColor(c(if (selected) R.color.bridgefs_text_primary else R.color.bridgefs_text_secondary))
+            item.background = round(c(if (selected) R.color.bridgefs_selected_surface else R.color.bridgefs_surface), dp(14))
+        }
+        val display = bottomNav.getChildAt(3) as? TextView ?: return
+        display.text = if (displayOpen) "↓" else "↑"
+        display.contentDescription = if (displayOpen) "减少项目内容显示空间" else "恢复项目内容显示空间"
+    }
+
     internal fun render() {
+        updateBottomNav()
         host.removeAllViews()
         when (page) {
             0 -> projectPage()
