@@ -10,16 +10,18 @@
 4. GitHub：Project Address / Read / Write / Commit / Actions / Verify
 5. UI：项目 / 对话 / 设置及其状态展示
 
-模块完成后再进入 Integration，不在模块尚未稳定时强行串联。
+模块稳定后再进入 Integration，不在模块尚未验证时强行串联。
 
 ## 当前原则
 
 - 不重新引入 Decision AI / Worker AI。
 - 不以 Build 成功作为模块完成条件。
-- 不因为下一模块需要某个接口，就提前把下一模块的逻辑塞进当前模块。
+- 模块首先必须能进行云端验证，再进入更高层集成。
+- 不因为下一模块需要某个接口，就提前把下一模块逻辑塞进当前模块。
 - 一个文件尽量只承担一个明确的模型、服务或页面职责。
 - 持久化状态必须有唯一归属，UI 不直接承担业务状态迁移。
 - 旧字段允许作为迁移兼容，但新代码不得继续依赖旧命名。
+- 当前保持单 `app` 模块；Gradle 多模块只有在规模、依赖、构建或复用等实际需求出现时才评估。
 
 ## 本轮已开始
 
@@ -44,9 +46,11 @@ Project 模块至少满足：
 - Conversation、Member、Task、Receipt 数据互不承担对方职责。
 - 进程重启后 Project 状态可恢复。
 - 不依赖完整 AI → Execution → GitHub 链路即可独立验证。
+- 对应模块测试通过。
+- 跨模块约定有契约测试。
+- 云端验证通过后，才进入更高层 Integration。
 
-之后再进入 Conversation 模块.
-
+Build、APK、真机不作为模块完成的第一条件。
 
 ## 本轮继续收口
 
@@ -59,4 +63,4 @@ Project 模块至少满足：
 
 Project / Conversation / Execution / GitHub / UI 的职责边界已基本形成。
 
-下一阶段不是继续扩大模块重建，而是主链 Integration、正式构建与真机验证。发现明确硬问题才继续修改。
+下一阶段重点是主链 Integration 与云端验证体系建设；正式 APK 和真机验收后置。发现明确硬问题才继续修改。
