@@ -10,11 +10,16 @@ class BridgeProjectStore(private val context: Context) {
     private val key = "data"
 
     fun load(): MutableList<BridgeProject> {
-        val array = JSONArray(prefs.getString(key, "[]") ?: "[]")
+        val raw = prefs.getString(key, "[]") ?: "[]"
+        val array = runCatching { JSONArray(raw) }.getOrElse {
+            AppLogger.log(context, "PROJECT_STORE_LOAD_FAILED", "invalid project JSON: " + (it.message ?: "unknown"))
+            return mutableListOf()
+        }
         val result = mutableListOf<BridgeProject>()
         for (i in 0 until array.length()) {
-            val obj = array.getJSONObject(i)
-            val project = BridgeProject(
+            val project = runCatching {
+                val obj = array.getJSONObject(i)
+                BridgeProject(
                 id = obj.getString("id"),
                 name = obj.getString("name"),
                 localFileModifyEnabled = obj.optBoolean("localFileModifyEnabled", false),
@@ -34,6 +39,7 @@ class BridgeProjectStore(private val context: Context) {
             obj.optJSONArray("aiMembers")?.let { members ->
                 for (j in 0 until members.length()) {
                     val member = members.getJSONObject(j)
+                    if (!member.has("id")) continue
                     project.aiMembers += BridgeAiMember(
                         id = member.getString("id"),
                         name = member.optString("name", "AI"),
@@ -45,6 +51,7 @@ class BridgeProjectStore(private val context: Context) {
             obj.optJSONArray("tasks")?.let { tasks ->
                 for (j in 0 until tasks.length()) {
                     val task = tasks.getJSONObject(j)
+                    if (!task.has("id")) continue
                     project.tasks += BridgeProjectTask(
                         id = task.getString("id"),
                         title = task.optString("title", "未命名任务"),
@@ -55,7 +62,9 @@ class BridgeProjectStore(private val context: Context) {
 
             obj.optJSONArray("conversations")?.let { conversations ->
                 for (j in 0 until conversations.length()) {
-                    project.conversations += readConversation(conversations.getJSONObject(j))
+                    val conversation = conversations.getJSONObject(j)
+                    if (!conversation.has("id")) continue
+                    project.conversations += readConversation(conversation)
                 }
             }
 
@@ -71,13 +80,22 @@ class BridgeProjectStore(private val context: Context) {
                 project.activeConversationId = legacy.id
             }
 
-            if (project.defaultMemberId == null) {
-                val legacyApiId = project.conversations.firstOrNull()?.apiId
-                project.defaultMemberId = legacyApiId?.let { apiId -> project.aiMembers.firstOrNull { it.apiProfileId == apiId }?.id }
-                    ?: project.aiMembers.firstOrNull()?.id
-            }
-            project.activeConversation()
-            result += project
+                if (project.defaultMemberId == null) {
+                    val legacyApiId = project.conversations.firstOrNull()?.apiId
+                    project.defaultMemberId = legacyApiId?.let { apiId -> project.aiMembers.firstOrNull { it.apiProfileId == apiId }?.id }
+                        ?: project.aiMembers.firstOrNull()?.id
+                }
+                project.activeConversation()
+                project
+            }.onFailure {
+                AppLogger.log(
+                    context,
+                    "PROJECT_STORE_LOAD_SKIP",
+                    "index=" + i + " error=" + it::class.simpleName + ": " + (it.message ?: "unknown")
+                )
+            }.getOrNull()
+
+            if (project != null) result += project
         }
         return result
     }
