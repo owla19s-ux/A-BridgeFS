@@ -1,6 +1,6 @@
 # APS 当前状态与工作记录
 
-更新时间：2026-10-04
+更新时间：2026-10-06
 
 > 本文件同时承担“当前状态”和“阶段工作记录”职责，减少多个状态文档重复维护。
 >
@@ -122,7 +122,7 @@ GitHub 不作为一级导航。
 - GitHub Project Address 已具备 Repository / Branch 配置入口；
 - 正式构建统一使用正式签名身份。
 
-### 开发中
+### 当前开发中
 
 - Project UI 按最新设计继续收口；
 - Project 配置完整闭环；
@@ -259,7 +259,7 @@ Verify
 必要时继续
 ```
 
-本地施工已经接入 PermissionPolicy → FileBridgeService → Receipt → Default AI 继续判断。
+本地施工已经接入 PermissionPolicy → FileBridgeService → Receipt；不再使用 continuation Coordinator。
 
 GitHub 施工已支持文件创建 / 编辑、Commit，并读取对应 Actions runs 作为 Verify 信息。
 
@@ -267,7 +267,7 @@ GitHub 施工已支持文件创建 / 编辑、Commit，并读取对应 Actions r
 
 - Actions 可能尚未启动时不能把“0 runs”直接视为最终 Verify；
 - 多文件操作的 Commit / Verify 语义仍需继续审查；
-- 连续施工必须保持明确迭代上限；
+- 连续施工的失败 / 重试边界仍需真机验证；
 - 当前仍未完成正式 APK 与真机闭环验证。
 
 ## 七、文档事实优先级
