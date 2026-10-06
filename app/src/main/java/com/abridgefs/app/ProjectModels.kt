@@ -28,7 +28,21 @@ data class BridgeAiMember(
 data class BridgeProjectTask(
     val id: String,
     var title: String,
-    var completed: Boolean = false
+    var completed: Boolean = false,
+    var status: String = "PENDING",
+    var continuationCount: Int = 0,
+    var maxContinuations: Int = 10,
+    var lastReceiptId: String? = null,
+    var lastResult: String? = null
+)
+
+data class BridgeTaskExecutionState(
+    var activeTaskId: String? = null,
+    var status: String = "IDLE",
+    var continuationCount: Int = 0,
+    var maxContinuations: Int = 10,
+    var lastReceiptId: String? = null,
+    var lastResult: String? = null
 )
 
 data class BridgeConversation(
@@ -50,7 +64,8 @@ data class BridgeProject(
     val aiMembers: MutableList<BridgeAiMember> = mutableListOf(),
     val conversations: MutableList<BridgeConversation> = mutableListOf(),
     val tasks: MutableList<BridgeProjectTask> = mutableListOf(),
-    var activeConversationId: String? = null
+    var activeConversationId: String? = null,
+    var taskState: BridgeTaskExecutionState = BridgeTaskExecutionState()
 ) {
     fun activeConversation(): BridgeConversation {
         val current = activeConversationId?.let { id -> conversations.firstOrNull { it.id == id } }
