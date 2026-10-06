@@ -25,10 +25,12 @@ data class BridgeAiMember(
     var apiProfileId: String? = null
 )
 
-/**
- * A conversation belongs to a Project.
- * API selection, chat history and execution receipts are conversation state.
- */
+data class BridgeProjectTask(
+    val id: String,
+    var title: String,
+    var completed: Boolean = false
+)
+
 data class BridgeConversation(
     val id: String,
     var name: String,
@@ -38,13 +40,6 @@ data class BridgeConversation(
     val executions: MutableList<BridgeReceiptRecord> = mutableListOf()
 )
 
-/**
- * Project root.
- *
- * Project Address is represented explicitly by Local and GitHub address fields.
- * Historical workspace names remain only as deprecated source-compatibility
- * accessors while callers migrate along the real Project chain.
- */
 data class BridgeProject(
     val id: String,
     var name: String,
@@ -54,6 +49,7 @@ data class BridgeProject(
     var defaultMemberId: String? = null,
     val aiMembers: MutableList<BridgeAiMember> = mutableListOf(),
     val conversations: MutableList<BridgeConversation> = mutableListOf(),
+    val tasks: MutableList<BridgeProjectTask> = mutableListOf(),
     var activeConversationId: String? = null
 ) {
     fun activeConversation(): BridgeConversation {
