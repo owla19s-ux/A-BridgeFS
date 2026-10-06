@@ -40,14 +40,8 @@ internal fun ApsActivity.settingsPage() {
             content.addView(card().apply {
                 when (name) {
                     "连接" -> {
-                        addView(label("全局连接"))
-                        addView(value("这里管理 APS 能否使用外部 API 与 GitHub。具体 Project 权限仍由项目与执行策略决定。"))
-                        addView(settingSwitch("API 全局访问", AccessPolicy.isApiEnabled(this@settingsPage)) {
-                            AccessPolicy.setApiEnabled(this@settingsPage, it)
-                        })
-                        addView(settingSwitch("GitHub 全局访问", AccessPolicy.isGithubEnabled(this@settingsPage)) {
-                            AccessPolicy.setGithubEnabled(this@settingsPage, it)
-                        })
+                        addView(label("全局连接资源"))
+                        addView(value("连接页只负责进入 API / GitHub 等具体资源配置；模块内部维护各自的连接权限。"))
                         addView(secondaryButton("API Profiles") {
                             startActivity(Intent(this@settingsPage, ApiSettingsActivity::class.java))
                         }, LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(5) })
@@ -56,12 +50,12 @@ internal fun ApsActivity.settingsPage() {
                         }, LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(5) })
                     }
                     "权限" -> {
-                        addView(label("APS 访问策略"))
-                        addView(value("系统级开关直接写入持久化 AccessPolicy。"))
-                        addView(settingSwitch("API 访问", AccessPolicy.isApiEnabled(this@settingsPage)) {
+                        addView(label("APS 系统级权限"))
+                        addView(value("这里只管理没有明确归属到 API、GitHub 或 Project 的系统级访问能力。"))
+                        addView(settingSwitch("API 全局访问", AccessPolicy.isApiEnabled(this@settingsPage)) {
                             AccessPolicy.setApiEnabled(this@settingsPage, it)
                         })
-                        addView(settingSwitch("GitHub 访问", AccessPolicy.isGithubEnabled(this@settingsPage)) {
+                        addView(settingSwitch("GitHub 全局访问", AccessPolicy.isGithubEnabled(this@settingsPage)) {
                             AccessPolicy.setGithubEnabled(this@settingsPage, it)
                         })
                         addView(secondaryButton("执行与文件权限") {
