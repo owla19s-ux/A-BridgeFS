@@ -93,8 +93,6 @@ class ProjectConversationService(private val context: Context) {
                             executionError = "当前施工任务已完成，不能继续施工"
                         } else if (project.taskState.status != "RUNNING") {
                             executionError = "当前 Task 不处于 RUNNING 状态，请先开始施工"
-                        } else {
-                            activeTask.status = "RUNNING"
                         }
                     }
                     if (executionError != null) {
