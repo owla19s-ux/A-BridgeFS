@@ -1,12 +1,12 @@
 # GitHub 模块架构
 
-状态：专项架构施工基线（2026-10-02）
+状态：专项模块架构参考（2026-10-06）
 
-> 本文是 GitHub 模块专项设计，不取代 `PROJECT/ARCHITECTURE/AI-COLLABORATION-V0.2.md` 的正式协作架构。
+本文是 GitHub 模块专项设计，不取代 PROJECT/ARCHITECTURE/APS-CURRENT-ARCHITECTURE.md。
 
 ## 1. 定位
 
-A-BridgeFS 中的 GitHub 不是“Repository + Branch 两个配置字段”，而是一个真实的协作资源模块。
+APS 中的 GitHub 不是“Repository + Branch 两个配置字段”，而是一个真实的协作资源模块。
 
 它负责把：
 
@@ -19,9 +19,9 @@ A-BridgeFS 中的 GitHub 不是“Repository + Branch 两个配置字段”，�
 
 连接成可操作的资源链。
 
-## 2. 与工作区的关系
+## 2. 与Project的关系
 
-GitHub 账号授权与工作区绑定分离。
+GitHub 账号授权与Project绑定分离。
 
 ```
 GitHub Authorization
@@ -30,14 +30,14 @@ GitHub Account
         ↓
 可访问 Repositories
         ↓
-Workspace 选择 Repository
+Project 选择 Repository
         ↓
-Workspace 选择 Branch
+Project 选择 Branch
         ↓
-GitHub Workspace Resources
+GitHub Project Resources
 ```
 
-工作区保存的是“当前使用哪个 GitHub 资源”，而不是 GitHub 凭据本身。
+Project保存的是“当前使用哪个 GitHub 资源”，而不是 GitHub 凭据本身。
 
 ## 3. 访问边界
 
@@ -45,7 +45,7 @@ GitHub 访问分为“读取”和“修改”两条能力链，不能混为一�
 
 ### 普通对话读取
 
-普通「对话」页也可以读取 GitHub。它不需要先进入 Workspace，也不需要 ConstructionLock。
+普通「对话」页也可以读取 GitHub。它不需要先进入 Project，也不需要 ConstructionLock。
 
 前提是：
 - GitHub 全局访问已开启；
@@ -57,15 +57,15 @@ GitHub 访问分为“读取”和“修改”两条能力链，不能混为一�
 
 普通对话 → API → GitHub → Repository / Branch → 文件读取 → AI
 
-### 工作区读取
+### Project读取
 
-Workspace 对话读取当前 Workspace 绑定的 Repository / Branch。两个 AI 可以共享该读取能力。
+Project 对话读取当前 Project 绑定的 Repository / Branch。两个 AI 可以共享该读取能力。
 
 ### 修改
 
 修改属于另一条链路：
 
-施工 AI → Workspace / Repository / Branch → ConstructionLock → updateFile → Commit
+施工 AI → Project / Repository / Branch → ConstructionLock → updateFile → Commit
 
 普通对话读取成功，并不意味着普通对话拥有修改权限。
 
@@ -75,15 +75,15 @@ Workspace 对话读取当前 Workspace 绑定的 Repository / Branch。两个 AI
 
 `AccessPolicy.isGithubEnabled`
 
-关闭后，A-BridgeFS 不发起 GitHub API 请求。
+关闭后，APS 不发起 GitHub API 请求。
 
 ### GitHub 身份授权
 
 负责确认当前 App 代表哪个 GitHub 用户，以及令牌是否有效。
 
-### 工作区权限
+### Project权限
 
-工作区进一步限制：
+Project进一步限制：
 
 - 读取
 - 修改
@@ -113,7 +113,7 @@ GitHub
 ├─ 权限
 │  ├─ 读取
 │  └─ 修改
-└─ GitHub 工作区
+└─ GitHub Project
    ├─ 文件
    ├─ Commit
    ├─ Issue
@@ -126,7 +126,7 @@ GitHub
 
 ## 5. 数据模型
 
-工作区 GitHub 资源保存：
+Project GitHub 资源保存：
 
 - `githubAccount`：当前绑定的 GitHub 登录名
 - `github.repositoryId`：GitHub Repository 稳定 ID
@@ -135,7 +135,7 @@ GitHub
 - `github.readEnabled`
 - `github.writeEnabled`
 
-授权凭据单独存储，不进入工作区普通 JSON。
+授权凭据单独存储，不进入Project普通 JSON。
 
 历史数据如果只有 `githubAccountLogin` 而没有 `githubAccount`，加载时仍兼容。
 
@@ -150,11 +150,11 @@ GitHubTokenStore
     ↓
 GitHubApiClient
     ↓
-GitHubWorkspaceService
+GitHubProjectService
     ↓
 GitHubActivity
     ↓
-Workspace.github
+Project.github
 ```
 
 选择后保存：
@@ -172,11 +172,11 @@ Branch 列表来自当前 Repository。
 
 不能把输入框中的任意字符串直接视为已存在 Branch。
 
-Branch 查询通过 `GitHubWorkspaceService` 执行，因此必须同时满足：
+Branch 查询通过 `GitHubProjectService` 执行，因此必须同时满足：
 
 - GitHub 全局访问开启
 - GitHub Token 已授权
-- 当前工作区允许读取
+- 当前Project允许读取
 - Repository 已配置
 
 ## 8. 能力映射
@@ -194,9 +194,9 @@ Branch 查询通过 `GitHubWorkspaceService` 执行，因此必须同时满足�
 
 GitHub 的实际权限以当前授权方式和 GitHub API 返回为准，App 内部权限不能越过 GitHub 授权边界。
 
-## 9. GitHub 工作区不是 GitHub 全功能复制品
+## 9. GitHub Project不是 GitHub 全功能复制品
 
-第一版只需要让 A-BridgeFS 能够：
+第一版只需要让 APS 能够：
 
 1. 真实连接账号
 2. 读取 Repository
@@ -237,16 +237,16 @@ GitHub 页面必须区分：
 
 只有以上链路实际可用，才认为“普通对话 GitHub 读取已打通”。
 
-## 12. 与 A-BridgeFS 协作闭环的关系
+## 12. 与 APS 协作闭环的关系
 
 ```
 对话 / 协作 AI
         ↓
-A-BridgeFS
+APS
         ↓
 GitHub 权限判断
         ↓
-GitHub Workspace Service
+GitHub Project Service
         ↓
 Repository / Branch
         ↓
@@ -265,10 +265,10 @@ GitHub 是真实执行资源之一，不是 UI 装饰。
 
 - 做真实 GitHub 身份连接
 - 做 Repository / Branch 读取
-- 做工作区绑定
+- 做Project绑定
 - 做读取 / 修改边界
-- 建立 GitHub 工作区页面
-- 统一 Repository / Branch 查询入口到 Workspace Service
+- 建立 GitHub Project页面
+- 统一 Repository / Branch 查询入口到 Project Service
 
 暂不提前做：
 
@@ -279,16 +279,12 @@ GitHub 是真实执行资源之一，不是 UI 装饰。
 - 自动调度器
 
 
-## 14. 与双 AI 施工权模型的关系
+## 14. 当前施工边界
 
-GitHub 模块不决定哪个 AI 承担决策、施工或检查角色；正式架构不设固定 Decision AI / Worker AI 身份。
+GitHub 模块不决定 AI 角色。当前正式模型不设固定 Decision AI / Worker AI，也不设固定 AI A / AI B。
 
-当前正式模型为：
+施工写入链路必须同时满足：Global GitHub Access、Project GitHub Read/Write、RUNNING Task、AI Member 所属 Project、ConstructionLock holder。
 
-- 两个 AI 可以共享工作区允许范围内的读取能力。
-- GitHub Repository / Branch 的施工权由 Workspace 权限与施工锁管理。
-- 同一 Repository / Branch 同时最多一个 AI 持有施工权。
-- API Profile 与 GitHub Token 都是连接 / 授权资源，不直接等于 A-BridgeFS 施工权。
-- GitHub Token 的真实权限仍是最终外部能力边界。
+GitHub Token 的真实权限仍是最终外部能力边界。
 
-因此 GitHub 模块负责“能访问什么”，Workspace / ConstructionLock 负责“当前哪个 AI 在当前阶段获得施工权”。角色可以随任务阶段变化，施工权不等于固定 AI 身份。
+GitHub 模块负责“能访问什么”；Project / Task / ConstructionLock 负责“当前哪个 Project、哪个 Task、哪个 AI Member 可以修改”。
