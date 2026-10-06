@@ -252,9 +252,10 @@ internal fun ApsActivity.value(text: String) = TextView(this).apply {
 internal fun ApsActivity.syncProjectInput() {
     val input = projectInput ?: return
     val prefix = pendingTaskMentions.joinToString(" ")
-    val current = input.text.toString()
-    val cleaned = current.replace(Regex("""(@[^ ]+\s*)+"""), "").trimStart()
-    input.setText(if (prefix.isBlank()) cleaned else prefix + " " + cleaned)
+    var cleaned = input.text.toString()
+    pendingTaskMentions.forEach { mention -> cleaned = cleaned.replace(mention, "") }
+    cleaned = cleaned.trim()
+    input.setText(if (prefix.isBlank()) cleaned else if (cleaned.isBlank()) prefix + " " else prefix + " " + cleaned)
     input.setSelection(input.text.length)
 }
 
