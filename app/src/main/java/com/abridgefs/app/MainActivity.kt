@@ -51,17 +51,16 @@ class MainActivity : Activity() {
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            val status = intent.getStringExtra("status") ?: "UNKNOWN"
-            val command = intent.getStringExtra("command") ?: ""
-            val message = intent.getStringExtra("message") ?: ""
-            val projectId = intent.getStringExtra("projectId")
-            val project = projects.firstOrNull { it.id == projectId } ?: currentProject
-            val receipt = BridgeReceiptRecord(status, command, message)
-            project?.executions?.add(receipt)
-            setPendingReceipt(receipt, project?.id)
-            saveProjects()
-            render()
-            Toast.makeText(this@MainActivity, "🔔 收到新的执行回执", Toast.LENGTH_SHORT).show()
+            val receipt = org.json.JSONObject().apply {
+                put("receiptId", intent.getStringExtra("receiptId").orEmpty())
+                put("status", intent.getStringExtra("status") ?: "UNKNOWN")
+                put("command", intent.getStringExtra("command") ?: "")
+                put("message", intent.getStringExtra("message") ?: "")
+                put("time", intent.getLongExtra("time", System.currentTimeMillis()))
+                put("projectId", intent.getStringExtra("projectId").orEmpty())
+                put("conversationId", intent.getStringExtra("conversationId").orEmpty())
+            }
+            processPendingReceipt(receipt)
         }
     }
 
@@ -193,26 +192,57 @@ class MainActivity : Activity() {
     }
 
     private fun restorePendingReceipt() {
-        val raw = prefs.getString("pending_receipt", null) ?: return
+        val queue = org.json.JSONArray(prefs.getString("pending_receipts", "[]") ?: "[]")
+        for (i in 0 until queue.length()) {
+            queue.optJSONObject(i)?.let { processPendingReceipt(it) }
+        }
+        val legacy = prefs.getString("pending_receipt", null)
+        if (!legacy.isNullOrBlank()) {
+            runCatching { processPendingReceipt(org.json.JSONObject(legacy)) }
+        }
+    }
+
+    private fun processPendingReceipt(receipt: org.json.JSONObject) {
         runCatching {
-            val obj = org.json.JSONObject(raw)
-            val receipt = BridgeReceiptRecord(
-                obj.optString("status", "UNKNOWN"),
-                obj.optString("command", ""),
-                obj.optString("message", ""),
-                obj.optLong("time", System.currentTimeMillis())
+            ProjectContinuationCoordinator.onReceipt(
+                context = this,
+                projectId = receipt.optString("projectId").ifBlank { null },
+                conversationId = receipt.optString("conversationId").ifBlank { null },
+                receiptId = receipt.optString("receiptId").ifBlank { null },
+                status = receipt.optString("status", "UNKNOWN"),
+                command = receipt.optString("command", ""),
+                message = receipt.optString("message", ""),
+                time = receipt.optLong("time", System.currentTimeMillis())
             )
-            val projectId = obj.optString("projectId", "")
-            val project = projects.firstOrNull { it.id == projectId } ?: currentProject
-            if (project != null) {
-                val duplicate = project.executions.any {
-                    it.time == receipt.time && it.status == receipt.status &&
-                        it.command == receipt.command && it.message == receipt.message
-                }
-                if (!duplicate) project.executions += receipt
+
+            val displayReceipt = BridgeReceiptRecord(
+                receipt.optString("status", "UNKNOWN"),
+                receipt.optString("command", ""),
+                receipt.optString("message", ""),
+                receipt.optLong("time", System.currentTimeMillis()),
+                receipt.optString("receiptId").ifBlank { java.util.UUID.randomUUID().toString() }
+            )
+            pendingReceipt = formatReceipt(displayReceipt)
+
+            val id = receipt.optString("receiptId")
+            val queued = org.json.JSONArray(prefs.getString("pending_receipts", "[]") ?: "[]")
+            val remaining = org.json.JSONArray()
+            for (i in 0 until queued.length()) {
+                val item = queued.optJSONObject(i)
+                if (item?.optString("receiptId") != id) remaining.put(item)
             }
-            pendingReceipt = formatReceipt(receipt)
-            saveProjects()
+            prefs.edit()
+                .putString("pending_receipts", remaining.toString())
+                .remove("pending_receipt")
+                .apply()
+
+            projects = store.load()
+            currentProject = currentProject?.id?.let { projectId ->
+                projects.firstOrNull { it.id == projectId }
+            } ?: projects.firstOrNull()
+            render()
+        }.onFailure {
+            AppLogger.log(this, "EXECUTION", "PENDING_RECEIPT_RECOVERY_FAILED " + (it.message ?: "unknown"))
         }
     }
 
