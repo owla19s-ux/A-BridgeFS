@@ -244,13 +244,30 @@ Actions 验证至少记录：
 
 **主链收口 + 云端测试体系建设 + 验证。**
 
-下一步先盘点并建立：
-1. `src/test`；
-2. `src/androidTest`；
-3. Gradle 测试配置与依赖；
-4. 核心模块测试；
-5. 模块之间的契约测试；
-6. Project 主链测试；
-7. CI 测试闸门。
+已落地：
 
-第一批测试不追求覆盖率数字，而追求把**Task、Permission、ConstructionLock、CommandParser**四个高价值边界真正变成可重复验证的工程事实。
+1. app/src/test 已建立；
+2. CommandParserTest 已建立并按真实指令语法校正；
+3. PermissionPolicyTest 已建立；
+4. app/build.gradle 已加入最小 JUnit 测试依赖；
+5. .github/workflows/android-tests.yml 已建立；
+6. 云端测试工作流支持：
+   - architecture-rebuild 推送自动测试；
+   - 面向 main 的 Pull Request 自动测试；
+   - GitHub Actions 手动触发测试。
+7. ProjectTaskStateService 与 ConstructionLockStore 已完成第一轮边界检查。
+
+当前未做：
+
+- 尚未为了测试引入 Robolectric、MockK 或 Hilt；
+- 尚未建立 src/androidTest；
+- 尚未把 Task / ConstructionLock 强行改造成测试专用结构；
+- 尚未把业务链测试提前到核心模块测试之前。
+
+原因：
+
+ProjectTaskStateService 与 ConstructionLockStore 依赖 Android Context / SharedPreferences。当前先验证纯逻辑边界，只有真实测试需求证明需要 Android 测试环境时，才增加最小工具或调整边界。
+
+第一批测试不追求覆盖率数字，而追求把 Task、Permission、ConstructionLock、CommandParser 四个高价值边界真正变成可重复验证的工程事实。
+
+自动化测试结果必须以实际 Actions Run 证据为准；没有 Run #、Run ID、Commit、Job 等证据，不标记“已验证”。\n
