@@ -110,10 +110,20 @@ internal fun ApsActivity.conversationPage() {
             }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
         }
 
+        val conversation = currentProject?.activeConversation()
         content.addView(card().apply {
-            addView(messageBubble("AI", "这里是普通 AI 对话区域。"))
-            addView(messageBubble("AI", "当前会话可以访问 Project 的授权资源。"))
-            addView(messageBubble("系统", "消息复制、真实历史记录将在接线阶段加入。"))
+            if (conversation == null || conversation.messages.isEmpty()) {
+                addView(messageBubble("系统", "当前会话还没有消息。"))
+            } else {
+                conversation.messages.forEach { message ->
+                    val displayName = when (message.role) {
+                        "user" -> "你"
+                        "assistant" -> message.apiName ?: "AI"
+                        else -> "系统"
+                    }
+                    addView(messageBubble(displayName, message.content))
+                }
+            }
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
 
         host.addView(ScrollView(this@conversationPage).apply { addView(content) },
