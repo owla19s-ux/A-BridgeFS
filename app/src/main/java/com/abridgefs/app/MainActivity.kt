@@ -560,10 +560,21 @@ class MainActivity : Activity() {
             return
         }
 
-        val commands = blocks.flatMap { CommandParser.parse(it) }
+        val parsedBlocks = blocks.map { CommandParser.parse(it) }
+        val parseError = parsedBlocks.firstOrNull { it.error != null }?.error
+        val commands = parsedBlocks.flatMap { it.commands }
         if (commands.isEmpty()) {
-            val error = CommandParser.lastError ?: "未识别到 BridgeFS 指令"
+            val error = parseError ?: "未识别到 BridgeFS 指令"
             val receipt = BridgeReceiptRecord("FAILED", "AI command", error)
+            project.executions += receipt
+            setPendingReceipt(receipt, project.id)
+            saveProjects()
+            render()
+            return
+        }
+
+        if (parseError != null) {
+            val receipt = BridgeReceiptRecord("FAILED", "AI command", parseError)
             project.executions += receipt
             setPendingReceipt(receipt, project.id)
             saveProjects()
