@@ -27,16 +27,15 @@ class ApsActivity : Activity() {
     internal val projectStore by lazy { BridgeProjectStore(this) }
     internal var projects: MutableList<BridgeProject> = mutableListOf()
     internal var currentProject: BridgeProject? = null
-    internal var conversationGroup = "默认分组"
-    internal var currentConversation = "新会话 1"
+    internal val standaloneConversationStore by lazy { BridgeConversationStore(this) }
+    internal var standaloneConversations: MutableList<BridgeConversation> = mutableListOf()
+    internal var currentStandaloneConversationId: String? = null
     internal var selectedApi = "未绑定"
     internal var selectedApiProfileId: String? = null
     internal val apiProfilesStore by lazy { ApiProfileStore(this) }
     internal var apiSelectorOpen = false
     internal var conversationManagementOpen = false
     internal var projectAccessOpen = false
-    internal val conversationGroupNames = linkedSetOf("默认分组")
-    internal val conversationNames = linkedSetOf("新会话 1")
     internal val receiptContinuationCounts = mutableMapOf<String, Int>()
     private val maxReceiptContinuations = 5
     private val receiptReceiver = object : BroadcastReceiver() {
@@ -52,12 +51,10 @@ class ApsActivity : Activity() {
                 }
                 prefs.edit().putString("pending_receipts", remaining.toString()).apply()
             }
-
             val projectId = intent.getStringExtra("projectId")?.takeIf { it.isNotBlank() } ?: return
             val conversationId = intent.getStringExtra("conversationId")?.takeIf { it.isNotBlank() } ?: return
             val project = projects.firstOrNull { it.id == projectId } ?: return
             val conversation = project.conversations.firstOrNull { it.id == conversationId } ?: return
-
             conversation.executions += BridgeReceiptRecord(
                 status = intent.getStringExtra("status") ?: "UNKNOWN",
                 command = intent.getStringExtra("command") ?: "",
@@ -66,21 +63,18 @@ class ApsActivity : Activity() {
                 receiptId = receiptId.ifBlank { java.util.UUID.randomUUID().toString() }
             )
             projectStore.save(projects)
-
             val receipt = conversation.executions.last()
             val continuationCount = (receiptContinuationCounts[conversation.id] ?: 0) + 1
             receiptContinuationCounts[conversation.id] = continuationCount
-
             if (continuationCount > maxReceiptContinuations) {
                 conversation.messages += BridgeChatMessage(
                     "system",
-                    "本轮连续施工已达到 " + maxReceiptContinuations + " 次自动续接上限，已暂停。请确认当前状态后再继续。"
+                    "本轮连续施工已达到 $maxReceiptContinuations 次自动续接上限，已暂停。请确认当前状态后再继续。"
                 )
                 projectStore.save(projects)
                 render()
                 return
             }
-
             Thread {
                 ProjectConversationService(this@ApsActivity).sendReceipt(project, conversation, receipt)
                 runOnUiThread {
@@ -101,10 +95,23 @@ class ApsActivity : Activity() {
             projectStore.save(projects)
         }
         currentProject = projects.firstOrNull()
+        standaloneConversations = standaloneConversationStore.load()
+        if (standaloneConversations.isEmpty()) {
+            val created = standaloneConversationStore.newConversation("新会话 1", null)
+            standaloneConversations += created
+            standaloneConversationStore.save(standaloneConversations)
+        }
+        currentStandaloneConversationId =
+            standaloneConversations.firstOrNull()?.id
         registerReceiver(receiptReceiver, IntentFilter("com.bridgefs.RESULT"), Context.RECEIVER_NOT_EXPORTED)
         buildShell()
         recoverPendingReceipts()
     }
+
+    internal fun activeStandaloneConversation(): BridgeConversation? =
+        currentStandaloneConversationId?.let { id ->
+            standaloneConversations.firstOrNull { it.id == id }
+        } ?: standaloneConversations.firstOrNull()
 
     private fun buildShell() {
         val root = LinearLayout(this).apply {
