@@ -27,7 +27,7 @@ class ProjectTaskStateService(private val context: Context) {
             continuationCount = 0,
             maxContinuations = limit
         )
-        store.save(listOf(project))
+        store.saveProject(project)
         return project
     }
 
@@ -40,7 +40,7 @@ class ProjectTaskStateService(private val context: Context) {
             }
         }
         releaseLock(project)
-        store.save(listOf(project))
+        store.saveProject(project)
         return project
     }
 
@@ -54,7 +54,7 @@ class ProjectTaskStateService(private val context: Context) {
             }
         }
         releaseLock(project)
-        store.save(listOf(project))
+        store.saveProject(project)
         return project
     }
 
@@ -63,7 +63,7 @@ class ProjectTaskStateService(private val context: Context) {
         project.taskState = BridgeTaskExecutionState()
         project.tasks.filter { it.status == "RUNNING" }.forEach { it.status = "WAITING" }
         releaseLock(project)
-        store.save(listOf(project))
+        store.saveProject(project)
         return project
     }
 
