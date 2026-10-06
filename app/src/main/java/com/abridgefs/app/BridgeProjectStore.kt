@@ -41,10 +41,6 @@ class BridgeProjectStore(private val context: Context) {
                     taskState = BridgeTaskExecutionState(
                         activeTaskId = obj.optString("activeTaskId", "").ifBlank { null },
                         status = obj.optString("taskStateStatus", "IDLE"),
-                        continuationCount = obj.optInt("taskContinuationCount", 0).coerceAtLeast(0),
-                        maxContinuations = obj.optInt("taskMaxContinuations", 10).coerceIn(0, 50),
-                        lastReceiptId = obj.optString("taskLastReceiptId", "").ifBlank { null },
-                        lastResult = obj.optString("taskLastResult", "").ifBlank { null }
                     )
                 )
 
@@ -142,7 +138,7 @@ class BridgeProjectStore(private val context: Context) {
 
         when (project.taskState.status) {
             "RUNNING" -> activeTask.status = "RUNNING"
-            "WAITING", "LIMIT_REACHED" -> {
+            "WAITING" -> {
                 if (!activeTask.completed) activeTask.status = "WAITING"
             }
             "FAILED" -> {
@@ -173,10 +169,6 @@ class BridgeProjectStore(private val context: Context) {
                 .put("defaultMemberId", project.defaultMemberId.orEmpty())
                 .put("activeTaskId", project.taskState.activeTaskId.orEmpty())
                 .put("taskStateStatus", project.taskState.status)
-                .put("taskContinuationCount", project.taskState.continuationCount)
-                .put("taskMaxContinuations", project.taskState.maxContinuations)
-                .put("taskLastReceiptId", project.taskState.lastReceiptId.orEmpty())
-                .put("taskLastResult", project.taskState.lastResult.orEmpty())
                 .put("githubAccount", project.githubAddress.accountLogin.orEmpty())
                 .put("githubRepositoryId", project.githubAddress.repositoryId?.toString().orEmpty())
                 .put("githubRepository", project.githubAddress.repository.orEmpty())
