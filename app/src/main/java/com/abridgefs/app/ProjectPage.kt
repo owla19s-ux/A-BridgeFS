@@ -147,8 +147,7 @@ internal fun ApsActivity.projectPage() {
                 addView(secondaryButton(
                     if (item.id == conversation?.id) "●  " + item.name + "  ·  " + last else item.name + "  ·  " + last
                 ) {
-                    project.activeConversationId = item.id
-                    projectStore.save(projects)
+                    ProjectConversationSelectionService(this@projectPage).select(project.id, item.id)
                     render()
                 }, LinearLayout.LayoutParams(-1, dp(46)).apply { bottomMargin = dp(5) })
             }
