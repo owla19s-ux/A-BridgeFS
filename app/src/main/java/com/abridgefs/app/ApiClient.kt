@@ -8,7 +8,7 @@ import java.net.URL
 data class ApiConfig(val baseUrl:String,val apiKey:String,val model:String)
 
 class ApiClient(private val config:ApiConfig) {
-    fun chat(messages:List<ChatMessage>,system:String):String {
+    fun chat(messages:List<BridgeChatMessage>,system:String):String {
         val url=URL(config.baseUrl.trimEnd('/')+"/chat/completions")
         val c=url.openConnection() as HttpURLConnection
         c.requestMethod="POST"; c.connectTimeout=15000; c.readTimeout=60000; c.doOutput=true
