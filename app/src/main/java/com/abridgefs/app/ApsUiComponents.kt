@@ -260,39 +260,39 @@ internal fun ApsActivity.inputBar(hint: String) {
             val text = input.text.toString().trim()
             if (text.isBlank()) return@setOnClickListener
 
-            if (hint.contains("工作目标")) {
-                val project = currentProject
-                if (project == null) {
-                    toast("当前没有可用 Project")
-                    return@setOnClickListener
-                }
-                val conversation = project.activeConversation()
-                receiptContinuationCounts.remove(conversation.id)
-                conversation.messages += BridgeChatMessage("user", text)
-                projectStore.save(projects)
-                input.isEnabled = false
-                toast("正在请求当前 Project AI")
-                Thread {
-                    val result = ProjectConversationService(this@inputBar).send(project, conversation, text)
-                    runOnUiThread {
-                        input.isEnabled = true
-                        if (result.answer != null) {
-                            conversation.messages += BridgeChatMessage("assistant", result.answer)
-                        } else {
-                            conversation.messages += BridgeChatMessage("system", result.error ?: "请求失败")
-                        }
-                        projectStore.save(projects)
-                        input.setText("")
-                        pendingTaskMentions.clear()
-                        input.clearFocus()
-                        (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
-                            .hideSoftInputFromWindow(input.windowToken, 0)
-                        render()
-                    }
-                }.start()
-            } else {
-                toast("独立对话尚未接入真实会话")
+            val project = currentProject
+            if (project == null) {
+                toast("当前没有可用 Project")
+                return@setOnClickListener
             }
+            val conversation = project.activeConversation()
+            receiptContinuationCounts.remove(conversation.id)
+            conversation.messages += BridgeChatMessage("user", text)
+            projectStore.save(projects)
+            input.isEnabled = false
+            toast("正在请求当前 Project AI")
+            Thread {
+                val result = ProjectConversationService(this@inputBar).send(project, conversation, text)
+                runOnUiThread {
+                    input.isEnabled = true
+                    if (result.answer != null) {
+                        val profile = conversation.apiId?.let { apiProfilesStore.find(it) }
+                            ?: project.defaultMemberId?.let { memberId ->
+                                project.aiMembers.firstOrNull { it.id == memberId }?.apiProfileId?.let { apiProfilesStore.find(it) }
+                            }
+                        conversation.messages += BridgeChatMessage("assistant", result.answer, apiId = profile?.id, apiName = profile?.name)
+                    } else {
+                        conversation.messages += BridgeChatMessage("system", result.error ?: "请求失败")
+                    }
+                    projectStore.save(projects)
+                    input.setText("")
+                    pendingTaskMentions.clear()
+                    input.clearFocus()
+                    (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
+                        .hideSoftInputFromWindow(input.windowToken, 0)
+                    render()
+                }
+            }.start()
         }
     }, LinearLayout.LayoutParams(dp(78), dp(52)).apply { marginStart = dp(6) })
 
