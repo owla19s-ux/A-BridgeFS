@@ -78,9 +78,7 @@ object ProjectContinuationCoordinator {
                 return
             }
 
-            if (project.taskState.continuationCount >= project.taskState.maxContinuations ||
-                task.continuationCount >= task.maxContinuations
-            ) {
+            if (project.taskState.continuationCount >= project.taskState.maxContinuations) {
                 task.status = "WAITING"
                 project.taskState.status = "LIMIT_REACHED"
                 releaseLock(context, project)
@@ -91,7 +89,6 @@ object ProjectContinuationCoordinator {
             project.taskState.status = "RUNNING"
             project.taskState.continuationCount += 1
             task.status = "RUNNING"
-            task.continuationCount += 1
             task.lastReceiptId = actualReceiptId
             task.lastResult = message
 
