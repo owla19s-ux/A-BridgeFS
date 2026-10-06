@@ -106,7 +106,6 @@ internal fun ApsActivity.inputBar(hint: String) {
         if (text.isBlank()) return@primaryButton
         val project = currentProject ?: run { toast("当前没有可用 Project"); return@primaryButton }
         val conversation = project.activeConversation()
-        receiptContinuationCounts.remove(conversation.id)
         conversation.messages += BridgeChatMessage("user", text)
         projectStore.save(projects)
         input.isEnabled = false
