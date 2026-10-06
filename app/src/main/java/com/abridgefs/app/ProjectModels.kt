@@ -11,6 +11,7 @@ data class BridgeProject(
     var defaultMemberId: String? = null,
     val aiMembers: MutableList<BridgeAiMember> = mutableListOf(),
     val conversations: MutableList<BridgeConversation> = mutableListOf(),
+    val verifyRecords: MutableList<BridgeVerifyRecord> = mutableListOf(),
     val tasks: MutableList<BridgeProjectTask> = mutableListOf(),
     var activeConversationId: String? = null,
     var taskState: BridgeTaskExecutionState = BridgeTaskExecutionState()
