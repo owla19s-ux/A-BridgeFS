@@ -71,6 +71,11 @@ internal fun ApsActivity.conversationPage() {
             }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
         }
 
+        val activeApiProfile = currentProject?.activeConversation()?.apiId?.let { apiProfilesStore.find(it) }
+            ?: currentProject?.defaultMemberId?.let { memberId -> currentProject?.aiMembers?.firstOrNull { it.id == memberId }?.apiProfileId?.let { apiProfilesStore.find(it) } }
+        selectedApi = activeApiProfile?.name ?: "未绑定"
+        selectedApiProfileId = activeApiProfile?.id
+
         content.addView(section("API · $selectedApi", apiSelectorOpen) {
             apiSelectorOpen = !apiSelectorOpen
             render()
