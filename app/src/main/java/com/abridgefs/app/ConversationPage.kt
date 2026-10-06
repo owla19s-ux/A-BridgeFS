@@ -42,7 +42,7 @@ internal fun ApsActivity.conversationPage() {
                     toast("默认会话不能删除")
                     return@secondaryButton
                 }
-                standaloneConversations.removeAll { it.id != conversation?.id }
+                standaloneConversations.removeAll { it.id == conversation?.id }
                 currentStandaloneConversationId = standaloneConversations.firstOrNull()?.id
                 standaloneConversationStore.save(standaloneConversations)
                 conversationManagementOpen = false
