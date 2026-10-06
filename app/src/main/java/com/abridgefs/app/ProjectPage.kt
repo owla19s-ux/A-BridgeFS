@@ -74,6 +74,8 @@ internal fun ApsActivity.projectPage() {
                         isChecked = task.completed
                         setOnCheckedChangeListener { _, checked ->
                             task.completed = checked
+                            val mention = "@" + task.title.trim()
+                            if (checked) pendingTaskMentions += mention else pendingTaskMentions.remove(mention)
                             projectStore.save(projects)
                             syncProjectInput()
                         }
