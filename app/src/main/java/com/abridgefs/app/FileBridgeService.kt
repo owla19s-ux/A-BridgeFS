@@ -114,9 +114,9 @@ if (constructionRequired && project != null) {
     if (memberId.isNullOrBlank()) {
         return Triple("DENIED", text, "需要施工权，但当前 Project 没有可用 AI Member")
     }
-    if (!project.githubAddress.isConfigured() || !project.githubAddress.writeEnabled) {
-        return Triple("DENIED", text, "当前 Project 未配置可写 GitHub Address，不能取得施工权")
-    }
+    // ConstructionLock is scoped to Project + Repository + Branch. A Local-only
+    // Project uses the LOCAL/PROJECT identity; GitHub write permission is checked
+    // separately by the Commit service instead of blocking local file work.
     runCatching {
         ConstructionLockStore(this).acquire(project, memberId)
     }.getOrElse {
