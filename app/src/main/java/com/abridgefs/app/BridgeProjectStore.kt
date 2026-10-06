@@ -5,11 +5,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
 
-/**
- * Persistence boundary for Project state.
- *
- * Models live in ProjectModels.kt. This store only serializes and restores them.
- */
 class BridgeProjectStore(private val context: Context) {
     private val prefs = context.getSharedPreferences("bridgefs_projects", Context.MODE_PRIVATE)
     private val key = "data"
@@ -17,20 +12,15 @@ class BridgeProjectStore(private val context: Context) {
     fun load(): MutableList<BridgeProject> {
         val array = JSONArray(prefs.getString(key, "[]") ?: "[]")
         val result = mutableListOf<BridgeProject>()
-
         for (i in 0 until array.length()) {
             val obj = array.getJSONObject(i)
             val project = BridgeProject(
                 id = obj.getString("id"),
                 name = obj.getString("name"),
                 localFileModifyEnabled = obj.optBoolean("localFileModifyEnabled", false),
-                localAddress = obj.optString("localAddress", "").ifBlank {
-                    obj.optString("workspaceDirectory", "")
-                }.takeIf { it.isNotBlank() },
+                localAddress = obj.optString("localAddress", "").ifBlank { obj.optString("workspaceDirectory", "") }.takeIf { it.isNotBlank() },
                 githubAddress = ProjectGitHubAddress(
-                    accountLogin = obj.optString("githubAccount", "").ifBlank {
-                        obj.optString("githubAccountLogin", "").ifBlank { null }
-                    },
+                    accountLogin = obj.optString("githubAccount", "").ifBlank { obj.optString("githubAccountLogin", "").ifBlank { null } },
                     repositoryId = obj.optString("githubRepositoryId", "").toLongOrNull(),
                     repository = obj.optString("githubRepository", "").ifBlank { null },
                     branch = obj.optString("githubBranch", "").ifBlank { null },
@@ -41,10 +31,9 @@ class BridgeProjectStore(private val context: Context) {
                 defaultMemberId = obj.optString("defaultMemberId", "").ifBlank { null }
             )
 
-            val aiMembers = obj.optJSONArray("aiMembers")
-            if (aiMembers != null) {
-                for (j in 0 until aiMembers.length()) {
-                    val member = aiMembers.getJSONObject(j)
+            obj.optJSONArray("aiMembers")?.let { members ->
+                for (j in 0 until members.length()) {
+                    val member = members.getJSONObject(j)
                     project.aiMembers += BridgeAiMember(
                         id = member.getString("id"),
                         name = member.optString("name", "AI"),
@@ -53,8 +42,18 @@ class BridgeProjectStore(private val context: Context) {
                 }
             }
 
-            val conversations = obj.optJSONArray("conversations")
-            if (conversations != null) {
+            obj.optJSONArray("tasks")?.let { tasks ->
+                for (j in 0 until tasks.length()) {
+                    val task = tasks.getJSONObject(j)
+                    project.tasks += BridgeProjectTask(
+                        id = task.getString("id"),
+                        title = task.optString("title", "未命名任务"),
+                        completed = task.optBoolean("completed", false)
+                    )
+                }
+            }
+
+            obj.optJSONArray("conversations")?.let { conversations ->
                 for (j in 0 until conversations.length()) {
                     project.conversations += readConversation(conversations.getJSONObject(j))
                 }
@@ -64,8 +63,7 @@ class BridgeProjectStore(private val context: Context) {
                 val legacy = BridgeConversation(
                     id = UUID.randomUUID().toString(),
                     name = "默认对话",
-                    apiId = obj.optString("apiId", "").ifBlank { null },
-                    localFileModifyOverride = null
+                    apiId = obj.optString("apiId", "").ifBlank { null }
                 )
                 readMessages(obj.optJSONArray("messages"), legacy.messages)
                 readExecutions(obj.optJSONArray("executions"), legacy.executions)
@@ -75,9 +73,8 @@ class BridgeProjectStore(private val context: Context) {
 
             if (project.defaultMemberId == null) {
                 val legacyApiId = project.conversations.firstOrNull()?.apiId
-                project.defaultMemberId = legacyApiId?.let { apiId ->
-                    project.aiMembers.firstOrNull { it.apiProfileId == apiId }?.id
-                } ?: project.aiMembers.firstOrNull()?.id
+                project.defaultMemberId = legacyApiId?.let { apiId -> project.aiMembers.firstOrNull { it.apiProfileId == apiId }?.id }
+                    ?: project.aiMembers.firstOrNull()?.id
             }
             project.activeConversation()
             result += project
@@ -104,14 +101,11 @@ class BridgeProjectStore(private val context: Context) {
                 .put("githubWriteEnabled", project.githubAddress.writeEnabled)
 
             obj.put("aiMembers", JSONArray().apply {
-                project.aiMembers.forEach {
-                    put(JSONObject()
-                        .put("id", it.id)
-                        .put("name", it.name)
-                        .put("apiProfileId", it.apiProfileId.orEmpty()))
-                }
+                project.aiMembers.forEach { put(JSONObject().put("id", it.id).put("name", it.name).put("apiProfileId", it.apiProfileId.orEmpty())) }
             })
-
+            obj.put("tasks", JSONArray().apply {
+                project.tasks.forEach { put(JSONObject().put("id", it.id).put("title", it.title).put("completed", it.completed)) }
+            })
             obj.put("conversations", JSONArray().apply {
                 project.conversations.forEach { conversation ->
                     put(JSONObject()
@@ -121,23 +115,14 @@ class BridgeProjectStore(private val context: Context) {
                         .put("localFileModifyOverride", conversation.localFileModifyOverride)
                         .put("messages", JSONArray().apply {
                             conversation.messages.forEach {
-                                put(JSONObject()
-                                    .put("role", it.role)
-                                    .put("content", it.content)
-                                    .put("time", it.time)
-                                    .put("apiId", it.apiId.orEmpty())
-                                    .put("apiName", it.apiName.orEmpty())
-                                    .put("apiAvatar", it.apiAvatar.orEmpty()))
+                                put(JSONObject().put("role", it.role).put("content", it.content).put("time", it.time)
+                                    .put("apiId", it.apiId.orEmpty()).put("apiName", it.apiName.orEmpty()).put("apiAvatar", it.apiAvatar.orEmpty()))
                             }
                         })
                         .put("executions", JSONArray().apply {
                             conversation.executions.forEach {
-                                put(JSONObject()
-                                    .put("status", it.status)
-                                    .put("command", it.command)
-                                    .put("message", it.message)
-                                    .put("time", it.time)
-                                    .put("receiptId", it.receiptId))
+                                put(JSONObject().put("status", it.status).put("command", it.command).put("message", it.message)
+                                    .put("time", it.time).put("receiptId", it.receiptId))
                             }
                         })
                     )
@@ -161,11 +146,7 @@ class BridgeProjectStore(private val context: Context) {
             id = obj.getString("id"),
             name = obj.optString("name", "未命名对话"),
             apiId = obj.optString("apiId", "").ifBlank { null },
-            localFileModifyOverride = if (obj.has("localFileModifyOverride") && !obj.isNull("localFileModifyOverride")) {
-                obj.optBoolean("localFileModifyOverride")
-            } else {
-                null
-            }
+            localFileModifyOverride = if (obj.has("localFileModifyOverride") && !obj.isNull("localFileModifyOverride")) obj.optBoolean("localFileModifyOverride") else null
         )
         readMessages(obj.optJSONArray("messages"), conversation.messages)
         readExecutions(obj.optJSONArray("executions"), conversation.executions)
@@ -176,14 +157,8 @@ class BridgeProjectStore(private val context: Context) {
         if (array == null) return
         for (j in 0 until array.length()) {
             val item = array.getJSONObject(j)
-            target += BridgeChatMessage(
-                item.getString("role"),
-                item.getString("content"),
-                item.optLong("time", System.currentTimeMillis()),
-                item.optString("apiId", "").ifBlank { null },
-                item.optString("apiName", "").ifBlank { null },
-                item.optString("apiAvatar", "").ifBlank { null }
-            )
+            target += BridgeChatMessage(item.getString("role"), item.getString("content"), item.optLong("time", System.currentTimeMillis()),
+                item.optString("apiId", "").ifBlank { null }, item.optString("apiName", "").ifBlank { null }, item.optString("apiAvatar", "").ifBlank { null })
         }
     }
 
@@ -191,13 +166,8 @@ class BridgeProjectStore(private val context: Context) {
         if (array == null) return
         for (j in 0 until array.length()) {
             val item = array.getJSONObject(j)
-            target += BridgeReceiptRecord(
-                item.getString("status"),
-                item.getString("command"),
-                item.getString("message"),
-                item.optLong("time", System.currentTimeMillis()),
-                item.optString("receiptId", "").ifBlank { UUID.randomUUID().toString() }
-            )
+            target += BridgeReceiptRecord(item.getString("status"), item.getString("command"), item.getString("message"),
+                item.optLong("time", System.currentTimeMillis()), item.optString("receiptId", "").ifBlank { UUID.randomUUID().toString() })
         }
     }
 }
