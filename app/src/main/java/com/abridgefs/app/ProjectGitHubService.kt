@@ -133,6 +133,7 @@ class ProjectGitHubService(
     }
 
     private fun requireRead() {
+        check(AccessPolicy.isGithubEnabled(context)) { "GitHub 全局访问已关闭" }
         check(address.readEnabled) { "当前 Project 未允许 GitHub 读取" }
     }
 
