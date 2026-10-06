@@ -53,17 +53,6 @@ class ApsActivity : Activity() {
                 prefs.edit().putString("pending_receipts", remaining.toString()).apply()
             }
 
-            ProjectContinuationCoordinator.onReceipt(
-                context = this@ApsActivity,
-                projectId = intent.getStringExtra("projectId"),
-                conversationId = intent.getStringExtra("conversationId"),
-                receiptId = receiptId.ifBlank { null },
-                status = intent.getStringExtra("status") ?: "UNKNOWN",
-                command = intent.getStringExtra("command") ?: "",
-                message = intent.getStringExtra("message") ?: "",
-                time = intent.getLongExtra("time", System.currentTimeMillis())
-            )
-
             projects = projectStore.load()
             currentProject = currentProject?.id?.let { id ->
                 projects.firstOrNull { it.id == id }
