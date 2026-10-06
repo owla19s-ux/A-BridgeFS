@@ -9,23 +9,19 @@ import android.content.Context
 class ProjectTaskStateService(private val context: Context) {
     private val store = BridgeProjectStore(context)
 
-    fun start(projectId: String, taskId: String, maxContinuations: Int = 10): BridgeProject {
+    fun start(projectId: String, taskId: String): BridgeProject {
         val project = requireProject(projectId)
         val task = project.tasks.firstOrNull { it.id == taskId }
             ?: error("任务不存在：$taskId")
         require(!task.completed) { "已完成任务不能重新启动" }
 
-        val limit = maxContinuations.coerceIn(0, 50)
         project.tasks.forEach {
             if (it.id != taskId && it.status == "RUNNING") it.status = "WAITING"
         }
         task.status = "RUNNING"
-        task.maxContinuations = limit
         project.taskState = BridgeTaskExecutionState(
             activeTaskId = taskId,
             status = "RUNNING",
-            continuationCount = 0,
-            maxContinuations = limit
         )
         store.saveProject(project)
         return project
