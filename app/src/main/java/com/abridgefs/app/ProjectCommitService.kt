@@ -66,10 +66,10 @@ class ProjectCommitService(
         val commitLine = if (sha.isBlank()) "已创建" else sha
         return Result(
             commitSha = sha,
-            receipt = "[Tool: Commit] $relativePath
+            receipt = """[Tool: Commit] $relativePath
   ✓ 已提交到 GitHub
   ✓ Commit: $commitLine
-$verifyLine"
+$verifyLine"""
         )
     }
 }
