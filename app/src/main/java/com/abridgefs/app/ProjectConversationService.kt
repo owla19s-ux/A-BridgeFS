@@ -2,13 +2,6 @@ package com.abridgefs.app
 
 import android.content.Context
 
-/**
- * Project Conversation business boundary.
- *
- * Resolves the Project Default AI, gathers authorized Project Address context,
- * and performs the API conversation. UI rendering and command execution remain
- * outside this service.
- */
 class ProjectConversationService(private val context: Context) {
     data class Result(
         val answer: String? = null,
@@ -20,9 +13,7 @@ class ProjectConversationService(private val context: Context) {
     private val apiProfiles by lazy { ApiProfileStore(context) }
 
     fun send(project: BridgeProject, conversation: BridgeConversation, userText: String): Result {
-        if (!AccessPolicy.isApiEnabled(context)) {
-            return Result(error = "API 全局访问已关闭")
-        }
+        if (!AccessPolicy.isApiEnabled(context)) return Result(error = "API 全局访问已关闭")
 
         val member = project.defaultMemberId?.let { id ->
             project.aiMembers.firstOrNull { it.id == id }
@@ -72,44 +63,30 @@ class ProjectConversationService(private val context: Context) {
                     githubPrompt +
                     "\n你是当前 Project 的默认 AI。先直接回答用户问题；只有用户明确要求执行工作时，才进入后续工作流程。不要自动启动其他 AI 协作，也不要恢复已经废弃的固定阶段角色模型。"
             )
+
+            var executionError: String? = null
             val commandBlocks = Regex("""(?s)\[bridgefs\](.*?)\[/bridgefs\]""")
                 .findAll(answer)
                 .map { it.groupValues[1].trim() }
                 .filter { it.isNotBlank() }
                 .toList()
-            var executionError: String? = null
+
             if (commandBlocks.isNotEmpty()) {
-                val parsedCommands = runCatching {
-                    CommandParser.parse(commandBlocks.joinToString("\n"))
-                }.getOrElse {
-                    executionError = "AI 返回的 BridgeFS 指令无法解析：" + (it.message ?: "未知错误")
-                    emptyList()
-                }
-                if (executionError == null && CommandParser.lastError != null) {
-                    executionError = CommandParser.lastError
-                }
-                if (executionError == null) {
-                    val authorization = PermissionPolicy.authorization(context, project, conversation)
-                    val decisions = parsedCommands.map { it to PermissionPolicy.check(it, authorization) }
-                    when {
-                        decisions.any { it.second == Decision.DENY } ->
-                            executionError = "检测到被禁止的施工指令，未执行。请调整 Project/执行权限后再继续。"
-                        decisions.any { it.second == Decision.CONFIRM } ->
-                            executionError = "检测到需要确认的施工指令，当前版本不会自动执行。请先明确授权后再继续。"
-                        authorization.root.isBlank() ->
-                            executionError = "当前 Project 未配置 Local Project Address，施工指令未执行。"
-                        else -> {
-                            val intent = android.content.Intent(context, FileBridgeService::class.java).apply {
-                                putExtra("bridgefs_external_command", commandBlocks.joinToString("\n"))
-                                putExtra("bridgefs_root", authorization.root)
-                                putExtra("projectId", project.id)
-                                putExtra("conversationId", conversation.id)
-                            }
-                            context.startService(intent)
-                        }
+                val parsed = CommandParser.parse(commandBlocks.joinToString("\n"))
+                executionError = parsed.error
+                if (executionError == null && parsed.commands.isNotEmpty()) {
+                    val intent = android.content.Intent(context, FileBridgeService::class.java).apply {
+                        putExtra("bridgefs_external_command", commandBlocks.joinToString("\n"))
+                        putExtra("bridgefs_root", project.localAddress.orEmpty())
+                        putExtra("projectId", project.id)
+                        putExtra("conversationId", conversation.id)
                     }
+                    context.startService(intent)
+                } else if (executionError == null) {
+                    executionError = "未识别到可执行的 BridgeFS 指令"
                 }
             }
+
             Result(
                 answer = answer,
                 error = executionError,
