@@ -63,3 +63,9 @@ Project 模块至少满足：
 - `ProjectTaskStateService.start()` 不再接收 continuation policy，避免 Project Task 生命周期反向承担 Integration 策略。
 - `ProjectContinuationCoordinator` 仅负责 receipt → execution continuation，不再写入 Task 的 receipt/runtime 字段。
 - 当前仍保留 `BridgeProject.taskState` 作为 Project 与 Integration 之间的临时边界；在 Integration 阶段再决定是否进一步外置，当前不继续拆。
+
+## Project 收口补充
+
+- `BridgeProjectStore.normalizeState()` 现在会将未知 Task status 归一为 `PENDING`，避免旧数据或异常数据进入未定义状态。
+- Project Task 的业务状态与 continuation runtime 已保持分离；runtime 仍暂存在 Project 的 `taskState` 边界，Integration 阶段再决定是否完全外置。
+- Project Task 生命周期入口已增加 start / pause / complete 的前置条件检查。
