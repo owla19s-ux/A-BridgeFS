@@ -64,22 +64,8 @@ class ApsActivity : Activity() {
                 receiptId = receiptId.ifBlank { java.util.UUID.randomUUID().toString() }
             )
             projectStore.save(projects)
-            val receipt = conversation.executions.last()
-            val continuationCount = (receiptContinuationCounts[conversation.id] ?: 0) + 1
-            receiptContinuationCounts[conversation.id] = continuationCount
-            if (continuationCount > maxReceiptContinuations) {
-                conversation.messages += BridgeChatMessage("system", "本轮连续施工已达到 $maxReceiptContinuations 次自动续接上限，已暂停。请确认当前状态后再继续。")
-                projectStore.save(projects)
-                render()
-                return
-            }
-            Thread {
-                ProjectConversationService(this@ApsActivity).sendReceipt(project, conversation, receipt)
-                runOnUiThread {
-                    projectStore.save(projects)
-                    render()
-                }
-            }.start()
+            projectStore.save(projects)
+            render()
         }
     }
 
