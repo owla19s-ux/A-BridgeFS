@@ -51,6 +51,17 @@ class ApsActivity : Activity() {
                     if (item?.optString("receiptId") != receiptId) remaining.put(item)
                 }
                 prefs.edit().putString("pending_receipts", remaining.toString()).apply()
+
+                ProjectReceiptService(this@ApsActivity).record(
+                    receiptId = receiptId,
+                    status = intent.getStringExtra("status").orEmpty(),
+                    command = intent.getStringExtra("command").orEmpty(),
+                    message = intent.getStringExtra("message").orEmpty(),
+                    time = intent.getLongExtra("time", System.currentTimeMillis()),
+                    projectId = intent.getStringExtra("projectId"),
+                    conversationId = intent.getStringExtra("conversationId"),
+                    standaloneConversationId = intent.getStringExtra("standaloneConversationId")
+                )
             }
 
             projects = projectStore.load()
