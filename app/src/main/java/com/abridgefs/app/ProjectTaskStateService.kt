@@ -77,7 +77,6 @@ class ProjectTaskStateService(private val context: Context) {
         activeTask.completed = true
         activeTask.status = "COMPLETED"
         project.taskState = BridgeTaskExecutionState()
-        project.taskState = BridgeTaskExecutionState()
         store.saveProject(project)
         return project
     }
