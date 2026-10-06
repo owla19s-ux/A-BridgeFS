@@ -48,7 +48,6 @@ class ProjectTaskStateService(private val context: Context) {
             task.status = "PENDING"
             if (project.taskState.activeTaskId == taskId) {
                 project.taskState = BridgeTaskExecutionState()
-                releaseLock(project)
             }
         }
 
