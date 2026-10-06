@@ -41,7 +41,7 @@ class BridgeProjectStore(private val context: Context) {
                     taskState = BridgeTaskExecutionState(
                         activeTaskId = obj.optString("activeTaskId", "").ifBlank { null },
                         status = obj.optString("taskStateStatus", "IDLE"),
-                        continuationCount = obj.optInt("taskContinuationCount", 0),
+                        continuationCount = obj.optInt("taskContinuationCount", 0).coerceAtLeast(0),
                         maxContinuations = obj.optInt("taskMaxContinuations", 10).coerceIn(0, 50),
                         lastReceiptId = obj.optString("taskLastReceiptId", "").ifBlank { null },
                         lastResult = obj.optString("taskLastResult", "").ifBlank { null }
