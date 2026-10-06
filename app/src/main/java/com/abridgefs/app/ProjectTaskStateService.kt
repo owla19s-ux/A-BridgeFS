@@ -4,7 +4,7 @@ import android.content.Context
 
 /**
  * Owns the lifecycle state of the currently selected Project task.
- * This class is Project-domain state only; execution locks belong to the Integration/Execution boundary.
+ * This class does not start or chain execution; execution remains an explicit Project action.
  */
 class ProjectTaskStateService(private val context: Context) {
     private val store = BridgeProjectStore(context)
