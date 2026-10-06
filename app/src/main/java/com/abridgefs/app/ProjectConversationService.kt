@@ -19,31 +19,6 @@ class ProjectConversationService(private val context: Context) {
 
     private val apiProfiles by lazy { ApiProfileStore(context) }
 
-    fun sendReceipt(
-        project: BridgeProject,
-        conversation: BridgeConversation,
-        receipt: BridgeReceiptRecord
-    ): Result {
-        val feedback = buildString {
-            append("上一轮本地 Project 操作已经执行完成。以下是 A-BridgeFS Receipt，请根据结果继续当前工作。")
-            append("\n\n[Receipt]")
-            append("\nStatus：").append(receipt.status)
-            append("\nCommand：").append(receipt.command)
-            append("\nMessage：").append(receipt.message)
-            append("\nReceipt ID：").append(receipt.receiptId)
-            append("\n\n如果操作失败、被拒绝或需要确认，请先判断原因；如果仍需要继续施工，请输出下一步需要执行的 [bridgefs] 指令。不要声称尚未收到的操作已经成功。")
-        }
-        conversation.messages += BridgeChatMessage("user", feedback)
-        val result = send(project, conversation, feedback)
-        if (result.answer != null) {
-            conversation.messages += BridgeChatMessage("assistant", result.answer)
-        } else {
-            conversation.messages += BridgeChatMessage("system", result.error ?: "Receipt 处理失败")
-        }
-        BridgeProjectStore(context).save(mutableListOf(project))
-        return result
-    }
-
     fun send(project: BridgeProject, conversation: BridgeConversation, userText: String): Result {
         if (!AccessPolicy.isApiEnabled(context)) {
             return Result(error = "API 全局访问已关闭")
