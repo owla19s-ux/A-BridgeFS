@@ -83,6 +83,12 @@ class FileBridgeExecutionEngine(private val context: Context) {
         }
         val memberId = project?.defaultMemberId ?: project?.aiMembers?.firstOrNull()?.id
         if (constructionRequired && project != null) {
+            val activeTaskId = project.taskState.activeTaskId
+            val activeTask = activeTaskId?.let { id -> project.tasks.firstOrNull { it.id == id } }
+            if (activeTask == null || activeTask.completed || activeTask.status != "RUNNING" || project.taskState.status != "RUNNING") {
+                AppLogger.log(context, "EXECUTION_DENIED", "reason=task_not_running project=${project.id} task=${activeTaskId ?: "none"}")
+                return Triple("DENIED", text, "当前 Project 没有处于 RUNNING 状态的施工 Task，禁止执行写入/编辑/创建/Commit。")
+            }
             if (memberId.isNullOrBlank()) {
                 return Triple("DENIED", text, "需要施工权，但当前 Project 没有可用 AI Member")
             }
