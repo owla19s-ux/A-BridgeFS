@@ -267,13 +267,14 @@ val paste=mainButton("粘贴"){val intent=Intent(this,ClipboardReaderActivity::c
 var runButton:Button?=null
 val run=mainButton("执行"){
 val raw=input.text.toString();log("Command","收到："+raw.replace("\n","\\n").take(500))
-val cs=CommandParser.parse(raw)
+val parsed=CommandParser.parse(raw)
+val cs=parsed.commands
 if(cs.isEmpty()){
-    val message=CommandParser.lastError ?: "未发现可执行指令"
+    val message=parsed.error ?: "未发现可执行指令"
     findReceipt(box)?.let{it.text=message;it.setTextColor(Color.DKGRAY)}
     broadcastReceipt("FAILED",raw,message)
-}else if(CommandParser.lastError!=null){
-    val message=CommandParser.lastError!!
+}else if(parsed.error!=null){
+    val message=parsed.error!!
     findReceipt(box)?.let{it.text=message;it.setTextColor(Color.DKGRAY)}
     broadcastReceipt("FAILED",raw,message,null,null,null)
 }else{
