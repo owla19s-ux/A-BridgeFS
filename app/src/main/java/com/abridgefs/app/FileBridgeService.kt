@@ -102,16 +102,6 @@ val intent=Intent("com.bridgefs.RESULT").setPackage(packageName)
 .putExtra("standaloneConversationId",standaloneConversationId)
 .putExtra("time",now)
 sendBroadcast(intent)
-ProjectContinuationCoordinator.onReceipt(
-    context = this,
-    projectId = projectId,
-    conversationId = conversationId,
-    receiptId = pending.optString("receiptId").ifBlank { null },
-    status = status,
-    command = command,
-    message = message,
-    time = now
-)
 }
 private fun channel(){if(Build.VERSION.SDK_INT>=26)getSystemService(NotificationManager::class.java).createNotificationChannel(NotificationChannel("filebridge","FileBridge",NotificationManager.IMPORTANCE_LOW))}
 private fun lp(w:Int,h:Int)=WindowManager.LayoutParams(w,h,WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,-3)
