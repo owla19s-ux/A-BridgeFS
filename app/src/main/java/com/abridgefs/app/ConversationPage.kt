@@ -6,12 +6,12 @@ import android.view.*
 internal fun ApsActivity.conversationPage() {
     val project = currentProject
     val conversation = activeStandaloneConversation()
-    val constructionEnabled = AccessPolicy.isStandaloneConstructionEnabled(this)
     val content = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         setPadding(dp(14), dp(10), dp(14), dp(10))
     }
 
+    val constructionEnabled = AccessPolicy.isStandaloneConstructionEnabled(this)
     content.addView(title("对话"))
     content.addView(value(if (constructionEnabled) "独立对话 · 可施工当前 Project" else "独立对话 · 只读访问当前 Project 信息"))
 
@@ -86,7 +86,7 @@ internal fun ApsActivity.conversationPage() {
                 AccessPolicy.setStandaloneConstructionEnabled(this@conversationPage, it)
                 render()
             })
-            addView(value("开启后，普通对话可以在用户明确要求时进入当前 Project 的施工链；仍受 Task、Project 写权限、权限策略和 ConstructionLock 限制。"))
+            addView(value("开启后仍受 Task、Project 写权限、权限策略和 ConstructionLock 限制。"))
         })
     }
 
