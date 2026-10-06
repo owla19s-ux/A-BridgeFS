@@ -79,24 +79,15 @@ internal fun ApsActivity.projectPage() {
                         orientation = LinearLayout.HORIZONTAL
                         gravity = Gravity.CENTER_VERTICAL
                     }
+                    val mention = "@" + task.title.trim()
                     val check = CheckBox(this@projectPage).apply {
-                        isChecked = task.completed
-                        isEnabled = task.id != activeTaskId || task.status != "RUNNING"
+                        // Checkbox selects a task for the next AI request.
+                        // Completion is controlled only by the task lifecycle actions below.
+                        isChecked = pendingTaskMentions.contains(mention)
+                        isEnabled = !task.completed
                         setOnCheckedChangeListener { _, checked ->
-                            runCatching {
-                                ProjectTaskStateService(this@projectPage).setCompleted(project.id, task.id, checked)
-                            }.onFailure {
-                                check.setOnCheckedChangeListener(null)
-                                check.isChecked = task.completed
-                                toast(it.message ?: "任务状态更新失败")
-                                return@setOnCheckedChangeListener
-                            }
-                            val mention = "@" + task.title.trim()
                             if (checked) pendingTaskMentions += mention else pendingTaskMentions.remove(mention)
-                            projects = projectStore.load()
-                            currentProject = projects.firstOrNull { it.id == project.id }
                             syncProjectInput()
-                            render()
                         }
                     }
                     row.addView(check, LinearLayout.LayoutParams(dp(48), dp(48)))
