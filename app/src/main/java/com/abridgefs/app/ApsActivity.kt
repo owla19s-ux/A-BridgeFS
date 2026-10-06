@@ -67,10 +67,7 @@ class ApsActivity : Activity() {
             val continuationCount = (receiptContinuationCounts[conversation.id] ?: 0) + 1
             receiptContinuationCounts[conversation.id] = continuationCount
             if (continuationCount > maxReceiptContinuations) {
-                conversation.messages += BridgeChatMessage(
-                    "system",
-                    "本轮连续施工已达到 $maxReceiptContinuations 次自动续接上限，已暂停。请确认当前状态后再继续。"
-                )
+                conversation.messages += BridgeChatMessage("system", "本轮连续施工已达到 $maxReceiptContinuations 次自动续接上限，已暂停。请确认当前状态后再继续。")
                 projectStore.save(projects)
                 render()
                 return
@@ -101,17 +98,15 @@ class ApsActivity : Activity() {
             standaloneConversations += created
             standaloneConversationStore.save(standaloneConversations)
         }
-        currentStandaloneConversationId =
-            standaloneConversations.firstOrNull()?.id
+        currentStandaloneConversationId = standaloneConversations.firstOrNull()?.id
         registerReceiver(receiptReceiver, IntentFilter("com.bridgefs.RESULT"), Context.RECEIVER_NOT_EXPORTED)
         buildShell()
         recoverPendingReceipts()
     }
 
     internal fun activeStandaloneConversation(): BridgeConversation? =
-        currentStandaloneConversationId?.let { id ->
-            standaloneConversations.firstOrNull { it.id == id }
-        } ?: standaloneConversations.firstOrNull()
+        currentStandaloneConversationId?.let { id -> standaloneConversations.firstOrNull { it.id == id } }
+            ?: standaloneConversations.firstOrNull()
 
     private fun buildShell() {
         val root = LinearLayout(this).apply {
@@ -122,18 +117,18 @@ class ApsActivity : Activity() {
         root.addView(host, LinearLayout.LayoutParams(-1, 0, 1f))
         val nav = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            setPadding(dp(8), dp(4), dp(8), dp(4))
+            setPadding(dp(10), dp(5), dp(10), dp(8))
         }
         listOf("项目", "对话", "设置").forEachIndexed { i, title ->
             nav.addView(TextView(this).apply {
                 text = title
-                textSize = 14f
+                textSize = 13f
                 gravity = Gravity.CENTER
                 typeface = if (page == i) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
                 setTextColor(c(if (page == i) R.color.bridgefs_text_primary else R.color.bridgefs_text_secondary))
-                background = if (page == i) round(c(R.color.bridgefs_input_surface), dp(12)) else null
+                background = round(c(if (page == i) R.color.bridgefs_selected_surface else R.color.bridgefs_surface), dp(14))
                 setOnClickListener { page = i; render() }
-            }, LinearLayout.LayoutParams(0, dp(54), 1f).apply {
+            }, LinearLayout.LayoutParams(0, dp(46), 1f).apply {
                 marginStart = dp(3)
                 marginEnd = dp(3)
             })
