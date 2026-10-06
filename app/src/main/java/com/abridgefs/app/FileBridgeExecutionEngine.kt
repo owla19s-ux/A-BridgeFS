@@ -14,6 +14,10 @@ class FileBridgeExecutionEngine(private val context: Context) {
     if(commands.isEmpty()){
     return Triple("FAILED",text,CommandParser.lastError ?: "未识别到可执行指令")
     }
+    if (CommandParser.lastError != null) {
+        AppLogger.log(context, "EXECUTION_DENIED", "reason=command_parse_error message=" + CommandParser.lastError)
+        return Triple("FAILED", text, CommandParser.lastError!!)
+    }
     val prefs = context.getSharedPreferences("bridgefs", 0)
     val limit = prefs.getInt("command_limit", 3).coerceIn(1, 20)
     if (commands.size > limit) {
