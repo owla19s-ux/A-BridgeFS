@@ -108,4 +108,4 @@ internal fun ApsActivity.conversationPage() {
     })
     host.addView(ScrollView(this).apply { addView(content) }, LinearLayout.LayoutParams(-1, 0, 1f))
     standaloneInputBar("输入消息……")
-}\n
+}
