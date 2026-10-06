@@ -18,6 +18,8 @@ class ApsActivity : Activity() {
     private var page = 0
     internal var projectConfigOpen = false
     internal var projectChatOpen = true
+    internal var projectTasksOpen = true
+    internal var projectHistoryOpen = true
     internal var displayOpen = true
     internal val settingOpen = mutableSetOf<String>()
     internal var localFileAccess = false
