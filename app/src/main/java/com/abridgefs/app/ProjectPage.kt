@@ -62,6 +62,13 @@ internal fun ApsActivity.projectPage() {
     content.addView(section("待处理任务", true) {}, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(8) })
     if (project != null) {
         content.addView(card().apply {
+            val activeTaskId = project.taskState.activeTaskId
+            addView(value(
+                "当前施工： " + (
+                    project.tasks.firstOrNull { it.id == activeTaskId }?.title
+                        ?: "无"
+                ) + " · " + project.taskState.status
+            ))
             if (project.tasks.isEmpty()) {
                 addView(value("当前没有待处理任务。"))
             } else {
@@ -72,22 +79,53 @@ internal fun ApsActivity.projectPage() {
                     }
                     val check = CheckBox(this@projectPage).apply {
                         isChecked = task.completed
+                        isEnabled = task.id != activeTaskId || task.status != "RUNNING"
                         setOnCheckedChangeListener { _, checked ->
                             task.completed = checked
+                            task.status = if (checked) "COMPLETED" else "PENDING"
                             val mention = "@" + task.title.trim()
                             if (checked) pendingTaskMentions += mention else pendingTaskMentions.remove(mention)
                             projectStore.save(projects)
                             syncProjectInput()
+                            render()
                         }
                     }
                     row.addView(check, LinearLayout.LayoutParams(dp(48), dp(48)))
                     row.addView(TextView(this@projectPage).apply {
-                        text = task.title
+                        text = task.title + "  [" + task.status + "]"
                         textSize = 13f
                         typeface = if (task.completed) Typeface.DEFAULT else Typeface.DEFAULT_BOLD
                         setTextColor(c(R.color.bridgefs_text_primary))
                     }, LinearLayout.LayoutParams(0, dp(48), 1f))
                     addView(row)
+
+                    if (!task.completed) {
+                        val actions = LinearLayout(this@projectPage).apply {
+                            orientation = LinearLayout.HORIZONTAL
+                        }
+                        if (activeTaskId != task.id || project.taskState.status != "RUNNING") {
+                            addView(primaryButton("开始施工") {
+                                ProjectTaskStateService(this@projectPage).start(project.id, task.id)
+                                projects = projectStore.load()
+                                currentProject = projects.firstOrNull { it.id == project.id }
+                                render()
+                            }, LinearLayout.LayoutParams(0, dp(40), 1f).apply { rightMargin = dp(4) })
+                        } else {
+                            addView(secondaryButton("暂停") {
+                                ProjectTaskStateService(this@projectPage).pause(project.id)
+                                projects = projectStore.load()
+                                currentProject = projects.firstOrNull { it.id == project.id }
+                                render()
+                            }, LinearLayout.LayoutParams(0, dp(40), 1f).apply { rightMargin = dp(4) })
+                        }
+                        addView(secondaryButton("完成") {
+                            ProjectTaskStateService(this@projectPage).complete(project.id)
+                            projects = projectStore.load()
+                            currentProject = projects.firstOrNull { it.id == project.id }
+                            render()
+                        }, LinearLayout.LayoutParams(0, dp(40), 1f))
+                        addView(actions, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(6) })
+                    }
                 }
             }
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
