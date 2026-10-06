@@ -1,1 +1,149 @@
-package com.abridgefs.app\n\nimport android.content.Context\n\n/**\n * Project-level receipt handoff and continuation boundary.\n *\n * It owns the third-round loop:\n * execution -> receipt -> current task state -> AI -> next execution.\n * It never bypasses ProjectConversationService or FileBridgeExecutionEngine.\n */\nobject ProjectContinuationCoordinator {\n    private val lock = Any()\n\n    fun onReceipt(\n        context: Context,\n        projectId: String?,\n        conversationId: String?,\n        receiptId: String?,\n        status: String,\n        command: String,\n        message: String,\n        time: Long = System.currentTimeMillis()\n    ) {\n        if (projectId.isNullOrBlank()) return\n\n        synchronized(lock) {\n            val store = BridgeProjectStore(context)\n            val project = store.load().firstOrNull { it.id == projectId } ?: return\n            val conversation = conversationId?.let { id ->\n                project.conversations.firstOrNull { it.id == id }\n            } ?: project.activeConversation()\n\n            val actualReceiptId = receiptId?.takeIf { it.isNotBlank() }\n                ?: ("generated-" + time + "-" + status + "-" + command.hashCode())\n\n            if (conversation.executions.none { it.receiptId == actualReceiptId }) {\n                conversation.executions += BridgeReceiptRecord(\n                    status = status,\n                    command = command,\n                    message = message,\n                    time = time,\n                    receiptId = actualReceiptId\n                )\n            }\n\n            val taskId = project.taskState.activeTaskId\n            val task = taskId?.let { id -> project.tasks.firstOrNull { it.id == id } }\n\n            if (task == null) {\n                store.saveProject(project)\n                return\n            }\n\n            if (project.taskState.lastReceiptId == actualReceiptId) {\n                store.saveProject(project)\n                return\n            }\n\n            project.taskState.lastReceiptId = actualReceiptId\n            project.taskState.lastResult = message\n\n            if (status != "SUCCEEDED") {\n                task.status = "FAILED"\n                task.lastReceiptId = actualReceiptId\n                task.lastResult = message\n                project.taskState.status = "FAILED"\n                store.saveProject(project)\n                return\n            }\n\n            if (task.completed) {\n                task.status = "COMPLETED"\n                project.taskState.status = "COMPLETED"\n                store.saveProject(project)\n                return\n            }\n\n            if (project.taskState.continuationCount >= project.taskState.maxContinuations ||\n                task.continuationCount >= task.maxContinuations\n            ) {\n                task.status = "WAITING"\n                project.taskState.status = "LIMIT_REACHED"\n                store.saveProject(project)\n                return\n            }\n\n            project.taskState.status = "RUNNING"\n            project.taskState.continuationCount += 1\n            task.status = "RUNNING"\n            task.continuationCount += 1\n            task.lastReceiptId = actualReceiptId\n            task.lastResult = message\n\n            val receiptPrompt = buildString {\n                append("[APS Execution Receipt]\n")\n                append("status: ").append(status).append('\n')\n                append("command: ").append(command).append('\n')\n                append("result:\n").append(message).append('\n')\n                append("当前任务：").append(task.title).append('\n')\n                append("这是上一轮真实执行结果。请基于结果判断下一步；如果任务尚未完成，继续输出下一轮 [bridgefs] 指令；不要声称尚未执行的操作已经完成。")\n            }\n\n            conversation.messages += BridgeChatMessage("user", receiptPrompt)\n\n            val result = ProjectConversationService(context).send(\n                project,\n                conversation,\n                receiptPrompt\n            )\n\n            if (result.answer != null) {\n                conversation.messages += BridgeChatMessage("assistant", result.answer)\n            }\n\n            when {\n                result.error != null -> {\n                    task.status = "FAILED"\n                    task.lastResult = result.error\n                    project.taskState.status = "FAILED"\n                }\n                result.executionRequested -> {\n                    task.status = "RUNNING"\n                    project.taskState.status = "RUNNING"\n                }\n                else -> {\n                    task.status = "WAITING"\n                    project.taskState.status = "WAITING"\n                }\n            }\n\n            store.saveProject(project)\n        }\n    }\n}
+package com.abridgefs.app
+
+import android.content.Context
+
+/**
+ * Project-level receipt handoff and continuation boundary.
+ *
+ * It owns the third-round loop:
+ * execution -> receipt -> current task state -> AI -> next execution.
+ * It never bypasses ProjectConversationService or FileBridgeExecutionEngine.
+ */
+object ProjectContinuationCoordinator {
+    private val lock = Any()
+
+    fun onReceipt(
+        context: Context,
+        projectId: String?,
+        conversationId: String?,
+        receiptId: String?,
+        status: String,
+        command: String,
+        message: String,
+        time: Long = System.currentTimeMillis()
+    ) {
+        if (projectId.isNullOrBlank()) return
+
+        synchronized(lock) {
+            val store = BridgeProjectStore(context)
+            val project = store.load().firstOrNull { it.id == projectId } ?: return
+            val conversation = conversationId?.let { id ->
+                project.conversations.firstOrNull { it.id == id }
+            } ?: project.activeConversation()
+
+            val actualReceiptId = receiptId?.takeIf { it.isNotBlank() }
+                ?: ("generated-" + time + "-" + status + "-" + command.hashCode())
+
+            if (conversation.executions.none { it.receiptId == actualReceiptId }) {
+                conversation.executions += BridgeReceiptRecord(
+                    status = status,
+                    command = command,
+                    message = message,
+                    time = time,
+                    receiptId = actualReceiptId
+                )
+            }
+
+            val taskId = project.taskState.activeTaskId
+            val task = taskId?.let { id -> project.tasks.firstOrNull { it.id == id } }
+
+            if (task == null) {
+                store.saveProject(project)
+                return
+            }
+
+            if (project.taskState.lastReceiptId == actualReceiptId) {
+                store.saveProject(project)
+                return
+            }
+
+            project.taskState.lastReceiptId = actualReceiptId
+            project.taskState.lastResult = message
+
+            if (status != "SUCCEEDED") {
+                task.status = "FAILED"
+                task.lastReceiptId = actualReceiptId
+                task.lastResult = message
+                project.taskState.status = "FAILED"
+                releaseLock(context, project)
+                store.saveProject(project)
+                return
+            }
+
+            if (task.completed) {
+                task.status = "COMPLETED"
+                project.taskState.status = "COMPLETED"
+                releaseLock(context, project)
+                store.saveProject(project)
+                return
+            }
+
+            if (project.taskState.continuationCount >= project.taskState.maxContinuations ||
+                task.continuationCount >= task.maxContinuations
+            ) {
+                task.status = "WAITING"
+                project.taskState.status = "LIMIT_REACHED"
+                releaseLock(context, project)
+                return
+            }
+
+            project.taskState.status = "RUNNING"
+            project.taskState.continuationCount += 1
+            task.status = "RUNNING"
+            task.continuationCount += 1
+            task.lastReceiptId = actualReceiptId
+            task.lastResult = message
+
+            val receiptPrompt = buildString {
+                append("[APS Execution Receipt]
+")
+                append("status: ").append(status).append('
+')
+                append("command: ").append(command).append('
+')
+                append("result:
+").append(message).append('
+')
+                append("当前任务：").append(task.title).append('
+')
+                append("这是上一轮真实执行结果。请基于结果判断下一步；如果任务尚未完成，继续输出下一轮 [bridgefs] 指令；不要声称尚未执行的操作已经完成。")
+            }
+
+            conversation.messages += BridgeChatMessage("user", receiptPrompt)
+
+            val result = ProjectConversationService(context).send(
+                project,
+                conversation,
+                receiptPrompt
+            )
+
+            if (result.answer != null) {
+                conversation.messages += BridgeChatMessage("assistant", result.answer)
+            }
+
+            when {
+                result.error != null -> {
+                    task.status = "FAILED"
+                    task.lastResult = result.error
+                    project.taskState.status = "FAILED"
+                }
+                result.executionRequested -> {
+                    task.status = "RUNNING"
+                    project.taskState.status = "RUNNING"
+                }
+                else -> {
+                    task.status = "WAITING"
+                    project.taskState.status = "WAITING"
+                    releaseLock(context, project)
+                }
+            }
+
+            store.saveProject(project)
+        }
+    }
+
+    private fun releaseLock(context: Context, project: BridgeProject) {
+        val memberId = project.defaultMemberId ?: return
+        runCatching { ConstructionLockStore(context).release(project, memberId) }
+    }
+}
