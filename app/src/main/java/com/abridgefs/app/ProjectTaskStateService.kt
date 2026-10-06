@@ -4,7 +4,7 @@ import android.content.Context
 
 /**
  * Owns the lifecycle state of the currently selected Project task.
- * Execution and AI continuation remain outside this class.
+ * This class is Project-domain state only; execution locks belong to the Integration/Execution boundary.
  */
 class ProjectTaskStateService(private val context: Context) {
     private val store = BridgeProjectStore(context)
@@ -42,7 +42,6 @@ class ProjectTaskStateService(private val context: Context) {
             task.status = "COMPLETED"
             if (project.taskState.activeTaskId == taskId) {
                 project.taskState = BridgeTaskExecutionState()
-                releaseLock(project)
             }
         } else {
             task.completed = false
@@ -65,7 +64,6 @@ class ProjectTaskStateService(private val context: Context) {
                 if (!it.completed) it.status = "WAITING"
             }
         }
-        releaseLock(project)
         store.saveProject(project)
         return project
     }
@@ -79,7 +77,6 @@ class ProjectTaskStateService(private val context: Context) {
                 it.status = "COMPLETED"
             }
         }
-        releaseLock(project)
         store.saveProject(project)
         return project
     }
@@ -88,7 +85,6 @@ class ProjectTaskStateService(private val context: Context) {
         val project = requireProject(projectId)
         project.taskState = BridgeTaskExecutionState()
         project.tasks.filter { it.status == "RUNNING" }.forEach { it.status = "WAITING" }
-        releaseLock(project)
         store.saveProject(project)
         return project
     }
@@ -97,8 +93,4 @@ class ProjectTaskStateService(private val context: Context) {
         store.load().firstOrNull { it.id == projectId }
             ?: error("Project 不存在：$projectId")
 
-    private fun releaseLock(project: BridgeProject) {
-        val memberId = project.defaultMemberId ?: return
-        runCatching { ConstructionLockStore(context).release(project, memberId) }
-    }
 }
