@@ -17,11 +17,17 @@ class BridgeConversationStore(private val context: Context) {
     private val key = "data"
 
     fun load(): MutableList<BridgeConversation> {
-        val array = JSONArray(prefs.getString(key, "[]") ?: "[]")
+        val raw = prefs.getString(key, "[]") ?: "[]"
+        val array = runCatching { JSONArray(raw) }.getOrElse {
+            AppLogger.log(context, "CONVERSATION_STORE_LOAD_FAILED", "invalid conversation JSON: " + (it.message ?: "unknown"))
+            return mutableListOf()
+        }
         val result = mutableListOf<BridgeConversation>()
         for (i in 0 until array.length()) {
-            val obj = array.getJSONObject(i)
-            result += readConversation(obj)
+            runCatching { result += readConversation(array.getJSONObject(i)) }
+                .onFailure {
+                    AppLogger.log(context, "CONVERSATION_STORE_LOAD_SKIP", "index=$i error=" + it::class.simpleName + ": " + (it.message ?: "unknown"))
+                }
         }
         return result
     }
