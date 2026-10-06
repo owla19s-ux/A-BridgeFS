@@ -123,8 +123,8 @@ class BridgeProjectStore(private val context: Context) {
         project.tasks.forEach { task ->
             task.status = when {
                 task.completed -> "COMPLETED"
-                task.status == "COMPLETED" -> "PENDING"
-                else -> task.status
+                task.status == "PENDING" || task.status == "WAITING" || task.status == "RUNNING" -> task.status
+                else -> "PENDING"
             }
         }
 
