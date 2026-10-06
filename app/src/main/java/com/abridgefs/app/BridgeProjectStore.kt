@@ -142,8 +142,16 @@ class BridgeProjectStore(private val context: Context) {
 
         when (project.taskState.status) {
             "RUNNING" -> activeTask.status = "RUNNING"
-            "WAITING", "LIMIT_REACHED", "FAILED", "COMPLETED" -> {
+            "WAITING", "LIMIT_REACHED" -> {
                 if (!activeTask.completed) activeTask.status = "WAITING"
+            }
+            "FAILED" -> {
+                if (!activeTask.completed) activeTask.status = "FAILED"
+            }
+            "COMPLETED" -> {
+                activeTask.completed = true
+                activeTask.status = "COMPLETED"
+                project.taskState = BridgeTaskExecutionState()
             }
             else -> {
                 project.taskState = BridgeTaskExecutionState()
