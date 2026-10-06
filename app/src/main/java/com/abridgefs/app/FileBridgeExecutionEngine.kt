@@ -14,18 +14,18 @@ class FileBridgeExecutionEngine(private val context: Context) {
     if(commands.isEmpty()){
     return Triple("FAILED",text,CommandParser.lastError ?: "未识别到可执行指令")
     }
-    val prefs = getSharedPreferences("bridgefs", 0)
+    val prefs = context.getSharedPreferences("bridgefs", 0)
     val limit = prefs.getInt("command_limit", 3).coerceIn(1, 20)
     if (commands.size > limit) {
-        AppLogger.log(this, "EXECUTION_DENIED", "reason=command_limit count=" + commands.size + " limit=" + limit)
+        AppLogger.log(context, "EXECUTION_DENIED", "reason=command_limit count=" + commands.size + " limit=" + limit)
         return Triple("DENIED", text, "本轮指令数量 " + commands.size + " 超过限制 " + limit + "，未执行。")
     }
-    val project = projectId?.let { id -> BridgeProjectStore(this).load().firstOrNull { it.id == id } }
+    val project = projectId?.let { id -> BridgeProjectStore(context).load().firstOrNull { it.id == id } }
     val projectConversation = project?.let { current -> conversationId?.let { id -> current.conversations.firstOrNull { it.id == id } } ?: current.activeConversation() }
     val standaloneConversation = standaloneConversationId?.let { id ->
-        BridgeConversationStore(this).load().firstOrNull { it.id == id }
+        BridgeConversationStore(context).load().firstOrNull { it.id == id }
     }
-    val auth = PermissionPolicy.authorization(this, project, projectConversation ?: standaloneConversation)
+    val auth = PermissionPolicy.authorization(context, project, projectConversation ?: standaloneConversation)
     val rootPath = auth.root.ifBlank { requestedRoot }
     val rootFile=File(rootPath)
     if(rootPath.isBlank() || !rootFile.isDirectory || isProtectedWorkspace(rootPath)) {
@@ -36,12 +36,12 @@ class FileBridgeExecutionEngine(private val context: Context) {
     }
     val denied = commands.firstOrNull { PermissionPolicy.check(it, auth) == Decision.DENY }
     if (denied != null) {
-        AppLogger.log(this, "EXECUTION_DENIED", "reason=permission command=" + denied)
+        AppLogger.log(context, "EXECUTION_DENIED", "reason=permission command=" + denied)
         return Triple("DENIED", denied.toString(), "当前权限设置禁止该操作")
     }
     val confirm = commands.firstOrNull { PermissionPolicy.check(it, auth) == Decision.CONFIRM }
     if (confirm != null) {
-        AppLogger.log(this, "EXECUTION_DENIED", "reason=confirmation_required command=" + confirm)
+        AppLogger.log(context, "EXECUTION_DENIED", "reason=confirmation_required command=" + confirm)
         return Triple("DENIED", confirm.toString(), "该操作需要用户确认，Service 不允许绕过确认直接执行")
     }
     val constructionRequired = commands.any {
@@ -56,14 +56,14 @@ class FileBridgeExecutionEngine(private val context: Context) {
         // Project uses the LOCAL/PROJECT identity; GitHub write permission is checked
         // separately by the Commit service instead of blocking local file work.
         runCatching {
-            ConstructionLockStore(this).acquire(project, memberId)
+            ConstructionLockStore(context).acquire(project, memberId)
         }.getOrElse {
-            AppLogger.log(this, "EXECUTION_DENIED", "reason=construction_lock command=" + commands.joinToString(" | "))
+            AppLogger.log(context, "EXECUTION_DENIED", "reason=construction_lock command=" + commands.joinToString(" | "))
             return Triple("DENIED", text, "[ConstructionLock]\n" + (it.message ?: "无法取得施工权"))
         }
     }
     return try{
-    val results=commands.map{CommandExecutor(rootFile,this,project,memberId).execute(it)}
+    val results=commands.map{CommandExecutor(rootFile,context,project,memberId).execute(it)}
     val message=results.joinToString("\n\n")
     val status=if(results.any{it.contains("✗")})"FAILED" else "SUCCEEDED"
     Triple(status,commands.joinToString(" | "){it.toString()},message)
@@ -73,4 +73,16 @@ class FileBridgeExecutionEngine(private val context: Context) {
     }
     
     
+    private fun isProtectedWorkspace(path: String): Boolean {
+        val candidate = runCatching { File(path).canonicalPath.trimEnd('/') }
+            .getOrElse { File(path).absolutePath.trimEnd('/') }
+            .replace('\\', '/').lowercase(java.util.Locale.ROOT)
+        val storageRoot = runCatching { android.os.Environment.getExternalStorageDirectory().canonicalPath.trimEnd('/') }
+            .getOrElse { android.os.Environment.getExternalStorageDirectory().absolutePath.trimEnd('/') }
+            .replace('\\', '/').lowercase(java.util.Locale.ROOT)
+        if (candidate == storageRoot) return true
+        val segments = candidate.split('/').filter { it.isNotEmpty() }
+        return segments.any { it == "android" } ||
+            listOf("/android/data", "/android/obb", "/android/media").any { candidate.contains(it) }
+    }
 }
