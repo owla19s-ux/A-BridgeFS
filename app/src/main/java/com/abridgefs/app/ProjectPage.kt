@@ -43,8 +43,7 @@ internal fun ApsActivity.projectPage() {
             })
             addView(primaryButton("保存项目名称") {
                 val nameInput = (getChildAt(1) as? EditText) ?: return@primaryButton
-                project.name = nameInput.text.toString().trim().ifBlank { "默认项目" }
-                projectStore.save(projects)
+                ProjectConfigurationService(this@projectPage).rename(project.id, nameInput.text.toString())
                 toast("项目名称已保存")
                 render()
             }, LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(6) })
@@ -179,10 +178,12 @@ private fun ApsActivity.showProjectAddressDialog(project: BridgeProject) {
     }
     AlertDialog.Builder(this).setTitle("Project Address").setView(box)
         .setPositiveButton("保存") { _, _ ->
-            project.localAddress = local.text.toString().trim().ifBlank { null }
-            project.githubAddress.repository = github.text.toString().trim().ifBlank { null }
-            project.githubAddress.branch = branch.text.toString().trim().ifBlank { null }
-            projectStore.save(projects)
+            ProjectConfigurationService(this@showProjectAddressDialog).updateAddress(
+                project.id,
+                local.text.toString(),
+                github.text.toString(),
+                branch.text.toString()
+            )
             render()
         }.setNegativeButton("取消", null).show()
 }
@@ -198,15 +199,7 @@ private fun ApsActivity.chooseProjectApi(project: BridgeProject) {
         .setTitle("选择 Default API")
         .setSingleChoiceItems(profiles.map { it.name }.toTypedArray(), profiles.indexOfFirst { it.id == currentId }) { dialog, which ->
             val selected = profiles[which]
-            val member = project.defaultMemberId?.let { id -> project.aiMembers.firstOrNull { it.id == id } }
-                ?: BridgeAiMember(java.util.UUID.randomUUID().toString(), selected.name, selected.id).also {
-                    project.aiMembers += it
-                    project.defaultMemberId = it.id
-                }
-            member.name = selected.name
-            member.apiProfileId = selected.id
-            project.activeConversation().apiId = selected.id
-            projectStore.save(projects)
+            ProjectConfigurationService(this@chooseProjectApi).bindDefaultApi(project.id, selected)
             dialog.dismiss()
             render()
         }.setNegativeButton("取消", null).show()
