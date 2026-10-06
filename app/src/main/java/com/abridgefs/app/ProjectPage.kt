@@ -39,9 +39,21 @@ internal fun ApsActivity.projectPage() {
         if (projectConfigOpen) {
             content.addView(card().apply {
                 addView(label("项目名称"))
-                addView(EditText(this@projectPage).apply {
+                val nameInput = EditText(this@projectPage).apply {
                     hint = "默认项目"
                     maxLines = 1
+                    setText(project?.name.orEmpty())
+                }
+                addView(nameInput)
+                addView(Button(this@projectPage).apply {
+                    text = "保存项目名称"
+                    setOnClickListener {
+                        val p = currentProject ?: return@setOnClickListener
+                        p.name = nameInput.text.toString().trim().ifBlank { "默认项目" }
+                        projectStore.save(projects)
+                        toast("项目名称已保存")
+                        render()
+                    }
                 })
                 addView(label("Project Address"))
                 addView(value("Local Project Address：${project?.localAddress ?: "未设置"}"))
@@ -107,23 +119,8 @@ internal fun ApsActivity.projectPage() {
             })
         }
         if (displayOpen) content.addView(card().apply {
-            addView(label("待处理任务"))
-            listOf("UI 输入框问题", "构建问题", "签名冲突").forEach { task ->
-                addView(CheckBox(this@projectPage).apply {
-                    text = task
-                    textSize = 13f
-                    setOnCheckedChangeListener { _, checked ->
-                        if (checked) {
-                            pendingTaskMentions.add("@" + task)
-                            syncProjectInput()
-                            toast("@" + task + " 已加入当前输入目标")
-                        } else {
-                            pendingTaskMentions.remove("@" + task)
-                            syncProjectInput()
-                        }
-                    }
-                })
-            }
+            addView(label("任务"))
+            addView(value("当前版本尚未接入正式 Task 数据源。"))
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
         if (displayOpen) content.addView(section("项目主要对话", projectChatOpen) {
             projectChatOpen = !projectChatOpen
