@@ -33,6 +33,13 @@ class ProjectConversationService(private val context: Context) {
                 append("\nGitHub Repository：").append(githubRepository)
                 if (branch.isNotBlank()) append("\nGitHub Branch：").append(branch)
             }
+            project.taskState.activeTaskId?.let { taskId ->
+                project.tasks.firstOrNull { it.id == taskId }?.let { task ->
+                    append("\n当前施工任务：").append(task.title)
+                    append("\n任务状态：").append(task.status)
+                    append("\nContinuation：").append(task.continuationCount).append("/").append(task.maxContinuations)
+                }
+            }
         }
 
         val githubRead = GitHubConversationReader(context).readForProject(project, userText)
