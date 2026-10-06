@@ -110,6 +110,156 @@ internal fun ApsActivity.inputBar(hint: String) {
             val text = input.text.toString().trim()
             if (text.isBlank()) return@setOnClickListener
 
+            val project = currentProject
+            if (project == null) {
+                toast("当前没有可用 Project")
+                return@setOnClickListener
+            }
+            val conversation = project.activeConversation()
+            receiptContinuationCounts.remove(conversation.id)
+            conversation.messages += BridgeChatMessage("user", text)
+            projectStore.save(projects)
+            input.isEnabled = false
+            toast("正在请求当前 Project AI")
+            Thread {
+                val result = ProjectConversationService(this@inputBar).send(project, conversation, text)
+                runOnUiThread {
+                    input.isEnabled = true
+                    if (result.answer != null) {
+                        val profile = conversation.apiId?.let { apiProfilesStore.find(it) }
+                            ?: project.defaultMemberId?.let { memberId ->
+                                project.aiMembers.firstOrNull { it.id == memberId }?.apiProfileId?.let { apiProfilesStore.find(it) }
+                            }
+                        conversation.messages += BridgeChatMessage(
+                            "assistant",
+                            result.answer,
+                            apiId = profile?.id,
+                            apiName = profile?.name
+                        )
+                    } else {
+                        conversation.messages += BridgeChatMessage("system", result.error ?: "请求失败")
+                    }
+                    projectStore.save(projects)
+                    input.setText("")
+                    pendingTaskMentions.clear()
+                    input.clearFocus()
+                    (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
+                        .hideSoftInputFromWindow(input.windowToken, 0)
+                    render()
+                }
+            }.start()
+bridgefs.app
+
+import android.content.Context
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
+import android.view.*
+import android.view.inputmethod.InputMethodManager
+import android.widget.*
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+
+internal fun ApsActivity.settingSwitch(name: String, checked: Boolean, onChanged: (Boolean) -> Unit) =
+    Switch(this).apply {
+        text = name
+        isChecked = checked
+        textSize = 13f
+        setTextColor(c(R.color.bridgefs_text_primary))
+        setPadding(0, dp(2), 0, dp(2))
+        setOnCheckedChangeListener { _, value -> onChanged(value) }
+    }
+
+internal fun ApsActivity.messageBubble(name: String, text: String): LinearLayout {
+    val activity = this
+    return LinearLayout(activity).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(dp(14), dp(12), dp(14), dp(12))
+        background = round(c(R.color.bridgefs_surface), dp(12))
+        addView(TextView(activity).apply {
+            this.text = name
+            textSize = 12f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(c(R.color.bridgefs_text_secondary))
+        })
+        addView(TextView(activity).apply {
+            this.text = text
+            textSize = 13f
+            setTextIsSelectable(true)
+            setTextColor(c(R.color.bridgefs_text_primary))
+            setPadding(0, dp(3), 0, 0)
+        })
+        addView(TextView(activity).apply {
+            this.text = "复制"
+            textSize = 11f
+            setTextIsSelectable(false)
+            setTextColor(c(R.color.bridgefs_text_secondary))
+            setPadding(0, dp(5), 0, 0)
+            setOnClickListener {
+                val clipboard = activity.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("APS message", text))
+                toast("已复制")
+            }
+        })
+    }
+}
+
+internal fun ApsActivity.requestProjectAssistance() {
+    val project = currentProject ?: run {
+        toast("当前没有可用 Project")
+        return
+    }
+    val conversation = project.activeConversation()
+    receiptContinuationCounts.remove(conversation.id)
+    val targets = pendingTaskMentions.toList()
+    val request = if (targets.isEmpty()) {
+        "请协助检查并推进当前 Project 的工作。先根据当前项目资料给出下一步可执行方案。"
+    } else {
+        targets.joinToString(" ") + " 请协助处理这些任务。先读取当前 Project 的相关资料，判断需要修改什么，并给出下一步可执行方案。"
+    }
+
+    conversation.messages += BridgeChatMessage("user", request)
+    projectStore.save(projects)
+    toast("正在请求当前 Project AI")
+    Thread {
+        val result = ProjectConversationService(this).send(project, conversation, request)
+        runOnUiThread {
+            if (result.answer != null) {
+                conversation.messages += BridgeChatMessage("assistant", result.answer)
+            } else {
+                conversation.messages += BridgeChatMessage("system", result.error ?: "协助请求失败")
+            }
+            projectStore.save(projects)
+            pendingTaskMentions.clear()
+            render()
+        }
+    }.start()
+}
+
+internal fun ApsActivity.inputBar(hint: String) {
+    val bar = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        setPadding(dp(10), dp(5), dp(10), dp(5))
+    }
+    val input = EditText(this).apply {
+        this.hint = hint
+        if (hint.contains("工作目标")) projectInput = this
+        maxLines = 4
+        if (pendingTaskMentions.isNotEmpty() && hint.contains("工作目标")) {
+            setText(pendingTaskMentions.joinToString(" ") + " ")
+            setSelection(text.length)
+        }
+        setPadding(dp(14), dp(8), dp(14), dp(8))
+        background = round(c(R.color.bridgefs_input_surface), dp(16))
+    }
+    bar.addView(input, LinearLayout.LayoutParams(0, dp(52), 1f))
+    bar.addView(Button(this).apply {
+        text = "发送"
+        minHeight = 0
+        minimumHeight = 0
+        setOnClickListener {
+            val text = input.text.toString().trim()
+            if (text.isBlank()) return@setOnClickListener
+
             if (hint.contains("工作目标")) {
                 val project = currentProject
                 if (project == null) {
