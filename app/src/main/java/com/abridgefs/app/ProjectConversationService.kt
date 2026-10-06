@@ -85,6 +85,9 @@ class ProjectConversationService(private val context: Context) {
                     executionError = "AI 返回的 BridgeFS 指令无法解析：" + (it.message ?: "未知错误")
                     emptyList()
                 }
+                if (executionError == null && CommandParser.lastError != null) {
+                    executionError = CommandParser.lastError
+                }
                 if (executionError == null) {
                     val authorization = PermissionPolicy.authorization(context, project, conversation)
                     val decisions = parsedCommands.map { it to PermissionPolicy.check(it, authorization) }
