@@ -2,7 +2,7 @@ name: Android Tests
 
 on:
   push:
-    branches: ['architecture-rebuild']
+    branches: ['architecture-rebuild', 'standalone-construction']
   pull_request:
     branches: ['main']
   workflow_dispatch:
