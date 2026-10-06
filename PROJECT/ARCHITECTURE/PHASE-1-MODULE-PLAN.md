@@ -54,3 +54,12 @@ Project 模块至少满足：
 - `ProjectPage` 不再直接承担上述配置状态的持久化修改。
 - `ProjectTaskStateService` 已移除 ConstructionLock 操作，避免 Project 状态层反向依赖 Execution/Integration。
 - `ProjectContinuationCoordinator` 暂留 Integration 实验区，不在 Project 模块继续扩展。
+
+
+## 当前收口进度
+
+- `BridgeProjectTask` 已收窄为 Project Task 业务状态，不再保存 continuation / receipt runtime 字段。
+- `BridgeProjectStore` 已不再持久化 Task 内部 continuation / receipt 字段；continuation 运行态保留在 Integration 的 `BridgeTaskExecutionState`。
+- `ProjectTaskStateService.start()` 不再接收 continuation policy，避免 Project Task 生命周期反向承担 Integration 策略。
+- `ProjectContinuationCoordinator` 仅负责 receipt → execution continuation，不再写入 Task 的 receipt/runtime 字段。
+- 当前仍保留 `BridgeProject.taskState` 作为 Project 与 Integration 之间的临时边界；在 Integration 阶段再决定是否进一步外置，当前不继续拆。
