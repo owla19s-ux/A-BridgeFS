@@ -106,11 +106,17 @@ object ProjectContinuationCoordinator {
 
             conversation.messages += BridgeChatMessage("user", receiptPrompt)
 
-            val result = ProjectConversationService(context).send(
-                project,
-                conversation,
-                receiptPrompt
-            )
+            val result = runCatching {
+                ProjectConversationService(context).send(
+                    project,
+                    conversation,
+                    receiptPrompt
+                )
+            }.getOrElse {
+                ProjectConversationService.Result(
+                    error = "Continuation 异常：" + (it.message ?: "未知错误")
+                )
+            }
 
             if (result.answer != null) {
                 conversation.messages += BridgeChatMessage("assistant", result.answer)
@@ -121,6 +127,7 @@ object ProjectContinuationCoordinator {
                     task.status = "FAILED"
                     task.lastResult = result.error
                     project.taskState.status = "FAILED"
+                    releaseLock(context, project)
                 }
                 result.executionRequested -> {
                     task.status = "RUNNING"
