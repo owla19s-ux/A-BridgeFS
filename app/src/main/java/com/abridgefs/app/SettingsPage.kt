@@ -32,19 +32,30 @@ internal fun ApsActivity.settingsPage() {
                         addView(activity.label("全局连接"))
                         addView(activity.value("连接资源集中管理；具体权限归属到对应模块。"))
 
+                        addView(activity.settingSwitch(
+                            "API 全局访问",
+                            AccessPolicy.isApiEnabled(activity)
+                        ) { enabled ->
+                            AccessPolicy.setApiEnabled(activity, enabled)
+                        })
+                        addView(activity.settingSwitch(
+                            "GitHub 全局访问",
+                            AccessPolicy.isGithubEnabled(activity)
+                        ) { enabled ->
+                            AccessPolicy.setGithubEnabled(activity, enabled)
+                        })
                         addView(Button(activity).apply {
                             text = "API Profiles"
                             setOnClickListener {
-                                activity.toast("API Profiles：连接、模型与 API 内部权限")
+                                activity.startActivity(android.content.Intent(activity, ApiSettingsActivity::class.java))
                             }
                         }, LinearLayout.LayoutParams(-1, activity.dp(44)).apply {
                             topMargin = activity.dp(6)
                         })
-
                         addView(Button(activity).apply {
-                            text = "GitHub"
+                            text = "GitHub 连接"
                             setOnClickListener {
-                                activity.toast("GitHub：账号、Repository、Branch 与 GitHub 内部权限")
+                                activity.startActivity(android.content.Intent(activity, GitHubActivity::class.java))
                             }
                         }, LinearLayout.LayoutParams(-1, activity.dp(44)).apply {
                             topMargin = activity.dp(6)
@@ -53,15 +64,21 @@ internal fun ApsActivity.settingsPage() {
 
                     "权限" -> {
                         addView(activity.label("APS 系统级权限"))
-                        addView(activity.value("这里只管理没有明确归属到具体模块的系统访问能力。"))
-                        addView(activity.settingSwitch("本地文件访问", activity.localFileAccess) {
-                            activity.localFileAccess = it
-                        })
-                        addView(activity.settingSwitch("存储访问", activity.storageAccess) {
-                            activity.storageAccess = it
-                        })
-                        addView(activity.settingSwitch("其他 APS 系统访问", activity.externalAccess) {
-                            activity.externalAccess = it
+                        addView(activity.value("权限开关直接写入 APS 的持久化访问策略。具体 Project 施工权限仍由 Project 与执行权限共同决定。"))
+                        addView(activity.settingSwitch(
+                            "API 访问",
+                            AccessPolicy.isApiEnabled(activity)
+                        ) { AccessPolicy.setApiEnabled(activity, it) })
+                        addView(activity.settingSwitch(
+                            "GitHub 访问",
+                            AccessPolicy.isGithubEnabled(activity)
+                        ) { AccessPolicy.setGithubEnabled(activity, it) })
+                        addView(Button(activity).apply {
+                            text = "执行与文件权限"
+                            setOnClickListener {
+                                activity.startActivity(android.content.Intent(activity, SettingsCategoryActivity::class.java)
+                                    .putExtra("category", "执行与权限"))
+                            }
                         })
                     }
 
