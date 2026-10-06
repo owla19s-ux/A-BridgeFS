@@ -133,6 +133,22 @@ class ApsActivity : Activity() {
                 marginEnd = dp(3)
             })
         }
+        nav.addView(TextView(this).apply {
+            text = if (displayOpen) "↓" else "↑"
+            textSize = 18f
+            gravity = Gravity.CENTER
+            setTextColor(c(R.color.bridgefs_text_primary))
+            background = round(c(R.color.bridgefs_selected_surface), dp(14))
+            contentDescription = if (displayOpen) "减少项目内容显示空间" else "恢复项目内容显示空间"
+            setOnClickListener {
+                if (page == 0) {
+                    displayOpen = !displayOpen
+                    render()
+                }
+            }
+        }, LinearLayout.LayoutParams(dp(48), dp(46)).apply {
+            marginStart = dp(3)
+        })
         root.addView(nav)
         ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
