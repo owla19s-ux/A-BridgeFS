@@ -81,11 +81,18 @@ internal fun ApsActivity.projectPage() {
                         isChecked = task.completed
                         isEnabled = task.id != activeTaskId || task.status != "RUNNING"
                         setOnCheckedChangeListener { _, checked ->
-                            task.completed = checked
-                            task.status = if (checked) "COMPLETED" else "PENDING"
+                            runCatching {
+                                ProjectTaskStateService(this@projectPage).setCompleted(project.id, task.id, checked)
+                            }.onFailure {
+                                check.setOnCheckedChangeListener(null)
+                                check.isChecked = task.completed
+                                toast(it.message ?: "任务状态更新失败")
+                                return@setOnCheckedChangeListener
+                            }
                             val mention = "@" + task.title.trim()
                             if (checked) pendingTaskMentions += mention else pendingTaskMentions.remove(mention)
-                            projectStore.save(projects)
+                            projects = projectStore.load()
+                            currentProject = projects.firstOrNull { it.id == project.id }
                             syncProjectInput()
                             render()
                         }
