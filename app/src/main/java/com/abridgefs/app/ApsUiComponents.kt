@@ -303,6 +303,66 @@ internal fun ApsActivity.inputBar(hint: String) {
     host.addView(bar, LinearLayout.LayoutParams(-1, dp(62)))
 }
 
+
+internal fun ApsActivity.standaloneInputBar(hint: String) {
+    val bar = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        setPadding(dp(10), dp(5), dp(10), dp(5))
+    }
+    val input = EditText(this).apply {
+        this.hint = hint
+        maxLines = 4
+        setPadding(dp(14), dp(8), dp(14), dp(8))
+        background = round(c(R.color.bridgefs_input_surface), dp(16))
+    }
+    bar.addView(input, LinearLayout.LayoutParams(0, dp(52), 1f))
+    bar.addView(Button(this).apply {
+        text = "发送"
+        minHeight = 0
+        minimumHeight = 0
+        setOnClickListener {
+            val text = input.text.toString().trim()
+            if (text.isBlank()) return@setOnClickListener
+            val conversation = activeStandaloneConversation() ?: return@setOnClickListener
+            val profile = conversation.apiId?.let { apiProfilesStore.find(it) }
+            if (profile == null) {
+                toast("请先选择 API Profile")
+                return@setOnClickListener
+            }
+            conversation.messages += BridgeChatMessage("user", text)
+            standaloneConversationStore.save(standaloneConversations)
+            input.isEnabled = false
+            Thread {
+                val result = StandaloneConversationService(this@standaloneInputBar).send(
+                    conversation, text, currentProject
+                )
+                runOnUiThread {
+                    input.isEnabled = true
+                    if (result.answer != null) {
+                        conversation.messages += BridgeChatMessage(
+                            "assistant", result.answer,
+                            apiId = profile.id, apiName = profile.name
+                        )
+                    } else {
+                        conversation.messages += BridgeChatMessage("system", result.error ?: "请求失败")
+                    }
+                    standaloneConversationStore.save(standaloneConversations)
+                    input.setText("")
+                    input.clearFocus()
+                    (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
+                        .hideSoftInputFromWindow(input.windowToken, 0)
+                    render()
+                }
+            }.start()
+        }
+    }, LinearLayout.LayoutParams(dp(78), dp(52)).apply { marginStart = dp(6) })
+    ViewCompat.setOnApplyWindowInsetsListener(bar) { v, insets ->
+        v.translationY = -insets.getInsets(WindowInsetsCompat.Type.ime()).bottom.toFloat()
+        insets
+    }
+    host.addView(bar, LinearLayout.LayoutParams(-1, dp(62)))
+}
+
 internal fun ApsActivity.title(text: String) = TextView(this).apply {
     this.text = text
     textSize = 21f
