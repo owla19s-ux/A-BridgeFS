@@ -70,17 +70,18 @@ class ProjectTaskStateService(private val context: Context) {
         val project = requireProject(projectId)
         require(project.taskState.activeTaskId != null) { "当前没有施工中的任务" }
         require(project.taskState.status == "RUNNING" || project.taskState.status == "WAITING") { "当前任务不能完成" }
-        project.taskState.status = "COMPLETED"
-        project.taskState.activeTaskId?.let { id ->
+
+        val activeTaskId = project.taskState.activeTaskId
+        activeTaskId?.let { id ->
             project.tasks.firstOrNull { it.id == id }?.let {
                 it.completed = true
                 it.status = "COMPLETED"
             }
         }
+        project.taskState = BridgeTaskExecutionState()
         store.saveProject(project)
         return project
     }
-
     fun clear(projectId: String): BridgeProject {
         val project = requireProject(projectId)
         project.taskState = BridgeTaskExecutionState()
