@@ -109,7 +109,6 @@ internal fun ApsActivity.inputBar(hint: String) {
         setOnClickListener {
             val text = input.text.toString().trim()
             if (text.isBlank()) return@setOnClickListener
-
             val project = currentProject
             if (project == null) {
                 toast("当前没有可用 Project")
@@ -136,6 +135,9 @@ internal fun ApsActivity.inputBar(hint: String) {
                             apiId = profile?.id,
                             apiName = profile?.name
                         )
+                        if (result.error != null) {
+                            conversation.messages += BridgeChatMessage("system", result.error)
+                        }
                     } else {
                         conversation.messages += BridgeChatMessage("system", result.error ?: "请求失败")
                     }
@@ -148,9 +150,14 @@ internal fun ApsActivity.inputBar(hint: String) {
                     render()
                 }
             }.start()
-    }.start()
         }
+    }, LinearLayout.LayoutParams(dp(78), dp(52)).apply { marginStart = dp(6) })
+
+    ViewCompat.setOnApplyWindowInsetsListener(bar) { v, insets ->
+        v.translationY = -insets.getInsets(WindowInsetsCompat.Type.ime()).bottom.toFloat()
+        insets
     }
+    host.addView(bar, LinearLayout.LayoutParams(-1, dp(62)))
 }
 
 internal fun ApsActivity.standaloneInputBar(hint: String) {
