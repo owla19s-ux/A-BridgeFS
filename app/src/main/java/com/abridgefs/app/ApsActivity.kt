@@ -74,24 +74,40 @@ class ApsActivity : Activity() {
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
-        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
-        projects = projectStore.load()
-        if (projects.isEmpty()) {
-            val project = projectStore.newProject("默认项目")
-            projects += project
-            projectStore.save(projects)
+        try {
+            window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+            projects = projectStore.load()
+            if (projects.isEmpty()) {
+                val project = projectStore.newProject("默认项目")
+                projects += project
+                projectStore.save(projects)
+            }
+            currentProject = projects.firstOrNull()
+            standaloneConversations = standaloneConversationStore.load()
+            if (standaloneConversations.isEmpty()) {
+                val created = standaloneConversationStore.newConversation("新会话 1", null)
+                standaloneConversations += created
+                standaloneConversationStore.save(standaloneConversations)
+            }
+            currentStandaloneConversationId = standaloneConversations.firstOrNull()?.id
+            registerReceiver(receiptReceiver, IntentFilter("com.bridgefs.RESULT"), Context.RECEIVER_NOT_EXPORTED)
+            buildShell()
+            recoverPendingReceipts()
+            AppLogger.log(this, "APS_STARTUP_READY")
+        } catch (t: Throwable) {
+            AppLogger.recordCrash(this, t)
+            showStartupError(t)
         }
-        currentProject = projects.firstOrNull()
-        standaloneConversations = standaloneConversationStore.load()
-        if (standaloneConversations.isEmpty()) {
-            val created = standaloneConversationStore.newConversation("新会话 1", null)
-            standaloneConversations += created
-            standaloneConversationStore.save(standaloneConversations)
-        }
-        currentStandaloneConversationId = standaloneConversations.firstOrNull()?.id
-        registerReceiver(receiptReceiver, IntentFilter("com.bridgefs.RESULT"), Context.RECEIVER_NOT_EXPORTED)
-        buildShell()
-        recoverPendingReceipts()
+    }
+
+    private fun showStartupError(throwable: Throwable) {
+        val message = throwable::class.simpleName + ": " + (throwable.message ?: "unknown error")
+        setContentView(TextView(this).apply {
+            text = "APS 启动失败\\n\\n$message\\n\\n错误已写入 App 日志。"
+            textSize = 15f
+            setPadding(dp(24), dp(32), dp(24), dp(32))
+            setTextIsSelectable(true)
+        })
     }
 
     internal fun activeStandaloneConversation(): BridgeConversation? =
