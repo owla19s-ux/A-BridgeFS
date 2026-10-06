@@ -81,11 +81,11 @@ class SettingsCategoryActivity : Activity() {
             hint = "1–20"
         }
         box.addView(limit, fieldParams())
-        val labels = arrayOf("查看目录", "读取文件", "创建文件", "修改文件")
+        val labels = mapOf(\n    FileAction.LIST to "查看目录",\n    FileAction.READ to "读取文件",\n    FileAction.WRITE to "创建/写入文件",\n    FileAction.EDIT to "修改文件",\n    FileAction.COMMIT to "提交到 GitHub"\n)
         FileAction.values().forEachIndexed { index, action ->
             val row = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
             row.addView(TextView(this@SettingsCategoryActivity).apply {
-                text = labels[index]
+                text = labels[action] ?: action.name
                 textSize = 14f
                 setTextColor(resources.getColor(R.color.bridgefs_text_primary))
             }, LinearLayout.LayoutParams(0, dp(50), 1f))
