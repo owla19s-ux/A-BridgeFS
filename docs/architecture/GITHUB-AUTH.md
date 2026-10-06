@@ -4,7 +4,7 @@
 
 ## 1. 第一版授权路线
 
-A-BridgeFS 第一版支持两种 GitHub 连接方式：
+APS 第一版支持两种 GitHub 连接方式：
 
 1. **Fine-grained Personal Access Token（PAT）**：第一版主路径。
 2. **OAuth Device Flow**：保留为后续/可选路径；需要配置 `GITHUB_CLIENT_ID`。
@@ -22,7 +22,7 @@ Fine-grained personal access token
  ↓
 复制 Token
  ↓
-A-BridgeFS
+APS
  ↓
 /user 验证账号
  ↓
@@ -33,14 +33,14 @@ Android Keystore 加密保存
 
 ## 2. PAT 权限边界
 
-A-BridgeFS 不自行扩大 GitHub 权限。
+APS 不自行扩大 GitHub 权限。
 
 最终实际操作权限：
 
 ```
 GitHub 全局允许
 AND
-工作区允许
+Project允许
 AND
 GitHub 凭据实际权限
 AND
@@ -50,7 +50,7 @@ Repository 可访问
 例如：
 
 ```
-工作区允许修改 = 开
+Project允许修改 = 开
 GitHub PAT = Contents Read-only
         ↓
 实际仍然不能写入
@@ -126,15 +126,15 @@ Repository 列表必须来自授权账号实际可访问的仓库。
 
 ## 8. Repository 与 Branch
 
-工作区保存：
+Project保存：
 
 - GitHub account login
 - Repository
 - Branch
-- A-BridgeFS 读取权限
-- A-BridgeFS 修改权限
+- APS 读取权限
+- APS 修改权限
 
-Token 本身不写入工作区数据。
+Token 本身不写入Project数据。
 
 ## 9. 授权状态
 
