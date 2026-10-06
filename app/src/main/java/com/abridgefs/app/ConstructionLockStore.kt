@@ -1,5 +1,7 @@
 package com.abridgefs.app
 
+import java.security.MessageDigest
+
 data class ConstructionLock(
     val projectId: String,
     val repository: String,
@@ -18,8 +20,8 @@ class ConstructionLockStore(private val context: android.content.Context) {
     fun get(project: BridgeProject, repository: String? = null, branch: String? = null): ConstructionLock? {
         val identity = identity(project, repository, branch) ?: return null
         val key = key(project.id, identity.first, identity.second)
-        val holder = prefs.getString("$"+"{key}_holder", null)
-        val acquiredAt = if (prefs.contains("$"+"{key}_time")) prefs.getLong("$"+"{key}_time", 0L) else null
+        val holder = prefs.getString("${key}_holder", null)
+        val acquiredAt = if (prefs.contains("${key}_time")) prefs.getLong("${key}_time", 0L) else null
         return ConstructionLock(project.id, identity.first, identity.second, holder, acquiredAt)
     }
 
@@ -42,8 +44,8 @@ class ConstructionLockStore(private val context: android.content.Context) {
         val lock = ConstructionLock(project.id, repo, branch, aiMemberId, now)
         val key = key(project.id, repo, branch)
         prefs.edit()
-            .putString("$"+"{key}_holder", aiMemberId)
-            .putLong("$"+"{key}_time", now)
+            .putString("${key}_holder", aiMemberId)
+            .putLong("${key}_time", now)
             .apply()
         return lock
     }
@@ -53,7 +55,7 @@ class ConstructionLockStore(private val context: android.content.Context) {
         val lock = get(project) ?: return
         require(lock.heldBy(aiMemberId)) { "当前 AI 不持有施工权" }
         val key = key(lock.projectId, lock.repository, lock.branch)
-        prefs.edit().remove("$"+"{key}_holder").remove("$"+"{key}_time").apply()
+        prefs.edit().remove("${key}_holder").remove("${key}_time").apply()
     }
 
     @Synchronized
@@ -66,7 +68,7 @@ class ConstructionLockStore(private val context: android.content.Context) {
 
         val now = System.currentTimeMillis()
         val key = key(current.projectId, current.repository, current.branch)
-        prefs.edit().putString("$"+"{key}_holder", toAiMemberId).putLong("$"+"{key}_time", now).apply()
+        prefs.edit().putString("${key}_holder", toAiMemberId).putLong("${key}_time", now).apply()
         return current.copy(holderAiMemberId = toAiMemberId, acquiredAt = now)
     }
 
@@ -79,7 +81,7 @@ class ConstructionLockStore(private val context: android.content.Context) {
 
     @Synchronized
     fun clearProject(projectId: String) {
-        val prefix = "lock_" + safe(projectId) + "_"
+        val prefix = "lock_" + projectIdHash(projectId) + "_"
         prefs.all.keys.filter { it.startsWith(prefix) }.forEach { key -> prefs.edit().remove(key).apply() }
     }
 
@@ -93,8 +95,15 @@ class ConstructionLockStore(private val context: android.content.Context) {
     }
 
     private fun key(projectId: String, repository: String, branch: String): String =
-        "lock_" + safe(projectId) + "_" + safe(repository) + "_" + safe(branch)
+        "lock_" + projectIdHash(projectId) + "_" + identityHash(repository, branch)
 
-    private fun safe(value: String): String =
-        value.trim().replace(Regex("[^A-Za-z0-9._-]"), "_")
+    private fun projectIdHash(value: String): String = sha256(value.trim())
+
+    private fun identityHash(repository: String, branch: String): String =
+        sha256(repository.trim() + "\u0000" + branch.trim())
+
+    private fun sha256(value: String): String {
+        val digest = MessageDigest.getInstance("SHA-256").digest(value.toByteArray(Charsets.UTF_8))
+        return digest.joinToString("") { "%02x".format(it) }
+    }
 }
