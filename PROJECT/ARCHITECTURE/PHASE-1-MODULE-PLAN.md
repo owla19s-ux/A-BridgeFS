@@ -69,3 +69,11 @@ Project 模块至少满足：
 - `BridgeProjectStore.normalizeState()` 现在会将未知 Task status 归一为 `PENDING`，避免旧数据或异常数据进入未定义状态。
 - Project Task 的业务状态与 continuation runtime 已保持分离；runtime 仍暂存在 Project 的 `taskState` 边界，Integration 阶段再决定是否完全外置。
 - Project Task 生命周期入口已增加 start / pause / complete 的前置条件检查。
+
+
+## Project 收口补充 2
+
+- Task 状态归一化已保留 FAILED，避免执行失败在重新加载 Project 后被错误恢复为 PENDING。
+- BridgeTaskExecutionState 与 Task 状态映射已明确：FAILED → Task FAILED；LIMIT_REACHED / WAITING → Task WAITING；COMPLETED 会完成 Task 并清空 runtime。
+- Project Store 加载 continuation count 时会将负值归一为 0，旧数据缺失字段继续使用兼容默认值。
+- Project 对话选择已增加独立的 ProjectConversationSelectionService；页面通过服务修改 active conversation。
