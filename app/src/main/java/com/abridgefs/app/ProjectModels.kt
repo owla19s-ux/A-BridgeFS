@@ -2,58 +2,6 @@ package com.abridgefs.app
 
 import java.util.UUID
 
-data class BridgeChatMessage(
-    val role: String,
-    val content: String,
-    val time: Long = System.currentTimeMillis(),
-    val apiId: String? = null,
-    val apiName: String? = null,
-    val apiAvatar: String? = null
-)
-
-data class BridgeReceiptRecord(
-    val status: String,
-    val command: String,
-    val message: String,
-    val time: Long = System.currentTimeMillis(),
-    val receiptId: String = UUID.randomUUID().toString()
-)
-
-data class BridgeAiMember(
-    val id: String,
-    var name: String,
-    var apiProfileId: String? = null
-)
-
-data class BridgeProjectTask(
-    val id: String,
-    var title: String,
-    var completed: Boolean = false,
-    var status: String = "PENDING",
-    var continuationCount: Int = 0,
-    var maxContinuations: Int = 10,
-    var lastReceiptId: String? = null,
-    var lastResult: String? = null
-)
-
-data class BridgeTaskExecutionState(
-    var activeTaskId: String? = null,
-    var status: String = "IDLE",
-    var continuationCount: Int = 0,
-    var maxContinuations: Int = 10,
-    var lastReceiptId: String? = null,
-    var lastResult: String? = null
-)
-
-data class BridgeConversation(
-    val id: String,
-    var name: String,
-    var apiId: String? = null,
-    var localFileModifyOverride: Boolean? = null,
-    val messages: MutableList<BridgeChatMessage> = mutableListOf(),
-    val executions: MutableList<BridgeReceiptRecord> = mutableListOf()
-)
-
 data class BridgeProject(
     val id: String,
     var name: String,
