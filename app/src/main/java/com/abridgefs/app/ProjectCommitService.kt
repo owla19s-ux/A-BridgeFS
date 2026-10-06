@@ -43,8 +43,25 @@ class ProjectCommitService(
         )
         val response = github.commitLocalFile(localFile, relativePath, message, aiMemberId)
         val sha = response.optJSONObject("commit")?.optString("sha").orEmpty()
-        val verify = runCatching { ProjectVerifyService(github).forCommit(sha) }.getOrNull()
-        val verifyLine = verify?.let { ProjectVerifyService(github).receiptLine(it) }
+        val verifyService = ProjectVerifyService(github)
+        val verify = runCatching { verifyService.forCommit(sha) }.getOrNull()
+        if (verify != null) {
+            project.verifyRecords.removeAll { it.commitSha == verify.commitSha }
+            project.verifyRecords += BridgeVerifyRecord(
+                commitSha = verify.commitSha,
+                runId = verify.runId,
+                status = verify.status,
+                conclusion = verify.conclusion,
+                jobCount = verify.jobCount,
+                failedJobCount = verify.failedJobCount,
+                artifactCount = verify.artifactCount,
+                artifactNames = verify.artifactNames,
+                state = verify.state.name,
+                time = System.currentTimeMillis()
+            )
+            BridgeProjectStore(context).saveProject(project)
+        }
+        val verifyLine = verify?.let { verifyService.receiptLine(it) }
             ?: "  — Verify：未查询"
         val commitLine = if (sha.isBlank()) "已创建" else sha
         return Result(
