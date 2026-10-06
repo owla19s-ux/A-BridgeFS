@@ -31,6 +31,32 @@ class ProjectTaskStateService(private val context: Context) {
         return project
     }
 
+    fun setCompleted(projectId: String, taskId: String, completed: Boolean): BridgeProject {
+        val project = requireProject(projectId)
+        val task = project.tasks.firstOrNull { it.id == taskId }
+            ?: error("任务不存在：$taskId")
+
+        if (completed) {
+            require(task.status != "RUNNING") { "施工中的任务不能直接标记完成，请先暂停或完成施工" }
+            task.completed = true
+            task.status = "COMPLETED"
+            if (project.taskState.activeTaskId == taskId) {
+                project.taskState = BridgeTaskExecutionState()
+                releaseLock(project)
+            }
+        } else {
+            task.completed = false
+            task.status = "PENDING"
+            if (project.taskState.activeTaskId == taskId) {
+                project.taskState = BridgeTaskExecutionState()
+                releaseLock(project)
+            }
+        }
+
+        store.saveProject(project)
+        return project
+    }
+
     fun pause(projectId: String): BridgeProject {
         val project = requireProject(projectId)
         project.taskState.status = "WAITING"
