@@ -69,10 +69,6 @@ class BridgeProjectStore(private val context: Context) {
                             title = task.optString("title", "未命名任务"),
                             completed = task.optBoolean("completed", false),
                             status = task.optString("status", "PENDING"),
-                            continuationCount = task.optInt("continuationCount", 0),
-                            maxContinuations = task.optInt("maxContinuations", 10).coerceIn(0, 50),
-                            lastReceiptId = task.optString("lastReceiptId", "").ifBlank { null },
-                            lastResult = task.optString("lastResult", "").ifBlank { null }
                         )
                     }
                 }
@@ -125,8 +121,6 @@ class BridgeProjectStore(private val context: Context) {
 
     private fun normalizeState(project: BridgeProject) {
         project.tasks.forEach { task ->
-            task.maxContinuations = task.maxContinuations.coerceIn(0, 50)
-            task.continuationCount = task.continuationCount.coerceAtLeast(0)
             task.status = when {
                 task.completed -> "COMPLETED"
                 task.status == "COMPLETED" -> "PENDING"
@@ -190,10 +184,6 @@ class BridgeProjectStore(private val context: Context) {
                             .put("title", it.title)
                             .put("completed", it.completed)
                             .put("status", it.status)
-                            .put("continuationCount", it.continuationCount)
-                            .put("maxContinuations", it.maxContinuations)
-                            .put("lastReceiptId", it.lastReceiptId.orEmpty())
-                            .put("lastResult", it.lastResult.orEmpty())
                     )
                 }
             })
