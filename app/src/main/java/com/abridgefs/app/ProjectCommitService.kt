@@ -17,6 +17,23 @@ class ProjectCommitService(
     )
 
     fun commit(localFile: File, relativePath: String, message: String): Result {
+        val activeTaskId = project.taskState.activeTaskId
+        val activeTask = activeTaskId?.let { id ->
+            project.tasks.firstOrNull { it.id == id }
+        }
+        check(
+            activeTask != null &&
+                !activeTask.completed &&
+                activeTask.status == "RUNNING" &&
+                project.taskState.status == "RUNNING"
+        ) {
+            "当前 Project 没有处于 RUNNING 状态的施工 Task，禁止 Commit"
+        }
+
+        check(project.aiMembers.any { it.id == aiMemberId }) {
+            "当前 AI Member 不属于该 Project，禁止 Commit"
+        }
+
         val token = GitHubTokenStore(context).state().accessToken.orEmpty()
         val github = ProjectGitHubService(
             context,
@@ -32,7 +49,10 @@ class ProjectCommitService(
         val commitLine = if (sha.isBlank()) "已创建" else sha
         return Result(
             commitSha = sha,
-            receipt = "[Tool: Commit] $relativePath\n  ✓ 已提交到 GitHub\n  ✓ Commit: $commitLine\n$verifyLine"
+            receipt = "[Tool: Commit] $relativePath
+  ✓ 已提交到 GitHub
+  ✓ Commit: $commitLine
+$verifyLine"
         )
     }
 }
