@@ -37,7 +37,6 @@ class ProjectConversationService(private val context: Context) {
                 project.tasks.firstOrNull { it.id == taskId }?.let { task ->
                     append("\n当前施工任务：").append(task.title)
                     append("\n任务状态：").append(task.status)
-                    append("\nContinuation：").append(project.taskState.continuationCount).append("/").append(project.taskState.maxContinuations)
                 }
             }
         }
