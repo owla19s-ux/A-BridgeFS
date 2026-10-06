@@ -37,7 +37,15 @@ class BridgeProjectStore(private val context: Context) {
                         writeEnabled = obj.optBoolean("githubWriteEnabled", false)
                     ),
                     activeConversationId = obj.optString("activeConversationId", "").ifBlank { null },
-                    defaultMemberId = obj.optString("defaultMemberId", "").ifBlank { null }
+                    defaultMemberId = obj.optString("defaultMemberId", "").ifBlank { null },
+                    taskState = BridgeTaskExecutionState(
+                        activeTaskId = obj.optString("activeTaskId", "").ifBlank { null },
+                        status = obj.optString("taskStateStatus", "IDLE"),
+                        continuationCount = obj.optInt("taskContinuationCount", 0),
+                        maxContinuations = obj.optInt("taskMaxContinuations", 10).coerceIn(0, 50),
+                        lastReceiptId = obj.optString("taskLastReceiptId", "").ifBlank { null },
+                        lastResult = obj.optString("taskLastResult", "").ifBlank { null }
+                    )
                 )
 
                 obj.optJSONArray("aiMembers")?.let { members ->
@@ -59,7 +67,12 @@ class BridgeProjectStore(private val context: Context) {
                         project.tasks += BridgeProjectTask(
                             id = task.getString("id"),
                             title = task.optString("title", "未命名任务"),
-                            completed = task.optBoolean("completed", false)
+                            completed = task.optBoolean("completed", false),
+                            status = task.optString("status", "PENDING"),
+                            continuationCount = task.optInt("continuationCount", 0),
+                            maxContinuations = task.optInt("maxContinuations", 10).coerceIn(0, 50),
+                            lastReceiptId = task.optString("lastReceiptId", "").ifBlank { null },
+                            lastResult = task.optString("lastResult", "").ifBlank { null }
                         )
                     }
                 }
@@ -120,6 +133,12 @@ class BridgeProjectStore(private val context: Context) {
                 .put("localAddress", project.localAddress.orEmpty())
                 .put("activeConversationId", project.activeConversationId.orEmpty())
                 .put("defaultMemberId", project.defaultMemberId.orEmpty())
+                .put("activeTaskId", project.taskState.activeTaskId.orEmpty())
+                .put("taskStateStatus", project.taskState.status)
+                .put("taskContinuationCount", project.taskState.continuationCount)
+                .put("taskMaxContinuations", project.taskState.maxContinuations)
+                .put("taskLastReceiptId", project.taskState.lastReceiptId.orEmpty())
+                .put("taskLastResult", project.taskState.lastResult.orEmpty())
                 .put("githubAccount", project.githubAddress.accountLogin.orEmpty())
                 .put("githubRepositoryId", project.githubAddress.repositoryId?.toString().orEmpty())
                 .put("githubRepository", project.githubAddress.repository.orEmpty())
@@ -131,7 +150,19 @@ class BridgeProjectStore(private val context: Context) {
                 project.aiMembers.forEach { put(JSONObject().put("id", it.id).put("name", it.name).put("apiProfileId", it.apiProfileId.orEmpty())) }
             })
             obj.put("tasks", JSONArray().apply {
-                project.tasks.forEach { put(JSONObject().put("id", it.id).put("title", it.title).put("completed", it.completed)) }
+                project.tasks.forEach {
+                    put(
+                        JSONObject()
+                            .put("id", it.id)
+                            .put("title", it.title)
+                            .put("completed", it.completed)
+                            .put("status", it.status)
+                            .put("continuationCount", it.continuationCount)
+                            .put("maxContinuations", it.maxContinuations)
+                            .put("lastReceiptId", it.lastReceiptId.orEmpty())
+                            .put("lastResult", it.lastResult.orEmpty())
+                    )
+                }
             })
             obj.put("conversations", JSONArray().apply {
                 project.conversations.forEach { conversation ->
