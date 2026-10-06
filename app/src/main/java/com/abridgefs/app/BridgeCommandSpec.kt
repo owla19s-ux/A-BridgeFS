@@ -19,6 +19,7 @@ object BridgeCommandSpec {
 [path: 相对路径]
 [copy-path: 相对路径]
 [mkdir: 相对路径]
+[commit: 相对路径 | 提交信息]
 [/bridgefs]"""
 
     const val documentation = """A-BridgeFS / BridgeFS 指令规范 V0.1
