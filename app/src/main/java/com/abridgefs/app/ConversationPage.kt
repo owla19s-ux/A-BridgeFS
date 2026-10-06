@@ -6,13 +6,14 @@ import android.view.*
 internal fun ApsActivity.conversationPage() {
     val project = currentProject
     val conversation = activeStandaloneConversation()
+    val constructionEnabled = AccessPolicy.isStandaloneConstructionEnabled(this)
     val content = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         setPadding(dp(14), dp(10), dp(14), dp(10))
     }
 
     content.addView(title("对话"))
-    content.addView(value("独立对话 · 只读访问当前 Project 信息"))
+    content.addView(value(if (constructionEnabled) "独立对话 · 可施工当前 Project" else "独立对话 · 只读访问当前 Project 信息"))
 
     content.addView(section("会话 · " + (conversation?.name ?: "未选择"), conversationManagementOpen) {
         conversationManagementOpen = !conversationManagementOpen
@@ -41,7 +42,7 @@ internal fun ApsActivity.conversationPage() {
                     toast("默认会话不能删除")
                     return@secondaryButton
                 }
-                standaloneConversations.removeAll { it.id == conversation?.id }
+                standaloneConversations.removeAll { it.id != conversation?.id }
                 currentStandaloneConversationId = standaloneConversations.firstOrNull()?.id
                 standaloneConversationStore.save(standaloneConversations)
                 conversationManagementOpen = false
@@ -70,7 +71,7 @@ internal fun ApsActivity.conversationPage() {
         })
     }
 
-    content.addView(section("Project Address · 只读", projectAccessOpen) {
+    content.addView(section("Project Address · " + if (constructionEnabled) "可施工" else "只读", projectAccessOpen) {
         projectAccessOpen = !projectAccessOpen
         render()
     })
@@ -80,7 +81,12 @@ internal fun ApsActivity.conversationPage() {
             addView(value(project?.name ?: "未选择"))
             addView(value("Local：" + (project?.localAddress ?: "未设置")))
             addView(value("GitHub：" + (project?.githubAddress?.repository ?: "未设置")))
-            addView(value("这里只读，不继承 Project 施工权限。"))
+            addView(value(if (constructionEnabled) "普通对话施工已开启。" else "普通对话施工默认关闭。"))
+            addView(settingSwitch("允许普通对话施工", constructionEnabled) {
+                AccessPolicy.setStandaloneConstructionEnabled(this@conversationPage, it)
+                render()
+            })
+            addView(value("开启后，普通对话可以在用户明确要求时进入当前 Project 的施工链；仍受 Task、Project 写权限、权限策略和 ConstructionLock 限制。"))
         })
     }
 
