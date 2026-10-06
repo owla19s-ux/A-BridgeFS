@@ -39,13 +39,15 @@ internal fun ApsActivity.projectPage() {
                 hint = "项目名称"
                 maxLines = 1
                 setText(project.name)
-                setOnEditorActionListener { _, _, _ ->
-                    project.name = text.toString().trim().ifBlank { "默认项目" }
-                    projectStore.save(projects)
-                    render()
-                    true
-                }
+                tag = "projectNameInput"
             })
+            addView(primaryButton("保存项目名称") {
+                val nameInput = (getChildAt(1) as? EditText) ?: return@primaryButton
+                project.name = nameInput.text.toString().trim().ifBlank { "默认项目" }
+                projectStore.save(projects)
+                toast("项目名称已保存")
+                render()
+            }, LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(6) })
             addView(secondaryButton("配置 Project Address") { showProjectAddressDialog(project) },
                 LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(6) })
             addView(label("Default API"))
@@ -101,7 +103,6 @@ internal fun ApsActivity.projectPage() {
                 ) {
                     project.activeConversationId = item.id
                     projectStore.save(projects)
-                    page = 1
                     render()
                 }, LinearLayout.LayoutParams(-1, dp(46)).apply { bottomMargin = dp(5) })
             }
