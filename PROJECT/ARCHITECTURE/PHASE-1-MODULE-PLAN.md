@@ -50,30 +50,13 @@ Project 模块至少满足：
 
 ## 本轮继续收口
 
-- 新增 `ProjectConfigurationService`，统一 Project 名称、Project Address、Default API 的业务修改入口。
-- `ProjectPage` 不再直接承担上述配置状态的持久化修改。
-- `ProjectTaskStateService` 已移除 ConstructionLock 操作，避免 Project 状态层反向依赖 Execution/Integration。
-- `ProjectContinuationCoordinator` 暂留 Integration 实验区，不在 Project 模块继续扩展。
+- ProjectConfigurationService 统一 Project 配置修改入口。
+- ProjectConversationSelectionService 统一 Project Conversation 选择。
+- ProjectTaskStateService 统一 Task lifecycle。
+- ConstructionLock 生命周期已绑定 Task，不再由旧 continuation 机制驱动。
 
+## 当前收口判断
 
-## 当前收口进度
+Project / Conversation / Execution / GitHub / UI 的职责边界已基本形成。
 
-- `BridgeProjectTask` 已收窄为 Project Task 业务状态，不再保存 continuation / receipt runtime 字段。
-- `BridgeProjectStore` 已不再持久化 Task 内部 continuation / receipt 字段；continuation 运行态保留在 Integration 的 `BridgeTaskExecutionState`。
-- `ProjectTaskStateService.start()` 不再接收 continuation policy，避免 Project Task 生命周期反向承担 Integration 策略。
-- `ProjectContinuationCoordinator` 仅负责 receipt → execution continuation，不再写入 Task 的 receipt/runtime 字段。
-- 当前仍保留 `BridgeProject.taskState` 作为 Project 与 Integration 之间的临时边界；在 Integration 阶段再决定是否进一步外置，当前不继续拆。
-
-## Project 收口补充
-
-- `BridgeProjectStore.normalizeState()` 现在会将未知 Task status 归一为 `PENDING`，避免旧数据或异常数据进入未定义状态。
-- Project Task 的业务状态与 continuation runtime 已保持分离；runtime 仍暂存在 Project 的 `taskState` 边界，Integration 阶段再决定是否完全外置。
-- Project Task 生命周期入口已增加 start / pause / complete 的前置条件检查。
-
-
-## Project 收口补充 2
-
-- Task 状态归一化已保留 FAILED，避免执行失败在重新加载 Project 后被错误恢复为 PENDING。
-- BridgeTaskExecutionState 与 Task 状态映射已明确：FAILED → Task FAILED；LIMIT_REACHED / WAITING → Task WAITING；COMPLETED 会完成 Task 并清空 runtime。
-- Project Store 加载 continuation count 时会将负值归一为 0，旧数据缺失字段继续使用兼容默认值。
-- Project 对话选择已增加独立的 ProjectConversationSelectionService；页面通过服务修改 active conversation。
+下一阶段不是继续扩大模块重建，而是主链 Integration、正式构建与真机验证。发现明确硬问题才继续修改。
