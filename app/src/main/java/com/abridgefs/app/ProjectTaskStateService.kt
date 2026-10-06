@@ -18,10 +18,11 @@ class ProjectTaskStateService(private val context: Context) {
         project.tasks.forEach {
             if (it.id != taskId && it.status == "RUNNING") it.status = "WAITING"
         }
+        task.completed = false
         task.status = "RUNNING"
         project.taskState = BridgeTaskExecutionState(
             activeTaskId = taskId,
-            status = "RUNNING",
+            status = "RUNNING"
         )
         store.saveProject(project)
         return project
@@ -53,6 +54,8 @@ class ProjectTaskStateService(private val context: Context) {
 
     fun pause(projectId: String): BridgeProject {
         val project = requireProject(projectId)
+        require(project.taskState.activeTaskId != null) { "当前没有施工中的任务" }
+        require(project.taskState.status == "RUNNING") { "当前任务不处于施工状态" }
         project.taskState.status = "WAITING"
         project.taskState.activeTaskId?.let { id ->
             project.tasks.firstOrNull { it.id == id }?.let {
