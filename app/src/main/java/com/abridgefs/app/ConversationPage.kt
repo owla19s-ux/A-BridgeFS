@@ -90,6 +90,29 @@ internal fun ApsActivity.conversationPage() {
         })
     }
 
+    if (conversation != null && conversation.executions.isNotEmpty()) {
+        content.addView(section("施工回执 · " + conversation.executions.size, projectHistoryOpen) {
+            projectHistoryOpen = !projectHistoryOpen
+            render()
+        }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
+        if (projectHistoryOpen) {
+            content.addView(card().apply {
+                conversation.executions.asReversed().forEach { receipt ->
+                    val statusLabel = when (receipt.status) {
+                        "SUCCEEDED" -> "✓ 成功"
+                        "FAILED" -> "✗ 失败"
+                        "DENIED" -> "⊘ 拒绝"
+                        else -> receipt.status.ifBlank { "未知" }
+                    }
+                    addView(label(statusLabel))
+                    addView(value(receipt.command))
+                    addView(value(receipt.message))
+                    addView(value(java.text.SimpleDateFormat("MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(receipt.time))))
+                    addView(value("Receipt: " + receipt.receiptId))
+                }
+            })
+        }
+    }
     content.addView(card().apply {
         addView(label("消息"))
         if (conversation == null || conversation.messages.isEmpty()) {
