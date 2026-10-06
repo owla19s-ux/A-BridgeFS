@@ -81,7 +81,13 @@ class SettingsCategoryActivity : Activity() {
             hint = "1–20"
         }
         box.addView(limit, fieldParams())
-        val labels = mapOf(\n    FileAction.LIST to "查看目录",\n    FileAction.READ to "读取文件",\n    FileAction.WRITE to "创建/写入文件",\n    FileAction.EDIT to "修改文件",\n    FileAction.COMMIT to "提交到 GitHub"\n)
+        val labels = mapOf(
+    FileAction.LIST to "查看目录",
+    FileAction.READ to "读取文件",
+    FileAction.WRITE to "创建/写入文件",
+    FileAction.EDIT to "修改文件",
+    FileAction.COMMIT to "提交到 GitHub"
+)
         FileAction.values().forEachIndexed { index, action ->
             val row = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
             row.addView(TextView(this@SettingsCategoryActivity).apply {
