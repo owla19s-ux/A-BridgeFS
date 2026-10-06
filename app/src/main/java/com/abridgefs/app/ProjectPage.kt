@@ -58,8 +58,11 @@ internal fun ApsActivity.projectPage() {
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
     }
 
-    content.addView(section("待处理任务", true) {}, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(8) })
-    if (project != null) {
+    content.addView(section("待处理任务", projectTasksOpen) {
+        projectTasksOpen = !projectTasksOpen
+        render()
+    }, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(8) })
+    if (projectTasksOpen && project != null) {
         content.addView(card().apply {
             val activeTaskId = project.taskState.activeTaskId
             addView(value(
@@ -137,8 +140,11 @@ internal fun ApsActivity.projectPage() {
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
     }
 
-    content.addView(section("项目内历史对话", true) {}, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(8) })
-    content.addView(card().apply {
+    content.addView(section("项目内历史对话", projectHistoryOpen) {
+        projectHistoryOpen = !projectHistoryOpen
+        render()
+    }, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(8) })
+    if (projectHistoryOpen) content.addView(card().apply {
         if (project == null || project.conversations.isEmpty()) {
             addView(value("当前没有项目对话。"))
         } else {
@@ -163,7 +169,7 @@ internal fun ApsActivity.projectPage() {
         addView(content)
     }, LinearLayout.LayoutParams(-1, 0, 1f))
 
-    if (displayOpen) inputBar("输入工作目标……")
+    inputBar("输入工作目标……")
 }
 
 private fun ApsActivity.showProjectAddressDialog(project: BridgeProject) {
