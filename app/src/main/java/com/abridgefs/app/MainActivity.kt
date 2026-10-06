@@ -204,16 +204,6 @@ class MainActivity : Activity() {
 
     private fun processPendingReceipt(receipt: org.json.JSONObject) {
         runCatching {
-            ProjectContinuationCoordinator.onReceipt(
-                context = this,
-                projectId = receipt.optString("projectId").ifBlank { null },
-                conversationId = receipt.optString("conversationId").ifBlank { null },
-                receiptId = receipt.optString("receiptId").ifBlank { null },
-                status = receipt.optString("status", "UNKNOWN"),
-                command = receipt.optString("command", ""),
-                message = receipt.optString("message", ""),
-                time = receipt.optLong("time", System.currentTimeMillis())
-            )
 
             val displayReceipt = BridgeReceiptRecord(
                 receipt.optString("status", "UNKNOWN"),
