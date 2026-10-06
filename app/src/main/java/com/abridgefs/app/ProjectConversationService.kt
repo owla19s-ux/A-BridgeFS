@@ -53,7 +53,8 @@ class ProjectConversationService(private val context: Context) {
             project.aiMembers.firstOrNull { it.id == id }
         } ?: project.aiMembers.firstOrNull()
 
-        val profile = member?.apiProfileId?.let { id -> apiProfiles.find(id) }
+        val profile = conversation.apiId?.let { id -> apiProfiles.find(id) }
+            ?: member?.apiProfileId?.let { id -> apiProfiles.find(id) }
             ?: return Result(error = "当前 Project 尚未配置默认 AI")
 
         val address = project.localAddress?.trim().orEmpty()
