@@ -7,6 +7,9 @@ package com.abridgefs.app
 class ProjectVerifyService(
     private val github: ProjectGitHubService
 ) {
+    companion object {
+        private const val TARGET_WORKFLOW_NAME = "Android Tests"
+    }
     data class Result(
         val commitSha: String,
         val runId: Long? = null,
@@ -28,8 +31,14 @@ class ProjectVerifyService(
         if (runs == null || runs.length() == 0) {
             return Result(commitSha, state = Result.State.NOT_TRIGGERED)
         }
-        val run = runs.optJSONObject(0)
-        val runId = run?.optLong("id")?.takeIf { it > 0L }
+        val run = (0 until runs.length())
+            .asSequence()
+            .mapNotNull { runs.optJSONObject(it) }
+            .firstOrNull { it.optString("name") == TARGET_WORKFLOW_NAME }
+        if (run == null) {
+            return Result(commitSha, state = Result.State.NOT_TRIGGERED)
+        }
+        val runId = run.optLong("id").takeIf { it > 0L }
         val status = run?.optString("status")?.takeIf { it.isNotBlank() && it != "null" }
         val conclusion = run?.optString("conclusion")?.takeIf { it.isNotBlank() && it != "null" }
         val state = when {
