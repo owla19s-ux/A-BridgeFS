@@ -46,3 +46,11 @@ Project 模块至少满足：
 - 不依赖完整 AI → Execution → GitHub 链路即可独立验证。
 
 之后再进入 Conversation 模块.
+
+
+## 本轮继续收口
+
+- 新增 `ProjectConfigurationService`，统一 Project 名称、Project Address、Default API 的业务修改入口。
+- `ProjectPage` 不再直接承担上述配置状态的持久化修改。
+- `ProjectTaskStateService` 已移除 ConstructionLock 操作，避免 Project 状态层反向依赖 Execution/Integration。
+- `ProjectContinuationCoordinator` 暂留 Integration 实验区，不在 Project 模块继续扩展。
