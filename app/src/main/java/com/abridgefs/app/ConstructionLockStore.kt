@@ -86,7 +86,7 @@ class ConstructionLockStore(private val context: android.content.Context) {
     private fun identity(project: BridgeProject, repository: String?, branch: String?): Pair<String, String>? {
         val repo = repository?.trim().orEmpty().ifBlank { project.github.repository?.trim().orEmpty().ifBlank { "LOCAL" } }
         val ref = branch?.trim().orEmpty().ifBlank {
-            project.github.branch?.trim().orEmpty().ifBlank { project.localAddress.trim().ifBlank { "PROJECT" } }
+            project.github.branch?.trim().orEmpty().ifBlank { project.localAddress?.trim().orEmpty().ifBlank { "PROJECT" } }
         }
         if (repo.isBlank() || ref.isBlank()) return null
         return repo to ref
