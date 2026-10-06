@@ -1,7 +1,6 @@
 package com.abridgefs.app
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -9,11 +8,10 @@ class CommandParserTest {
 
     @Test
     fun parse_list_command() {
-        val result = CommandParser.parse("[list: .]")
+        val result = CommandParser.parse("[list]")
 
         assertTrue(result.error.isNullOrBlank())
-        assertEquals(1, result.commands.size)
-        assertNotNull(result.commands.first())
+        assertEquals(listOf(Command.ListTree), result.commands)
     }
 
     @Test
@@ -21,15 +19,36 @@ class CommandParserTest {
         val result = CommandParser.parse("[commit: README.md | 测试提交]")
 
         assertTrue(result.error.isNullOrBlank())
-        assertEquals(1, result.commands.size)
-        val command = result.commands.first()
-        assertTrue(command.toString().contains("README.md"))
+        assertEquals(
+            listOf(Command.Commit("README.md", "测试提交")),
+            result.commands
+        )
     }
 
     @Test
-    fun reject_invalid_command() {
+    fun parse_edit_command() {
+        val result = CommandParser.parse("[edit: README.md]旧内容====新内容[/edit]")
+
+        assertTrue(result.error.isNullOrBlank())
+        assertEquals(
+            listOf(Command.Edit("README.md", "旧内容", "新内容")),
+            result.commands
+        )
+    }
+
+    @Test
+    fun reject_unknown_command() {
         val result = CommandParser.parse("[unknown: test]")
 
-        assertTrue(result.error != null || result.commands.isEmpty())
+        assertTrue(result.commands.isEmpty())
+        assertTrue(result.error != null)
+    }
+
+    @Test
+    fun reject_unclosed_write_command() {
+        val result = CommandParser.parse("[write: README.md]内容")
+
+        assertTrue(result.commands.isEmpty())
+        assertEquals("write 指令缺少 [/write] 结束标记，未写入文件", result.error)
     }
 }
