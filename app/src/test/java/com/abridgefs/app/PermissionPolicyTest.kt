@@ -6,7 +6,7 @@ import org.junit.Test
 class PermissionPolicyTest {
 
     @Test
-    fun read_is_allowed_by_default() {
+    fun read_is_allowed_when_action_is_allowed() {
         val authorization = Authorization(
             root = "/tmp/project",
             allowed = setOf(FileAction.LIST, FileAction.READ),
@@ -28,7 +28,7 @@ class PermissionPolicyTest {
     }
 
     @Test
-    fun commit_is_denied_when_not_allowed() {
+    fun commit_is_denied_when_action_is_not_allowed() {
         val authorization = Authorization(
             root = "/tmp/project",
             allowed = setOf(FileAction.LIST, FileAction.READ),
@@ -36,5 +36,16 @@ class PermissionPolicyTest {
         )
 
         assertEquals(Decision.DENY, authorization.decide(FileAction.COMMIT))
+    }
+
+    @Test
+    fun confirm_takes_priority_over_allow() {
+        val authorization = Authorization(
+            root = "/tmp/project",
+            allowed = setOf(FileAction.READ),
+            confirm = setOf(FileAction.READ)
+        )
+
+        assertEquals(Decision.CONFIRM, authorization.decide(FileAction.READ))
     }
 }
