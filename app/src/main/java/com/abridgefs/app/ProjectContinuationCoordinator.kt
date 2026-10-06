@@ -62,8 +62,6 @@ object ProjectContinuationCoordinator {
 
             if (status != "SUCCEEDED") {
                 task.status = "FAILED"
-                task.lastReceiptId = actualReceiptId
-                task.lastResult = message
                 project.taskState.status = "FAILED"
                 releaseLock(context, project)
                 store.saveProject(project)
@@ -89,8 +87,6 @@ object ProjectContinuationCoordinator {
             project.taskState.status = "RUNNING"
             project.taskState.continuationCount += 1
             task.status = "RUNNING"
-            task.lastReceiptId = actualReceiptId
-            task.lastResult = message
 
             val receiptPrompt = buildString {
                 append("[APS Execution Receipt]\n")
@@ -122,7 +118,7 @@ object ProjectContinuationCoordinator {
             when {
                 result.error != null -> {
                     task.status = "FAILED"
-                    task.lastResult = result.error
+                    project.taskState.lastResult = result.error
                     project.taskState.status = "FAILED"
                     releaseLock(context, project)
                 }
