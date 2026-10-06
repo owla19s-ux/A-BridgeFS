@@ -84,6 +84,7 @@ object ProjectContinuationCoordinator {
                 task.status = "WAITING"
                 project.taskState.status = "LIMIT_REACHED"
                 releaseLock(context, project)
+                store.saveProject(project)
                 return
             }
 
@@ -95,17 +96,11 @@ object ProjectContinuationCoordinator {
             task.lastResult = message
 
             val receiptPrompt = buildString {
-                append("[APS Execution Receipt]
-")
-                append("status: ").append(status).append('
-')
-                append("command: ").append(command).append('
-')
-                append("result:
-").append(message).append('
-')
-                append("当前任务：").append(task.title).append('
-')
+                append("[APS Execution Receipt]\n")
+                append("status: ").append(status).append('\n')
+                append("command: ").append(command).append('\n')
+                append("result:\n").append(message).append('\n')
+                append("当前任务：").append(task.title).append('\n')
                 append("这是上一轮真实执行结果。请基于结果判断下一步；如果任务尚未完成，继续输出下一轮 [bridgefs] 指令；不要声称尚未执行的操作已经完成。")
             }
 
