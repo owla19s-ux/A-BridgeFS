@@ -56,6 +56,29 @@ class BridgeProjectStore(private val context: Context) {
                     }
                 }
 
+                obj.optJSONArray("verifyRecords")?.let { records ->
+                    for (j in 0 until records.length()) {
+                        val record = records.getJSONObject(j)
+                        if (!record.has("commitSha")) continue
+                        project.verifyRecords += BridgeVerifyRecord(
+                            commitSha = record.optString("commitSha"),
+                            runId = record.optLong("runId", 0L).takeIf { it > 0L },
+                            status = record.optString("status", "").ifBlank { null },
+                            conclusion = record.optString("conclusion", "").ifBlank { null },
+                            jobCount = record.optInt("jobCount", 0),
+                            failedJobCount = record.optInt("failedJobCount", 0),
+                            artifactCount = record.optInt("artifactCount", 0),
+                            artifactNames = buildList {
+                                record.optJSONArray("artifactNames")?.let { names ->
+                                    for (k in 0 until names.length()) add(names.optString(k))
+                                }
+                            },
+                            state = record.optString("state", "NOT_QUERIED"),
+                            time = record.optLong("time", System.currentTimeMillis())
+                        )
+                    }
+                }
+
                 obj.optJSONArray("tasks")?.let { tasks ->
                     for (j in 0 until tasks.length()) {
                         val task = tasks.getJSONObject(j)
@@ -178,6 +201,21 @@ class BridgeProjectStore(private val context: Context) {
 
             obj.put("aiMembers", JSONArray().apply {
                 project.aiMembers.forEach { put(JSONObject().put("id", it.id).put("name", it.name).put("apiProfileId", it.apiProfileId.orEmpty())) }
+            })
+            obj.put("verifyRecords", JSONArray().apply {
+                project.verifyRecords.forEach {
+                    put(JSONObject()
+                        .put("commitSha", it.commitSha)
+                        .put("runId", it.runId ?: 0L)
+                        .put("status", it.status.orEmpty())
+                        .put("conclusion", it.conclusion.orEmpty())
+                        .put("jobCount", it.jobCount)
+                        .put("failedJobCount", it.failedJobCount)
+                        .put("artifactCount", it.artifactCount)
+                        .put("artifactNames", JSONArray(it.artifactNames))
+                        .put("state", it.state)
+                        .put("time", it.time))
+                }
             })
             obj.put("tasks", JSONArray().apply {
                 project.tasks.forEach {
