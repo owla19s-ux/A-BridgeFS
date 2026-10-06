@@ -168,20 +168,29 @@ class ApsActivity : Activity() {
 
     private fun recoverPendingReceipts() {
         val prefs = getSharedPreferences("bridgefs", Context.MODE_PRIVATE)
-        val queue = org.json.JSONArray(prefs.getString("pending_receipts", "[]") ?: "[]")
+        val raw = prefs.getString("pending_receipts", "[]") ?: "[]"
+        val queue = runCatching { org.json.JSONArray(raw) }.getOrElse {
+            AppLogger.log(this, "PENDING_RECEIPTS_LOAD_FAILED", "invalid receipt JSON: " + (it.message ?: "unknown"))
+            prefs.edit().remove("pending_receipts").apply()
+            return
+        }
         for (i in 0 until queue.length()) {
-            val item = queue.optJSONObject(i) ?: continue
-            val intent = Intent("com.bridgefs.RESULT").apply {
-                putExtra("receiptId", item.optString("receiptId"))
-                putExtra("status", item.optString("status"))
-                putExtra("command", item.optString("command"))
-                putExtra("message", item.optString("message"))
-                putExtra("projectId", item.optString("projectId"))
-                putExtra("conversationId", item.optString("conversationId"))
-                putExtra("standaloneConversationId", item.optString("standaloneConversationId"))
-                putExtra("time", item.optLong("time", System.currentTimeMillis()))
+            runCatching {
+                val item = queue.optJSONObject(i) ?: return@runCatching
+                val intent = Intent("com.bridgefs.RESULT").apply {
+                    putExtra("receiptId", item.optString("receiptId"))
+                    putExtra("status", item.optString("status"))
+                    putExtra("command", item.optString("command"))
+                    putExtra("message", item.optString("message"))
+                    putExtra("projectId", item.optString("projectId"))
+                    putExtra("conversationId", item.optString("conversationId"))
+                    putExtra("standaloneConversationId", item.optString("standaloneConversationId"))
+                    putExtra("time", item.optLong("time", System.currentTimeMillis()))
+                }
+                receiptReceiver.onReceive(this, intent)
+            }.onFailure {
+                AppLogger.log(this, "PENDING_RECEIPT_RECOVERY_FAILED", "index=$i error=" + it::class.simpleName + ": " + (it.message ?: "unknown"))
             }
-            receiptReceiver.onReceive(this, intent)
         }
     }
 
