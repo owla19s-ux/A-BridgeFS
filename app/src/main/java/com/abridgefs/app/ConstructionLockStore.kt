@@ -28,7 +28,7 @@ class ConstructionLockStore(private val context: android.content.Context) {
         require(aiMemberId.isNotBlank()) { "AI Member 未指定" }
         val repo = project.github.repository?.trim().orEmpty().ifBlank { "LOCAL" }
         val branch = project.github.branch?.trim().orEmpty().ifBlank {
-            project.localAddress.trim().ifBlank { "PROJECT" }
+            project.localAddress?.trim().orEmpty().ifBlank { "PROJECT" }
         }
         require(aiMemberId in project.aiMembers.map { it.id }) { "AI Member 不属于当前项目" }
 
