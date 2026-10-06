@@ -16,75 +16,81 @@ class BridgeProjectStore(private val context: Context) {
             return mutableListOf()
         }
         val result = mutableListOf<BridgeProject>()
+
         for (i in 0 until array.length()) {
             val project = runCatching {
                 val obj = array.getJSONObject(i)
-                BridgeProject(
-                id = obj.getString("id"),
-                name = obj.getString("name"),
-                localFileModifyEnabled = obj.optBoolean("localFileModifyEnabled", false),
-                localAddress = obj.optString("localAddress", "").ifBlank { obj.optString("workspaceDirectory", "") }.takeIf { it.isNotBlank() },
-                githubAddress = ProjectGitHubAddress(
-                    accountLogin = obj.optString("githubAccount", "").ifBlank { obj.optString("githubAccountLogin", "").ifBlank { null } },
-                    repositoryId = obj.optString("githubRepositoryId", "").toLongOrNull(),
-                    repository = obj.optString("githubRepository", "").ifBlank { null },
-                    branch = obj.optString("githubBranch", "").ifBlank { null },
-                    readEnabled = obj.optBoolean("githubReadEnabled", true),
-                    writeEnabled = obj.optBoolean("githubWriteEnabled", false)
-                ),
-                activeConversationId = obj.optString("activeConversationId", "").ifBlank { null },
-                defaultMemberId = obj.optString("defaultMemberId", "").ifBlank { null }
-            )
-
-            obj.optJSONArray("aiMembers")?.let { members ->
-                for (j in 0 until members.length()) {
-                    val member = members.getJSONObject(j)
-                    if (!member.has("id")) continue
-                    project.aiMembers += BridgeAiMember(
-                        id = member.getString("id"),
-                        name = member.optString("name", "AI"),
-                        apiProfileId = member.optString("apiProfileId", "").ifBlank { null }
-                    )
-                }
-            }
-
-            obj.optJSONArray("tasks")?.let { tasks ->
-                for (j in 0 until tasks.length()) {
-                    val task = tasks.getJSONObject(j)
-                    if (!task.has("id")) continue
-                    project.tasks += BridgeProjectTask(
-                        id = task.getString("id"),
-                        title = task.optString("title", "未命名任务"),
-                        completed = task.optBoolean("completed", false)
-                    )
-                }
-            }
-
-            obj.optJSONArray("conversations")?.let { conversations ->
-                for (j in 0 until conversations.length()) {
-                    val conversation = conversations.getJSONObject(j)
-                    if (!conversation.has("id")) continue
-                    project.conversations += readConversation(conversation)
-                }
-            }
-
-            if (project.conversations.isEmpty()) {
-                val legacy = BridgeConversation(
-                    id = UUID.randomUUID().toString(),
-                    name = "默认对话",
-                    apiId = obj.optString("apiId", "").ifBlank { null }
+                val project = BridgeProject(
+                    id = obj.getString("id"),
+                    name = obj.getString("name"),
+                    localFileModifyEnabled = obj.optBoolean("localFileModifyEnabled", false),
+                    localAddress = obj.optString("localAddress", "")
+                        .ifBlank { obj.optString("workspaceDirectory", "") }
+                        .takeIf { it.isNotBlank() },
+                    githubAddress = ProjectGitHubAddress(
+                        accountLogin = obj.optString("githubAccount", "")
+                            .ifBlank { obj.optString("githubAccountLogin", "").ifBlank { null } },
+                        repositoryId = obj.optString("githubRepositoryId", "").toLongOrNull(),
+                        repository = obj.optString("githubRepository", "").ifBlank { null },
+                        branch = obj.optString("githubBranch", "").ifBlank { null },
+                        readEnabled = obj.optBoolean("githubReadEnabled", true),
+                        writeEnabled = obj.optBoolean("githubWriteEnabled", false)
+                    ),
+                    activeConversationId = obj.optString("activeConversationId", "").ifBlank { null },
+                    defaultMemberId = obj.optString("defaultMemberId", "").ifBlank { null }
                 )
-                readMessages(obj.optJSONArray("messages"), legacy.messages)
-                readExecutions(obj.optJSONArray("executions"), legacy.executions)
-                project.conversations += legacy
-                project.activeConversationId = legacy.id
-            }
+
+                obj.optJSONArray("aiMembers")?.let { members ->
+                    for (j in 0 until members.length()) {
+                        val member = members.getJSONObject(j)
+                        if (!member.has("id")) continue
+                        project.aiMembers += BridgeAiMember(
+                            id = member.getString("id"),
+                            name = member.optString("name", "AI"),
+                            apiProfileId = member.optString("apiProfileId", "").ifBlank { null }
+                        )
+                    }
+                }
+
+                obj.optJSONArray("tasks")?.let { tasks ->
+                    for (j in 0 until tasks.length()) {
+                        val task = tasks.getJSONObject(j)
+                        if (!task.has("id")) continue
+                        project.tasks += BridgeProjectTask(
+                            id = task.getString("id"),
+                            title = task.optString("title", "未命名任务"),
+                            completed = task.optBoolean("completed", false)
+                        )
+                    }
+                }
+
+                obj.optJSONArray("conversations")?.let { conversations ->
+                    for (j in 0 until conversations.length()) {
+                        val conversation = conversations.getJSONObject(j)
+                        if (!conversation.has("id")) continue
+                        project.conversations += readConversation(conversation)
+                    }
+                }
+
+                if (project.conversations.isEmpty()) {
+                    val legacy = BridgeConversation(
+                        id = UUID.randomUUID().toString(),
+                        name = "默认对话",
+                        apiId = obj.optString("apiId", "").ifBlank { null }
+                    )
+                    readMessages(obj.optJSONArray("messages"), legacy.messages)
+                    readExecutions(obj.optJSONArray("executions"), legacy.executions)
+                    project.conversations += legacy
+                    project.activeConversationId = legacy.id
+                }
 
                 if (project.defaultMemberId == null) {
                     val legacyApiId = project.conversations.firstOrNull()?.apiId
-                    project.defaultMemberId = legacyApiId?.let { apiId -> project.aiMembers.firstOrNull { it.apiProfileId == apiId }?.id }
-                        ?: project.aiMembers.firstOrNull()?.id
+                    project.defaultMemberId = legacyApiId?.let { apiId ->
+                        project.aiMembers.firstOrNull { it.apiProfileId == apiId }?.id
+                    } ?: project.aiMembers.firstOrNull()?.id
                 }
+
                 project.activeConversation()
                 project
             }.onFailure {
@@ -95,8 +101,11 @@ class BridgeProjectStore(private val context: Context) {
                 )
             }.getOrNull()
 
-            if (project != null) result += project
+            if (project != null) {
+                result += project
+            }
         }
+
         return result
     }
 
