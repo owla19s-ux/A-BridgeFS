@@ -15,6 +15,13 @@ class FileBridgeExecutionEngine(private val context: Context) {
         conversationId: String?,
         standaloneConversationId: String?
     ): Triple<String, String, String> {
+        val autoExecuteEnabled = context.getSharedPreferences("bridgefs", 0)
+            .getBoolean("ai_auto_bridgefs_enabled", true)
+        if (!autoExecuteEnabled) {
+            AppLogger.log(context, "EXECUTION_DENIED", "reason=ai_auto_bridgefs_disabled")
+            return Triple("DENIED", text, "AI 自动执行已关闭，本轮 BridgeFS 指令未执行。")
+        }
+
         val parsed = CommandParser.parse(text)
         val commands = parsed.commands
         if (parsed.error != null) {
