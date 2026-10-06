@@ -115,11 +115,44 @@ class BridgeProjectStore(private val context: Context) {
             }.getOrNull()
 
             if (project != null) {
+                normalizeState(project)
                 result += project
             }
         }
 
         return result
+    }
+
+    private fun normalizeState(project: BridgeProject) {
+        project.tasks.forEach { task ->
+            task.maxContinuations = task.maxContinuations.coerceIn(0, 50)
+            task.continuationCount = task.continuationCount.coerceAtLeast(0)
+            task.status = when {
+                task.completed -> "COMPLETED"
+                task.status == "COMPLETED" -> "PENDING"
+                else -> task.status
+            }
+        }
+
+        val activeId = project.taskState.activeTaskId
+        val activeTask = activeId?.let { id -> project.tasks.firstOrNull { it.id == id } }
+        if (activeTask == null || activeTask.completed) {
+            project.taskState = BridgeTaskExecutionState()
+            project.tasks.filter { it.status == "RUNNING" }.forEach { it.status = "WAITING" }
+            return
+        }
+
+        project.taskState.maxContinuations = project.taskState.maxContinuations.coerceIn(0, 50)
+        project.taskState.continuationCount = project.taskState.continuationCount.coerceAtLeast(0)
+
+        project.tasks.filter { it.id != activeTask.id && it.status == "RUNNING" }
+            .forEach { it.status = "WAITING" }
+
+        if (project.taskState.status == "RUNNING") {
+            activeTask.status = "RUNNING"
+        } else if (activeTask.status == "RUNNING") {
+            activeTask.status = "WAITING"
+        }
     }
 
     fun save(projects: List<BridgeProject>) {
