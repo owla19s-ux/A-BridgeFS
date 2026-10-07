@@ -58,10 +58,7 @@ internal fun ApsActivity.settingsPage() {
                         addView(settingSwitch("GitHub 全局访问", AccessPolicy.isGithubEnabled(this@settingsPage)) {
                             AccessPolicy.setGithubEnabled(this@settingsPage, it)
                         })
-                        addView(secondaryButton("执行与文件权限") {
-                            startActivity(Intent(this@settingsPage, SettingsCategoryActivity::class.java)
-                                .putExtra("category", "执行与权限"))
-                        }, LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(5) })
+                    }, LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(5) })
                     }
                     else -> {
                         addView(label(name))
