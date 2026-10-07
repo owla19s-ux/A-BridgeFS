@@ -23,16 +23,16 @@
 ### A. 功能表
 
 逐项确认：
-- Workspace 是否能被用户实际进入和管理。
-- Workspace 与 Conversation 是否已经真正分开。
-- 是否能独立新建 / 切换 Conversation。
-- 每个 Conversation 是否绑定自己的 API。
+ - Project 是否能被用户实际进入和管理。
+- Project Conversation 是否已经与 Project 模型正确连接。
+- 是否能在 Project 内独立新建 / 切换 Conversation。
+- Project Conversation 是否使用正确的 Default AI / Project Member / API Profile 关系。
 - AI 消息是否显示对应 API 名称与头像，而不只是页面顶部显示。
 - API Profile 是否只承担连接资源角色，不承担施工权。
 - 本地文件修改权限是否真正进入 PermissionPolicy / BridgeFS 执行链。
 - GitHub 读取 / 修改边界是否真正生效。
-- **普通对话是否可以读取真实 GitHub Repository / Branch / 文件；不能只验证 Workspace GitHub。**
-- 双 AI 是否按照正式架构工作，而不是旧 Decision / Worker 固定模型。
+- **普通对话是否可以读取真实 GitHub Repository / Branch / 文件；不能依赖旧 Workspace GitHub 模型。**
+- Project 是否按 Default AI / Project Member / Request AI Assistance 的正式模型工作，而不是旧 Decision / Worker 或固定双 AI 模型。
 - Receipt 是否能恢复并与消息 / 执行 / Verify 状态对应。
 - 日志是否能从 App 内实际访问并按类型查看。
 
@@ -40,12 +40,12 @@
 
 重点检查：
 - Launcher 与实际页面入口。
-- Workspace / Conversation 数据模型及所有调用方。
-- 旧 BridgeProject 兼容字段是否仍被业务代码使用。
+- Project / Project Conversation 数据模型及所有调用方。
+- 旧 BridgeProject / Workspace 兼容字段是否仍被业务代码使用。
 - API Profile 与权限代码是否存在错误耦合。
-- PermissionPolicy 是否读取正确的 Workspace / Conversation 有效权限。
+- PermissionPolicy 是否读取正确的 Project / Conversation 有效权限。
 - 普通对话 GitHub 读取是否经过统一 GitHub 访问边界。
-- GitHub 写入是否经过 Workspace + Repository + Branch 施工边界。
+- GitHub 写入是否经过 Project Address + Repository + Branch 施工边界。
 - 是否存在旧 Decision / Worker 协议残留。
 - 是否存在旧日志路径和重复日志入口。
 - MainActivity 是否仍承载新功能。
@@ -73,8 +73,8 @@
 - 消息宽度：当前已解决，回归确认即可。
 - API 名称：当前消息中未显示，待修复。
 - API 头像：当前消息中未显示，待修复。
-- Workspace 独立页面 / 数据结构：当前 App 尚未真正完成。
-- 独立新建 Conversation：当前 App 尚未真正完成。
+- Project 主页面 / 数据结构：当前 App 尚未完全收口。
+- Project 内独立新建 Conversation：当前 App 尚未完全验证。
 
 ## 三、构建后验证
 > **APK 来源规则：** `android-verify.yml` 生成的 Debug APK 仅用于 CI 编译/打包验证，不作为设备安装测试包。设备安装测试必须使用 `android-build.yml` 生成的 `release/APS.apk`，该 APK 使用仓库固定的官方签名密钥。不要混用两种签名 APK。
