@@ -22,9 +22,6 @@ class ApsActivity : Activity() {
     internal var projectHistoryOpen = true
     internal var displayOpen = true
     internal val settingOpen = mutableSetOf<String>()
-    internal var localFileAccess = false
-    internal var storageAccess = false
-    internal var externalAccess = false
     internal val pendingTaskMentions = linkedSetOf<String>()
     internal var projectInput: EditText? = null
     internal val projectStore by lazy { BridgeProjectStore(this) }
@@ -39,39 +36,6 @@ class ApsActivity : Activity() {
     internal var apiSelectorOpen = false
     internal var conversationManagementOpen = false
     internal var projectAccessOpen = false
-    private val receiptReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            val receiptId = intent.getStringExtra("receiptId").orEmpty()
-            if (receiptId.isNotBlank()) {
-                val prefs = getSharedPreferences("bridgefs", Context.MODE_PRIVATE)
-                val queue = org.json.JSONArray(prefs.getString("pending_receipts", "[]") ?: "[]")
-                val remaining = org.json.JSONArray()
-                for (i in 0 until queue.length()) {
-                    val item = queue.optJSONObject(i)
-                    if (item?.optString("receiptId") != receiptId) remaining.put(item)
-                }
-                prefs.edit().putString("pending_receipts", remaining.toString()).apply()
-
-                ProjectReceiptService(this@ApsActivity).record(
-                    receiptId = receiptId,
-                    status = intent.getStringExtra("status").orEmpty(),
-                    command = intent.getStringExtra("command").orEmpty(),
-                    message = intent.getStringExtra("message").orEmpty(),
-                    time = intent.getLongExtra("time", System.currentTimeMillis()),
-                    projectId = intent.getStringExtra("projectId"),
-                    conversationId = intent.getStringExtra("conversationId"),
-                    standaloneConversationId = intent.getStringExtra("standaloneConversationId")
-                )
-            }
-
-            projects = projectStore.load()
-            currentProject = currentProject?.id?.let { id ->
-                projects.firstOrNull { it.id == id }
-            } ?: projects.firstOrNull()
-            render()
-        }
-    }
-
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
@@ -89,9 +53,7 @@ class ApsActivity : Activity() {
             standaloneConversationStore.save(standaloneConversations)
         }
         currentStandaloneConversationId = standaloneConversations.firstOrNull()?.id
-        registerReceiver(receiptReceiver, IntentFilter("com.bridgefs.RESULT"), Context.RECEIVER_NOT_EXPORTED)
         buildShell()
-        recoverPendingReceipts()
     }
 
     internal fun activeStandaloneConversation(): BridgeConversation? =
@@ -150,24 +112,6 @@ class ApsActivity : Activity() {
         render()
     }
 
-    private fun recoverPendingReceipts() {
-        val prefs = getSharedPreferences("bridgefs", Context.MODE_PRIVATE)
-        val queue = org.json.JSONArray(prefs.getString("pending_receipts", "[]") ?: "[]")
-        for (i in 0 until queue.length()) {
-            val item = queue.optJSONObject(i) ?: continue
-            val intent = Intent("com.bridgefs.RESULT").apply {
-                putExtra("receiptId", item.optString("receiptId"))
-                putExtra("status", item.optString("status"))
-                putExtra("command", item.optString("command"))
-                putExtra("message", item.optString("message"))
-                putExtra("projectId", item.optString("projectId"))
-                putExtra("conversationId", item.optString("conversationId"))
-                putExtra("standaloneConversationId", item.optString("standaloneConversationId"))
-                putExtra("time", item.optLong("time", System.currentTimeMillis()))
-            }
-            receiptReceiver.onReceive(this, intent)
-        }
-    }
 
     override fun onDestroy() {
         runCatching { unregisterReceiver(receiptReceiver) }
