@@ -23,18 +23,22 @@
 
 ## 三、已统一的关键概念
 
-### 项目页
+### Space / Context / Connection
 
-Project 是业务对象；**项目页是 UI 页面**。
+Space 是 Connection；Context 是 Space 内的工作上下文；Connection 是 APS 统一的外部能力抽象。
 
-不要再把“Project”直接等同于复杂执行引擎，也不要把项目页设计成完整 Agent Runtime。
+项目页只是当前对 Context 的一种用户界面表达，不是 APS 顶层架构对象。不要把任何页面直接设计成完整 Agent Runtime。
 
-### Project Address
+### Connection 与 Resource
 
-支持：
+第一阶段 Connection 类型：Space、AI、GitHub、Local、File、Device、API / Service、Plugin 及未来其他连接。
 
-- Local → Local Connector → Android 本地目录；
-- GitHub → GitHub Connector → GitHub API → 远程 Repository。
+典型关系：
+
+- GitHub Connection → Repository / Branch / File Resource → GitHub Connector；
+- Local Connection → Android 本地目录 / 文件 Resource → Local Connector。
+
+Resource 是 Connection 实际指向或操作的外部资源。
 
 Local 不删除；当前 Local 操作模块较弱，后续按 Local Connector 重构。
 
@@ -44,9 +48,9 @@ Dispatcher 是轻量调度分配层，不是完整 Agent Runtime。
 
 ### 多 AI
 
-一个 Project 可以有多个 AI Member。
+一个 Context 可以使用多个 AI Connection。
 
-当前只确定“按需请求 AI 协助”；**一个项目多个 AI 协作施工的详细机制尚未确定**。
+当前已经确定 AI 的拆分 / 做 / 审查权限和三阶段任务边界；具体任务交接、状态共享、并行施工和冲突处理仍待设计。
 
 因此相关文档必须使用“待设计 / 开放问题”表述，不能用旧 Decision / Worker、Secretary / Orchestrator 或复杂 Agent Runtime 代替结论。
 
@@ -60,9 +64,9 @@ BridgeFS 已不属于当前 APS 产品。
 
 代码中的旧 BridgeFS 命名属于遗留实现；本地能力如果继续存在，统一向 Local Connector 演进。
 
-### Workspace
+### Workspace / Project 历史模型
 
-GitHub 不再建立独立 Workspace 业务模型。
+GitHub 不再建立独立 Workspace 或 Project-centered 业务模型。Project Address 也不再作为当前顶层抽象。
 
 ### Decision / Worker / AI A / AI B
 
