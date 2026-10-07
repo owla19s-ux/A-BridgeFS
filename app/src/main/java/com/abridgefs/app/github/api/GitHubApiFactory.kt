@@ -1,5 +1,7 @@
 package com.abridgefs.app.github.api
 
+import com.abridgefs.app.github.GitHubCredential
+
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
@@ -22,4 +24,5 @@ object GitHubApiFactory {
             .build()
             .create(GitHubApi::class.java)
     }
+    fun create(credential: GitHubCredential): GitHubApi = create(credential.accessToken)
 }
