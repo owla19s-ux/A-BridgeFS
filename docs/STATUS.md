@@ -1,336 +1,101 @@
 # APS 当前状态与工作记录
 
-更新时间：2026-10-06
+更新时间：2026-10-07
 
-> 本文件同时承担“当前状态”和“阶段工作记录”职责，减少多个状态文档重复维护。
->
-> 当前事实以代码、GitHub Commit、Actions / Verify、APK / 真机结果为准；历史工作记录只用于说明演进过程，不作为新功能设计依据。
+> 当前事实以代码、Commit、Actions / Verify、APK / 真机结果为准。本文件用于记录当前阶段状态，不作为历史架构的复原依据。
 
-## 一、项目定位
+## 一、第一阶段产品定位
 
-APS 当前以 **Project（项目）** 为核心对象。
+APS 当前第一阶段定位：
 
-Project 负责：
-- Project Address
-- Default AI
-- Project Members
-- Project Conversation
-- Request AI Assistance
+> **AI 外部能力连接器 + 调度分配器。**
 
-独立「对话」是额外的普通 AI 工具，不承担 Project 主工作流。
+核心 UI：
 
-API Profile 是 API 连接资源；Project Member 是项目中的 AI 成员关系；Default AI 是当前 Project 默认 Member。
+- **项目页**：Project 的主要人机工作面；
+- **对话页**：独立 AI 对话 / 查询 / 测试；
+- **配置页**：API、GitHub 等配置。
 
-固定 Decision AI / Worker AI、固定 AI A / AI B 已废弃，不得作为新设计依据。
+项目页中的项目、AI、状态、操作记录主要用于人类查看和操作。
 
 ## 二、当前正式模型
 
 ```
 Project
 ├─ Project Address
+│  ├─ Local
+│  └─ GitHub
 ├─ Default AI
 ├─ Project Members
-├─ Project Conversation
-└─ Request AI Assistance
+├─ 项目主要对话
+├─ Request AI Assistance
+└─ 状态 / 操作记录
 ```
 
-Project Address 当前包括：
-- Local
-- GitHub
-- future other storage
-
-正常 Project 工作：
+Connector：
 
 ```
-用户
- ↓
-Project
- ↓
-Project Address
- ↓
-Default AI
- ↓
-读取 / 分析 / 工作
- ↓
-完成
+AI Connector
+GitHub Connector
+Local Connector
 ```
 
-连续施工：
+Dispatcher：
 
 ```
-理解
- ↓
-读取
- ↓
-修改
- ↓
-Commit
- ↓
-Verify
- ↓
-必要时继续修复
- ↓
-完成
+请求 → Dispatcher → Connector / AI Member → 结果
 ```
 
-“继续”不是正常用户操作，只用于暂停、阻塞或需要用户决策的情况。
+## 三、多 AI 协作状态
 
-## 三、Project UI 当前状态
+### 已确认
 
-当前正式 UI：
+- 一个 Project 可以有多个 AI Member；
+- 当前 AI 可以按需请求其他 AI 协助；
+- 多 AI 不是普通项目问题的默认运行模式；
+- AI A / AI B 不是固定产品角色。
 
-```
-项目
-├─ 项目主要对话 ★
-├─ ↑ / ↓ 屏幕显示切换
-└─ 项目配置
-    └─ 独立点击展开 / 收起
-```
+### 待设计
 
-规则：
-1. ↑ / ↓ 只改变屏幕显示区域；
-2. ↑ / ↓ 不控制项目配置展开 / 收起；
-3. 项目配置独立点击展开 / 收起；
-4. 配置收起后，为主要对话区域留下更多空间；
-5. 不把 GitHub、API、权限、任务、Verify 等内部对象全部平铺为首页卡片。
+**“一个项目多个 AI 协作施工”尚未解决。**
 
-底部一级导航：
-- 项目
-- 对话
-- 配置
+需要后续单独确定：
 
-GitHub 不作为一级导航。
+- 谁负责当前施工任务；
+- AI 如何把任务交给另一个 AI；
+- 如何共享上下文和当前工作状态；
+- 如何确认协助结果；
+- Repository / Branch 的施工权如何交接；
+- 多 AI 并行时如何避免冲突；
+- Dispatcher 保存哪些最小状态。
 
-## 四、当前代码状态
+因此目前不能把 Secretary / Orchestrator、Decision / Worker 或复杂 Agent Runtime 标记成解决方案。
 
-### 已实现 / 已确认
+## 四、当前代码问题
 
-- Project 数据模型已建立；
-- Project Member 模型已建立；
-- Default Member 字段已加入 Project；
-- 新 Project 不再创建固定 AI A / AI B；
-- Project Conversation 已作为 Project 数据的一部分；
-- 独立「对话」与 Project 已分离；
-- 旧固定 Decision / Worker 协作入口及旧 Collaboration 运行链已拆除；
-- ConstructionLock 已迁移为 Project + Repository + Branch 语义；
-- Project Members 已支持新增、编辑、删除、API Profile 绑定和 Default AI；
-- Local Project Address 已具备目录选择、持久化与恢复；
-- GitHub Project Address 已具备 Repository / Branch 配置入口；
-- 正式构建统一使用正式签名身份。
+- Project / Project Address 正在向当前模型收口；
+- GitHub 能力已经具备基础连接与读取能力，但部分施工接口仍带有旧本地文件语义；
+- Local 能力保留，但现有本地操作模块较弱，需要后续按 Local Connector 重构；
+- 旧 BridgeFS 命名和历史代码仍有残留，不能视为当前产品模块；
+- Dispatcher 的正式代码边界仍需结合真实施工链确认。
 
-### 当前开发中
+## 五、文档状态
 
-- Project UI 按最新设计继续收口；
-- Project 配置完整闭环；
-- Project Address 统一；
-- Project Conversation 完整工作链；
-- 连续施工 → Commit → Verify → 必要时继续；
-- Request AI Assistance；
-- 云端测试体系建设；
-- 旧 Workspace 命名和历史 UI 实现清理。
+当前文档分三类：
 
-### 已设计未实现
+1. **当前正式资料**：`PROJECT/SPEC`、`PROJECT/ARCHITECTURE`、`PROJECT/UI`；
+2. **状态 / 任务 / 专项资料**：`docs/`；
+3. **历史资料**：`docs/bridgefs-assets/` 及明确标记为历史的旧设计。
 
-- 更完整的 Project Address 类型扩展；
-- 多项目 / 多 API Secretary / Orchestrator；
-- 更复杂的项目调度；
-- 后续 Remote 能力。
+文档基线见：
 
-### 当前明确不做
+`PROJECT/ARCHITECTURE/DOCUMENTATION-BASELINE.md`
 
-- 固定 Decision AI / Worker AI；
-- 固定 AI A / AI B；
-- 普通 Project 问题自动多 AI；
-- 复杂 Project Dashboard；
-- 无限 Agent 循环；
-- 把 GitHub 做成独立于 Project 的第二套工作区模型。
+## 六、第一阶段暂不施工
 
-## 五、测试与验证策略
-
-当前阶段已经从“构建后再人工测试”调整为：
-
-**云端验证前置，真机验证后置。**
-
-标准路径：
-
-```
-需求 / 验收条件
- ↓
-业务链 / 模块边界
- ↓
-数据 / 状态 / 权限 / 接口约定
- ↓
-最小实现
- ↓
-代码级检查
- ↓
-模块测试
- ↓
-契约测试
- ↓
-功能 / 业务链测试
- ↓
-云端工程验证
- ↓
-必要时 APK
- ↓
-少量真机验收
- ↓
-Verify / 收口
- ↓
-PR / 合并
- ↓
-main 正式构建
-```
-
-原则：
-- 能在云端可靠证明的问题，不把真机当主要测试场；
-- APK 是验收产物，不是日常开发测试工具；
-- Build 成功不等于业务验证成功；
-- 外部 API、GitHub、文件系统等能力应允许使用测试实现；
-- 当前保持单 `app` 模块，不为了测试提前多模块化；
-- 只有实际规模、依赖、构建、复用或独立发布需求出现时，才评估 Gradle 多模块；
-- 测试体系必须能容纳未来新的 API、Address / Module、远程能力和更多 Project。
-
-完整规范见：`PROJECT/ARCHITECTURE/TESTING-AND-VALIDATION.md`。
-
-## 六、验收与构建状态
-
-功能状态不再把 APK / 真机作为所有问题的第一道闸门，而按对应等级逐级确认。
-
-代码存在不等于功能完成；UI 有入口也不等于底层链路已经接通；Build Success 也不等于功能 Verify Success。
-
-当前尚无公开发行版本，内部验证构建统一使用正式签名身份。
-
-最近一次已知成功正式构建：
-- Android Build and Release #319
-- Run ID：37180243740
-- Commit：8f657d7442f7d094a0cc8f807ec94914041b64ee
-
-之后的直接 main 提交若没有对应 Actions Run，不标记为已构建 / 已验证。
-
-每项 Verify 应记录：
-- Type
-- Number
-- Run ID
-- Commit
-- Job（如适用）
-- Result
-
-## 七、阶段工作记录
-
-### 2026-10-02 — 协作架构旧模型审查
-
-当时识别出固定 Decision / Worker、AI A / AI B、Workspace-centered 模型及施工权、GitHub 写入、Verify 等问题。
-
-这部分记录属于历史演进过程。后续正式架构已经发生改变，不再以当时模型作为当前设计依据。
-
-### 2026-10-04 — Project-centered 模型收口
-
-正式模型改为：
-- Project 是核心对象；
-- Project Address 是资源地址；
-- Project Member 与 API Profile 分离；
-- Default AI 是 Project Member；
-- Request AI Assistance 是按需动作；
-- 不再使用固定 Decision / Worker；
-- 不再使用固定 AI A / AI B；
-- ConstructionLock 保留为 Project 连续施工的权限基础。
-
-### 2026-10-04 — Project UI 收口
-
-确认：
-- Project 主要对话成为项目工作面的主体；
-- 项目配置独立展开 / 收起；
-- 底部 ↑ / ↓ 只控制屏幕显示空间；
-- ↑ / ↓ 不带动项目配置；
-- 普通「对话」与 Project 独立；
-- 普通「对话」和「配置」暂缓，不阻塞 Project 主线。
-
-### 2026-10-04 — Project 配置与地址施工
-
-已完成：
-- Project Members 管理；
-- Member → API Profile；
-- Default AI；
-- Local Project Address；
-- GitHub Project Address；
-- Project 状态持久化与恢复。
-
-仍需正式 APK / 真机闭环验证。
-
-### 2026-10-04 — 连续施工链施工
-
-当前方向：
-
-```
-Project Conversation
- ↓
-Default AI
- ↓
-读取 / 修改
- ↓
-ConstructionLock
- ↓
-Commit
- ↓
-Verify
- ↓
-必要时继续
-```
-
-本地施工已经接入 PermissionPolicy → FileBridgeService → Receipt；不再使用 continuation Coordinator。
-
-GitHub 施工已支持文件创建 / 编辑、Commit，并读取对应 Actions runs 作为 Verify 信息。
-
-当前仍需注意：
-- Actions 可能尚未启动时不能把“0 runs”直接视为最终 Verify；
-- 多文件操作的 Commit / Verify 语义仍需继续审查；
-- 连续施工的失败 / 重试边界仍需验证；
-- 当前仍未完成正式 APK 与真机闭环验证。
-
-### 2026-10-06 — 云端优先验证体系
-
-本阶段确认：APS 缺少现成自动化测试体系，因此不直接堆测试文件，而先建立长期工程验证骨架。
-
-已新增：
-- `PROJECT/ARCHITECTURE/TESTING-AND-VALIDATION.md`
-
-已同步：
-- Architecture Rebuild Plan；
-- Phase 1 Module Plan；
-- Current Tasks。
-
-当前下一步是盘点 `src/test`、`src/androidTest`、Gradle 测试配置与依赖，并据实际源码边界建立第一批模块测试、契约测试和 Project 主链测试。
-
-## 八、文档事实优先级
-
-当前判断优先级：
-
-```
-实际代码
- ↓
-GitHub Commit
- ↓
-Actions / Check Runs
- ↓
-APK
- ↓
-真机结果
- ↓
-当前 PROJECT / docs 设计
- ↓
-历史工作记录
-```
-
-历史 Workspace / 双 AI / Decision / Worker 文档可以保留用于追溯，但不得指导新功能施工。
-
-## 九、维护规则
-
-- 本文件负责“当前状态 + 阶段工作记录”；
-- 不再另建重复的“当前状态”文档；
-- 当前任务清单继续由 `docs/CURRENT-TASKS.md` 维护；
-- UI 正式设计继续由 `PROJECT/UI/` 维护；
-- 仓库操作规则由 `docs/REPOSITORY-OPERATION-MANUAL.md` 维护；
-- 测试与验证规则由 `PROJECT/ARCHITECTURE/TESTING-AND-VALIDATION.md` 维护；
-- 历史专项审计可以单独保留，但必须明确日期和“历史快照”性质。
+- 多 AI 完整协作协议；
+- 完整 Agent Runtime；
+- 无限 Agent Loop；
+- 复杂 Workflow Engine；
+- Secretary / Orchestrator；
+- BridgeFS 作为产品模块。
