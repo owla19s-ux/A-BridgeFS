@@ -1,274 +1,101 @@
-# APS 对象与资源模型
+# APS Context / Connection / Resource 模型
 
 更新时间：2026-10-07
 
-> 本文件定义 APS 第一阶段的对象、资源、状态、任务与回执关系。这里的“对象”是架构层中性术语，不限定具体业务类型；UI 与产品文案不要求直接使用该名称。
-
-## 一、核心原则
-
-APS 不要求一个对象只有一个资源地址，也不负责把同一对象复制到多个端进行同步。
-
-一个对象可以关联多个资源来源：
+## 一、核心关系
 
 ```
-APS 对象
-├── Resource A → Local
-├── Resource B → GitHub
-├── Resource C → Cloud
-└── ...
-```
-
-因此必须区分：
-
-- **对象**：APS 持续管理的独立上下文；
-- **Resource**：对象实际涉及的外部资源；
-- **State**：对象当前可持续工作的状态；
-- **Task**：需要完成的工作单元；
-- **Receipt**：AI / 工具提交的结果及其确认依据。
-
-## 二、对象与资源
-
-对象本身不等于资源，也不等于某一个 Connector。
-
-例如一个对象可以同时包含：
-
-```
-对象 A
-├── GitHub Repository
-├── 本地设计文档
-├── 云端资料
-└── 其他资源
-```
-
-Connector 只负责访问相应 Resource：
-
-```
+Space（Connection）
+        ↓
+Context
+        ↓
+Connection
+        ↓
 Resource
- ↓
-对应 Connector
- ↓
-读取 / 修改 / 查询
+        ↓
+Connector
+        ↓
+实际能力
 ```
 
-APS 不因为存在多个 Resource 就建立多端同步副本。
+Connection 是统一的外部能力抽象；Resource 是 Connection 实际指向或操作的资源。
 
-## 三、状态存储
-
-State 是对象持续施工所需的权威状态。
-
-State 至少可以包含：
-
-- 当前目标；
-- Task 树；
-- Task 依赖；
-- 当前进度；
-- 当前施工权；
-- 最近结果；
-- Receipt；
-- Commit / Verify 等证据引用；
-- 下一步。
-
-State 必须有明确的权威存储位置。
-
-对象存在多个 Resource 时，不要求 State 与所有 Resource 各保存一份。
-
-例如：
+## 二、Connection 类型
 
 ```
-对象 A
-├── State → GitHub .aps/
-├── Resource → GitHub Repository
-└── Resource → Local 文档
+Connection
+├── Space
+├── AI
+├── GitHub
+├── Local
+├── File
+├── Device
+├── API / Service
+├── Plugin
+└── 未来其他连接
 ```
 
-或者：
+这些是统一 Connection 体系，不要求每一种类型在第一阶段立即拥有完整实现。
+
+## 三、Context
+
+Context 表示一个可以独立承载状态、任务、内容、对话和工作记录的具体上下文。Context 不限定为软件项目。“项目”只是 Context 的一种使用方式。
+
+Context 可以使用多个 Connection：
 
 ```
-对象 A
-├── State → Local
-├── Resource → GitHub Repository
-└── Resource → Local 文档
+Context A
+├── AI Connection
+├── GitHub Connection
+├── Local Connection
+├── File Connection
+└── 其他 Connection
 ```
 
-State 存储位置是对象配置的一部分。
+Context 不等于 Connection，也不等于 Resource。
 
-## 四、任务与资源
+## 四、Resource
 
-Task 不直接等同于某个 AI。
+Resource 是 Connection 实际指向、读取或修改的外部资源。多个 Resource 不意味着复制到 APS 内部，也不意味着建立自动同步。
 
-一个 Task 可以声明：
+## 五、State
 
-- 目标；
-- 依赖；
-- 所需 Resource；
-- 施工权限；
-- 当前执行者；
-- 验收者；
-- 当前状态；
-- Receipt。
+State 是 Context 持续工作所需的权威状态，至少需要能够表达当前目标、Task、Task 依赖、当前阶段、当前执行者、权限、最近实际结果、Receipt / Evidence、Commit / Verify 等外部证据引用和下一步。
 
-例如：
+State 可以存储在 Context 指定的持久化 Resource 上。State 的存储位置属于 Context 配置。
 
-```
-Task：修改 GitHub 代码
- ↓
-GitHub Connector
- ↓
-AI 施工
- ↓
-Commit
- ↓
-Verify
- ↓
-Receipt
-```
+## 六、Task
 
-另一个 Task 可以：
+Task 是工作的最小交接和调度单位，不等于 AI。第一阶段 Task 包含目标、所需 Connection / Resource、当前阶段、所需权限、当前执行 AI、审查 AI、状态和 Receipt / Evidence。
+
+阶段模型：拆分 → 做 → 审查；审查不通过时返回“做”。
+
+## 七、AI 与权限
+
+AI 是 Connection，不是固定角色。Context 对 AI 授予三个独立权限：拆分、做、审查。权限是能力授权，不是永久身份。
+
+## 八、实际结果与 Receipt
 
 ```
-Task：整理本地文档
- ↓
-Local Connector
- ↓
-AI 施工
- ↓
-Receipt
-```
-
-同一个对象下的不同 Task 可以访问不同 Resource。
-
-## 五、回执与事实确认
-
-AI 回执不直接等于事实。
-
-```
-AI 回执
- ↓
-实际证据
- ↓
-确认
- ↓
+AI / Connector 返回
+       ↓
+实际执行结果
+       ↓
+审查 / 验证
+       ↓
+Receipt / Evidence
+       ↓
 State 更新
 ```
 
-对于代码施工，典型证据包括：
+AI 返回不直接等于事实。对于代码施工，典型证据可以是 Commit、Actions / Verify、文件读取后的实际内容等。
 
-```
-Task
- ↓
-Commit
- ↓
-Actions / Verify
- ↓
-验收结果
- ↓
-Task 状态
-```
+## 九、并行与冲突
 
-因此“已完成”“已验证”等状态必须能够追溯到对应 Receipt / Evidence。
+Context 可以存在多个 Task，但是否允许多个 AI 同时修改同一 Resource 必须单独判断。第一阶段不预先建立复杂并行执行引擎。
 
-## 六、多 AI 协作
+## 十、APS 职责边界
 
-多 AI 协作以 Task 为基本交接单位，而不是以完整 AI 上下文为交接单位。
+APS 负责：管理 Context；管理 Context 使用的 Connection；根据 Connection 找到 Resource；选择 Connector；调度 Task；接收实际结果；形成 Receipt / Evidence；更新 Context State。
 
-基本方向：
-
-```
-Task
- ↓
-分配 AI
- ↓
-施工
- ↓
-Receipt
- ↓
-验收
- ↓
-State 更新
- ↓
-下一 AI
-```
-
-AI 可以被替换，不要求继承前一个 AI 的完整聊天上下文。
-
-当前仅确定这一原则；具体的任务树、分配、验收、并行施工、施工权和冲突控制协议仍属于后续设计。
-
-## 七、并行施工
-
-对象可以拥有多个 Task，但多个 AI 是否能够同时修改同一 Resource 必须单独判断。
-
-对于 GitHub 等支持版本控制的 Resource，未来并行施工可能需要：
-
-```
-Task A → Branch / Worktree A
-Task B → Branch / Worktree B
-Task C → Branch / Worktree C
-          ↓
-       Review / Merge
-          ↓
-        Verify
-```
-
-第一阶段不因为存在多 AI 就预先建立复杂并行执行引擎。
-
-## 八、APS 的职责边界
-
-APS 负责：
-
-1. 识别对象及其 Resource；
-2. 根据 Resource 选择 Connector；
-3. 读取 / 更新 State；
-4. 根据 Task 进行调度分配；
-5. 接收 Receipt；
-6. 根据实际证据确认状态。
-
-APS 不负责：
-
-- 把所有 Resource 复制到本地；
-- 建立默认多端同步系统；
-- 把云端作为本地缓存之外的第二份事实源；
-- 保存所有 AI 的完整长上下文；
-- 在没有需求时建立复杂 Agent Runtime。
-
-## 九、示例
-
-### 示例 1：代码 + 本地文档
-
-```
-APS 对象
-├── State → GitHub .aps/
-├── Resource → GitHub Repository
-└── Resource → 手机本地文档
-
-Task A → 修改 GitHub 代码
-Task B → 整理本地文档
-Task C → 综合验收
-```
-
-### 示例 2：本地素材 + 云端资料
-
-```
-APS 对象
-├── State → Local
-├── Resource → 手机素材目录
-└── Resource → 云端资料
-
-Task A → 整理素材
-Task B → 读取云端资料
-Task C → 综合生成 / 验收
-```
-
-以上都不要求把资源复制到 APS 内部。
-
-## 十、后续设计重点
-
-下一阶段需要继续明确：
-
-1. 对象的正式命名；
-2. Resource 的标识与生命周期；
-3. State 的最小数据结构；
-4. Task 树与依赖模型；
-5. Receipt / Evidence 模型；
-6. State 的权威存储选择；
-7. 多 AI 施工权；
-8. 并行 Task 的隔离与合并。
+APS 不负责：把所有 Resource 复制到本地；默认建立多端同步；保存所有 AI 的完整长上下文；没有需求时建立复杂 Agent Runtime。
