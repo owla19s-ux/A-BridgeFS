@@ -61,58 +61,15 @@ class ProjectConversationService(private val context: Context) {
                 BridgeApiConfig(profile.baseUrl.trimEnd('/'), profile.key, profile.model)
             ).chat(
                 conversation.messages,
-                BridgeCommandSpec.aiSystemPrompt(
-                    context.getSharedPreferences("bridgefs", Context.MODE_PRIVATE)
-                        .getInt("command_limit", 3).coerceIn(1, 20)
-                ) +
-                    "\n\n[Project 信息]\n" + projectInfo +
+                "[Project 信息]\n" + projectInfo +
                     githubPrompt +
                     "\n你是当前 Project 的默认 AI。先直接回答用户问题；只有用户明确要求执行工作时，才进入后续工作流程。不要自动启动其他 AI 协作，也不要恢复已经废弃的固定阶段角色模型。"
             )
 
-            var executionError: String? = null
-            val commandBlocks = Regex("""(?s)\[bridgefs\](.*?)\[/bridgefs\]""")
-                .findAll(answer)
-                .map { it.groupValues[1].trim() }
-                .filter { it.isNotBlank() }
-                .toList()
-
-            if (commandBlocks.isNotEmpty()) {
-                val parsed = CommandParser.parse(commandBlocks.joinToString("\n"))
-                executionError = parsed.error
-                if (executionError == null && parsed.commands.isNotEmpty()) {
-                    val activeTaskId = project.taskState.activeTaskId
-                    if (activeTaskId == null) {
-                        executionError = "当前 Project 没有正在施工的 Task，请先选择并开始施工任务"
-                    } else {
-                        val activeTask = project.tasks.firstOrNull { it.id == activeTaskId }
-                        if (activeTask == null) {
-                            executionError = "当前施工任务不存在"
-                        } else if (activeTask.completed) {
-                            executionError = "当前施工任务已完成，不能继续施工"
-                        } else if (project.taskState.status != "RUNNING") {
-                            executionError = "当前 Task 不处于 RUNNING 状态，请先开始施工"
-                        }
-                    }
-                    if (executionError != null) {
-                        return@runCatching Result(answer = answer, error = executionError, executionRequested = false)
-                    }
-                    val intent = android.content.Intent(context, FileBridgeService::class.java).apply {
-                        putExtra("bridgefs_external_command", commandBlocks.joinToString("\n"))
-                        putExtra("bridgefs_root", project.localAddress.orEmpty())
-                        putExtra("projectId", project.id)
-                        putExtra("conversationId", conversation.id)
-                    }
-                    context.startService(intent)
-                } else if (executionError == null) {
-                    executionError = "未识别到可执行的 BridgeFS 指令"
-                }
-            }
-
             Result(
                 answer = answer,
-                error = executionError,
-                executionRequested = commandBlocks.isNotEmpty() && executionError == null
+                error = null,
+                executionRequested = false
             )
         }.getOrElse {
             Result(error = "[API 错误]\n" + (it.message ?: "未知错误"))
