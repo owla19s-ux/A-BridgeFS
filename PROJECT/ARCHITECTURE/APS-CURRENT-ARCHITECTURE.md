@@ -1,149 +1,153 @@
 # APS 当前架构基线
 
-更新时间：2026-10-04
+更新时间：2026-10-07
 
-## 产品模型
-
-APS 以 **Project** 为核心对象：
+## 一、第一阶段架构
 
 ```
-Project
-├─ Project Address
-├─ Default AI
-├─ Project Members
-├─ Project Conversation
-└─ Request AI Assistance
+                    APS
+                     │
+              ┌──────┴──────┐
+              │ Dispatcher  │
+              └──────┬──────┘
+                     │
+       ┌─────────────┼─────────────┐
+       ↓             ↓             ↓
+ AI Connector   GitHub Connector  Local Connector
+       │             │             │
+       ↓             ↓             ↓
+    AI API       GitHub API     本地目录
 ```
+
+UI 位于能力之上：
+
+```
+                  APS UI
+                    │
+          ┌─────────┼─────────┐
+          ↓         ↓         ↓
+        项目页     对话页     配置页
+```
+
+项目页是人类查看和操作项目的主要面板，不是独立执行引擎。
+
+## 二、Project
+
+Project 是工作上下文容器，至少关联：
+
+- Project Address；
+- Default AI；
+- Project Members；
+- 项目主要对话；
+- 当前任务 / 状态；
+- 操作记录。
 
 ### Project Address
 
-统一表示项目资源地址：
-- Local
-- GitHub
-- future other storage
-
-GitHub 是 Project Address 的一种资源类型，不再建立第二套 Workspace 业务模型。
-
-### AI 模型
-
-- API Profile：API 连接资源；
-- Project Member：AI 在 Project 中的成员关系；
-- Default AI：当前 Project 默认 Member；
-- Request AI Assistance：按需请求其他 Member / 临时 AI 协助。
-
-不使用固定 Decision AI / Worker AI。
-不使用固定 AI A / AI B。
-
-### 连续施工
-
-```
-理解
- ↓
-读取
- ↓
-修改
- ↓
-Commit
- ↓
-Verify
- ↓
-必要时继续修复
- ↓
-完成
-```
-
-ConstructionLock 用于控制修改阶段，不阻塞普通读取。
-
-## 施工原则：按链路打通，同时按职责拆分
-
-APS 当前重构不采用“先全面审查、再一次性重写”的方式。
-
-施工以**真实可用链路**为主线：走到哪个功能，就修改哪个功能，并在经过旧结构时完成必要的职责迁移。
-
-第一条核心链路：
-
 ```
 Project
- ↓
-Project Address
- ↓
-API Profile
- ↓
-Project Conversation
- ↓
-Permission
- ↓
-真实访问 Project
+├─ Local → Local Connector → Android 本地目录
+└─ GitHub → GitHub Connector → GitHub API → Repository / Branch
 ```
 
-后续再沿实际链路继续：
+两者并列，不要求统一成本地 Workspace。
+
+## 三、Connector
+
+### AI Connector
+
+负责：
+
+- API Profile；
+- AI 请求；
+- AI 响应；
+- 不同模型 / Provider 的连接差异。
+
+### GitHub Connector
+
+负责：
+
+- Repository；
+- Branch；
+- 文件；
+- Commit；
+- Pull Request；
+- Actions / Verify 等 GitHub 能力。
+
+远程 Repository 是 GitHub Project 的资源来源。
+
+### Local Connector
+
+负责：
+
+- Android 本地目录；
+- 文件读取；
+- 文件修改；
+- 本地项目操作。
+
+当前本地操作实现较弱，后续需要独立重构；不得因为旧 BridgeFS 命名而重新建立 BridgeFS 产品模型。
+
+## 四、Dispatcher
+
+Dispatcher 只负责：
+
+- 根据请求选择目标 AI / Connector；
+- 传递必要的上下文；
+- 接收结果；
+- 在明确需要下一能力时再次分配。
+
+第一阶段不要求 Dispatcher 实现完整 Agent Runtime。
+
+## 五、多 AI 协作
+
+一个 Project 可以有多个 AI Member。
+
+当前只定义最小路径：
 
 ```
-任务
+当前 AI
  ↓
-@任务
+请求 AI 协助
  ↓
-Request AI Assistance
+Dispatcher
  ↓
-读取 / 修改
+目标 AI Connector / AI Member
  ↓
-ConstructionLock
+协助结果
  ↓
-Commit
- ↓
-Verify
+当前 AI
 ```
 
-### 职责拆分原则
+其余施工协作协议暂未定型，属于独立设计问题：
 
-一个文件不应长期承担多个独立业务职责。
+- 任务交接；
+- 上下文共享；
+- 结果回执；
+- 施工权；
+- 并行 / 串行；
+- 冲突控制；
+- 恢复。
 
-例如：
-- Project UI 不承担 API 管理；
-- Project Store 不承担完整 Conversation 业务；
-- API Profile 不承担 Project 业务；
-- Permission 不承担文件执行；
-- FileBridgeService 不承担 Project UI / API / Conversation 状态管理；
-- GitHub Address 不重新形成 Workspace 业务模型。
+不得从旧 Dispatcher 文档自动推导这些机制。
 
-拆分不是为了机械增加文件数量，而是为了让**修改一个能力时，不需要连带修改无关能力**。
+## 六、状态
 
-### 施工中的旧结构处理
+第一阶段只保留完成 UI 展示、任务恢复和协作所真正需要的最小状态。
 
-遇到旧 Workspace、workspaceId、兼容字段或旧大文件时：
+不要预先建立：
 
-1. 如果当前链路仍需要其底层能力，先迁移职责；
-2. 如果只是历史命名，随当前链路迁移为 Project 语义；
-3. 如果职责已经被新模型取代，则拆除；
-4. 暂未经过当前链路的代码，不为了“审查完整”而提前大规模改动。
+- Reducer / Event Bus 全套运行时；
+- 无限 Action 队列；
+- Sub-Agent 生命周期；
+- 大型 Recovery Runtime。
 
-因此，**链路施工本身同时承担审查、重构和验证职责**。
+## 七、架构原则
 
-## UI
-
-Project 页面以项目主要对话为主体：
-
-```
-项目
-├─ 项目主要对话
-├─ ↑ / ↓ 屏幕显示切换
-└─ 项目配置
-    └─ 独立点击展开 / 收起
-```
-
-↑ / ↓ 只改变屏幕显示，不控制项目配置展开。
-
-## 独立「对话」
-
-独立「对话」不属于 Project 主工作流，定位为 API 选择、普通问答、读取 / 分析；按当前正式 UI 设计，也允许在授权范围内访问当前 Project 的项目地址。
-
-## 当前实现边界
-
-具体“已实现 / 开发中 / 已验证”状态以 `docs/STATUS.md` 为准。
-产品需求与行为边界以 `PROJECT/SPEC/APS-PRODUCT-SPEC.md` 为准。
-UI 细节以 `PROJECT/UI/` 为准。
-当前施工顺序以 `docs/CURRENT-TASKS.md` 为准。
-
-## 架构规则
-
-代码实现事实优先于文档描述。历史架构文档只能用于追溯，不能作为新功能设计依据。
+1. Connector 是外部能力边界；
+2. Dispatcher 是轻量分配层；
+3. Project 是工作上下文；
+4. 项目页是人类操作面板；
+5. GitHub 远程仓库是 GitHub Project 的资源来源；
+6. Local 保留，但按 Local Connector 演进；
+7. 多 AI 协作先定义边界，再设计协议；
+8. 代码事实优先于历史文档。
