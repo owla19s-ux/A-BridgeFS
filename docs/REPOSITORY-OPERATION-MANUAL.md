@@ -85,7 +85,7 @@ Build success 只证明构建工序成功，不证明 UI、状态保存、业务
 
 Android 功能的完整验收链：代码 → UI 入口 → 用户操作 → 状态保存/恢复 → 真实业务行为 → 正式 APK → 安装 → 真机验证。
 
-例如 Project Member：新增 → 绑定 API → 设为 Default → 保存 → 离开 Project → 重新进入 → 确认状态仍在 → 发起项目对话 → 确认实际使用正确 API。
+例如 AI Connection：添加 → 配置 API → 授予 Context 权限 → 保存 → 离开 Context → 重新进入 → 确认状态仍在 → 发起对话 → 确认实际使用正确 Connection。
 
 只有真实链路完成，才能标记“已验证”。
 
@@ -106,11 +106,11 @@ AGENTS.md：AI 施工总原则、事实优先级、Verify 规则和架构禁区�
 - 默认双 AI 循环；
 - Workspace-centered 新模型；
 - 把 GitHub 做成第二套工作区；
-- 普通 Project 问题自动多 AI；
-- 复杂 Project Dashboard；
+- 普通 Context 问题自动多 AI；
+- 复杂 Context Dashboard；
 - 无限 Agent Loop。
 
-当前模型：Project → Project Address / Default AI / Project Members / Project Conversation / Request AI Assistance。
+当前模型：Space（Connection）→ Context → Connection / Resource → Task / Dispatcher → 结果 / 验证。
 
 ## 12. 连续施工
 
@@ -159,10 +159,10 @@ APK 与预期不一致：检查 APK 对应 Commit、Build Run、Workflow 使用�
 
 - 长期分支：main
 - 旧历史分支：已清理
-- 当前产品模型：Project-centered
+- 当前产品模型：Space / Context / Connection
 - 固定 Decision / Worker：废弃
 - 固定 AI A / AI B：废弃
-- Project UI：开发中
+- Space / Context UI：开发中
 - 正式签名构建：统一
 - Secretary / Orchestrator：未来能力
 - 普通“对话”页：暂缓大改
