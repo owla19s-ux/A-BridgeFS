@@ -24,15 +24,15 @@
 
 逐项确认：
 - Space / Context 是否能被用户实际进入和管理。
-- Workspace 与 Conversation 是否已经真正分开。
+- Space 与 Context / Conversation 的边界是否清楚。
 - 是否能独立新建 / 切换 Conversation。
 - 每个 Conversation 是否绑定自己的 API。
 - AI 消息是否显示对应 API 名称与头像，而不只是页面顶部显示。
 - API Profile 是否只承担连接资源角色，不承担施工权。
-- 本地文件修改权限是否真正进入 PermissionPolicy / BridgeFS 执行链。
+- 本地文件修改权限是否真正进入 Context 权限与 Local Connector 执行链。
 - GitHub 读取 / 修改边界是否真正生效。
 - **普通对话是否可以读取真实 GitHub Repository / Branch / 文件；不能只验证 GitHub Connection。**
-- 双 AI 是否按照正式架构工作，而不是旧 Decision / Worker 固定模型。
+- 多 AI 是否按照正式架构工作，并遵守拆分 / 做 / 审查权限，而不是旧 Decision / Worker 固定模型。
 - Receipt 是否能恢复并与消息 / 执行 / Verify 状态对应。
 - 日志是否能从 App 内实际访问并按类型查看。
 
