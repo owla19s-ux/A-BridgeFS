@@ -100,7 +100,7 @@ APS 曾经历过旧架构与新架构并存的问题，因此 AI 施工时必须
 - 权限与 ConstructionLock；
 - Commit / Verify 是否真实发生。
 
-旧 Decision AI、Worker AI、固定 AI A / AI B、旧 Space-centered 模型只可作为历史资料，不得重新作为当前施工依据。
+旧 Decision AI、Worker AI、固定 AI A / AI B、旧 Workspace-centered / Project-centered 模型只可作为历史资料，不得重新作为当前施工依据。
 
 ## 6. 文档职责
 
