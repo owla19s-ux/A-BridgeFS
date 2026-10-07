@@ -23,7 +23,7 @@
 ### A. 功能表
 
 逐项确认：
-- Workspace 是否能被用户实际进入和管理。
+- Space / Context 是否能被用户实际进入和管理。
 - Workspace 与 Conversation 是否已经真正分开。
 - 是否能独立新建 / 切换 Conversation。
 - 每个 Conversation 是否绑定自己的 API。
@@ -31,7 +31,7 @@
 - API Profile 是否只承担连接资源角色，不承担施工权。
 - 本地文件修改权限是否真正进入 PermissionPolicy / BridgeFS 执行链。
 - GitHub 读取 / 修改边界是否真正生效。
-- **普通对话是否可以读取真实 GitHub Repository / Branch / 文件；不能只验证 Workspace GitHub。**
+- **普通对话是否可以读取真实 GitHub Repository / Branch / 文件；不能只验证 GitHub Connection。**
 - 双 AI 是否按照正式架构工作，而不是旧 Decision / Worker 固定模型。
 - Receipt 是否能恢复并与消息 / 执行 / Verify 状态对应。
 - 日志是否能从 App 内实际访问并按类型查看。
@@ -40,12 +40,12 @@
 
 重点检查：
 - Launcher 与实际页面入口。
-- Workspace / Conversation 数据模型及所有调用方。
-- 旧 BridgeProject 兼容字段是否仍被业务代码使用。
+- Context / Conversation 数据模型及所有调用方。
+- 旧 Project / BridgeProject 兼容字段是否仍被业务代码使用。
 - API Profile 与权限代码是否存在错误耦合。
-- PermissionPolicy 是否读取正确的 Workspace / Conversation 有效权限。
+- PermissionPolicy 是否读取正确的 Context / Conversation 有效权限。
 - 普通对话 GitHub 读取是否经过统一 GitHub 访问边界。
-- GitHub 写入是否经过 Workspace + Repository + Branch 施工边界。
+- GitHub 写入是否经过 Context + Repository + Branch 施工边界。
 - 是否存在旧 Decision / Worker 协议残留。
 - 是否存在旧日志路径和重复日志入口。
 - MainActivity 是否仍承载新功能。
@@ -106,7 +106,7 @@ Actions 构建完成后必须记录：
 本项优先于 GitHub 修改施工。
 
 必须确认：
-- 普通对话不进入 Workspace 也能发起 GitHub 读取；
+- 普通对话不进入 Context 也能发起 GitHub Connection 读取；
 - GitHub 全局访问关闭时不会调用 GitHub API；
 - 授权无效 / Repository 不可访问时显示真实错误；
 - AI 能读取真实 Repository / Branch / 文件；
