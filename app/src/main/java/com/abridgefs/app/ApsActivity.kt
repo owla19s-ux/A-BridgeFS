@@ -69,8 +69,6 @@ class ApsActivity : Activity() {
             AppLogger.log(this, "STARTUP_STEP", "build_shell")
             buildShell()
 
-            AppLogger.log(this, "STARTUP_STEP", "recover_pending_receipts")
-            recoverPendingReceipts()
 
             AppLogger.log(this, "APS_STARTUP_READY")
         } catch (t: Throwable) {
