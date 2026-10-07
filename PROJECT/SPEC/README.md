@@ -15,4 +15,4 @@
 
 历史规格资料可以保留在 `docs/` 或历史审计目录，但不得与本文件冲突。
 
-当前产品名：**APS（AI + Project + Service）**。
+当前产品定位：**APS（AI + Context + Service）**。
