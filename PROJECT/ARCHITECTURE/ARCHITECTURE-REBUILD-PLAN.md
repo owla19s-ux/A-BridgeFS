@@ -115,15 +115,15 @@ Resource、Relation、Capability、Connection、Account、Identity、Policy、Co
 Space / Context UI → Context State → Context Domain → Context Store / Service → Connection / Resource
 ```
 
-### Phase 3：Project Conversation
+### Phase 3：Context Conversation
 ```
 Context → Conversation → AI Connection → API Profile → AI Request → Response
 ```
 
-### Phase 4：Project Member / API
-明确 Project Member ≠ API Profile，完成 Member 管理、Default Member、API Profile 绑定与实际调用。
+### Phase 4：AI Connection / API
+明确 AI Connection ≠ API Profile，完成 AI Connection 管理、Context 权限、API Profile 绑定与实际调用。
 
-### Phase 5：Address / Module
+### Phase 5：Connection / Resource / Connector
 ```
 Context → Connection → Resource → Connector → 具体外部能力
 ```
