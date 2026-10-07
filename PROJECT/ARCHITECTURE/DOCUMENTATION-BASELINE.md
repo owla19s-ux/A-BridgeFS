@@ -31,7 +31,20 @@ Space 是 Connection；Context 是 Space 内的工作上下文；Connection 是 
 
 ### Connection 与 Resource
 
-第一阶段 Connection 类型：Space、AI、GitHub、Local、File、Device、API / Service、Plugin 及未来其他连接。
+第一阶段 Connection 类型：
+
+```text
+Connection
+├── Space
+├── AI
+├── GitHub
+├── Local
+├── File
+├── Device
+├── API / Service
+├── Plugin
+└── 未来其他连接
+```
 
 典型关系：
 
@@ -45,6 +58,8 @@ Local 不删除；当前 Local 操作模块较弱，后续按 Local Connector �
 ### Dispatcher
 
 Dispatcher 是轻量调度分配层，不是完整 Agent Runtime。
+
+第一阶段任务阶段固定为：**拆分 → 做 → 实际执行结果 → 审查**；审查不通过返回“做”。
 
 ### 多 AI
 
