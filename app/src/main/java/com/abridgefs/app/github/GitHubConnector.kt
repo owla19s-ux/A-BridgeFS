@@ -1,12 +1,19 @@
 package com.abridgefs.app.github
 
+import com.abridgefs.app.github.api.FileWriteRequest
 import com.abridgefs.app.github.api.GitHubApi
+import com.abridgefs.app.github.api.WorkflowDispatchRequest
 import com.google.gson.JsonObject
 import retrofit2.Response
 
+data class GitHubWritePolicy(val enabled: Boolean = false) {
+    fun requireEnabled() = check(enabled) { "GitHub 修改权限未授权" }
+}
+
 class GitHubConnector(
     private val api: GitHubApi,
-    private val address: GitHubAddress
+    private val address: GitHubAddress,
+    private val writePolicy: GitHubWritePolicy = GitHubWritePolicy()
 ) {
     suspend fun repository(): Response<JsonObject> =
         api.repository(address.owner, address.repo)
@@ -38,6 +45,22 @@ class GitHubConnector(
 
     suspend fun currentUser(): Response<JsonObject> =
         api.currentUser()
+
+    suspend fun writeFile(
+        path: String,
+        request: FileWriteRequest
+    ): Response<JsonObject> {
+        writePolicy.requireEnabled()
+        return api.updateFile(address.owner, address.repo, path, request)
+    }
+
+    suspend fun dispatchWorkflow(
+        workflowId: String,
+        request: WorkflowDispatchRequest
+    ): Response<Unit> {
+        writePolicy.requireEnabled()
+        return api.dispatchWorkflow(address.owner, address.repo, workflowId, request)
+    }
 
     private fun requireBranch(): String =
         address.branch?.takeIf { it.isNotBlank() }
