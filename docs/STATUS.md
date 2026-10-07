@@ -14,50 +14,51 @@ APS 当前第一阶段定位：
 
 - **项目页**：Project 的主要人机工作面；
 - **对话页**：独立 AI 对话 / 查询 / 测试；
-- **配置页**：API、GitHub 等配置。
+- **设置页**：API、GitHub 等配置。
 
 项目页中的项目、AI、状态、操作记录主要用于人类查看和操作。
 
 ## 二、当前正式模型
 
-```
-Project
-├─ Project Address
-│  ├─ Local
-│  └─ GitHub
-├─ Default AI
-├─ Project Members
-├─ 项目主要对话
-├─ Request AI Assistance
-└─ 状态 / 操作记录
+```text
+Space（Connection）
+   ↓
+Context
+   ├─ Connection
+   ├─ Task
+   ├─ 对话
+   ├─ State
+   ├─ 工作记录
+   └─ 验证
 ```
 
-Connector：
-
-```
-AI Connector
-GitHub Connector
-Local Connector
-```
+Connection 类型：Space / AI / GitHub / Local / File / Device / API / Service / Plugin / 未来其他连接。
 
 Dispatcher：
 
-```
-请求 → Dispatcher → Connector / AI Member → 结果
+```text
+Context + Task + 权限
+        ↓
+Dispatcher
+        ↓
+拆分 → 做 → 实际结果 → 审查
 ```
 
 ## 三、多 AI 协作状态
 
 ### 已确认
 
-- 一个 Project 可以有多个 AI Member；
-- 当前 AI 可以按需请求其他 AI 协助；
-- 多 AI 不是普通项目问题的默认运行模式；
-- AI A / AI B 不是固定产品角色。
+- Space 是 Connection；
+- Context 是独立工作上下文；
+- 一个 Context 可以使用多个 Connection；
+- AI 是 Connection，不是固定角色；
+- AI 具有拆分 / 做 / 审查三个独立能力权限；
+- Dispatcher 负责三阶段任务调度；
+- 调度必须依据实际执行结果推进。
 
 ### 待设计
 
-**“一个项目多个 AI 协作施工”尚未解决。**
+**“一个 Context 多 AI 协作施工”的具体交接与并行机制仍待设计。**
 
 需要后续单独确定：
 
@@ -73,11 +74,11 @@ Dispatcher：
 
 ## 四、当前代码问题
 
-- Project / Project Address 正在向当前模型收口；
+- Context / Connection / Resource 正在向当前模型收口；
 - GitHub 能力已经具备基础连接与读取能力，但部分施工接口仍带有旧本地文件语义；
 - Local 能力保留，但现有本地操作模块较弱，需要后续按 Local Connector 重构；
 - 旧 BridgeFS 命名和历史代码仍有残留，不能视为当前产品模块；
-- Dispatcher 的正式代码边界仍需结合真实施工链确认。
+- Dispatcher 的正式代码边界仍需结合真实施工链继续确认；
 
 ## 五、文档状态
 
