@@ -104,7 +104,7 @@ AGENTS.md：AI 施工总原则、事实优先级、Verify 规则和架构禁区�
 - Worker AI；
 - 固定 AI A / AI B；
 - 默认双 AI 循环；
-- Workspace-centered 新模型；
+- Project / Workspace-centered 新模型；
 - 把 GitHub 做成第二套工作区；
 - 普通 Context 问题自动多 AI；
 - 复杂 Context Dashboard；
@@ -114,7 +114,7 @@ AGENTS.md：AI 施工总原则、事实优先级、Verify 规则和架构禁区�
 
 ## 12. 连续施工
 
-一次任务允许连续推进：理解 → 读取 → 分析 → 修改 → Commit → Verify → 必要时继续修复 → Verify → 完成。
+一次任务按当前阶段推进：拆分 → 做 → 实际执行结果 → 审查；代码任务可继续 Commit → Verify → 必要时返回“做”。
 
 正常施工不要求用户每一步点击“继续”。仅在需要用户决定、权限/资源不足、明确阻塞、达到合理迭代上限或需要改变既定架构/产品行为时暂停。
 
