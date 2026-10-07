@@ -18,7 +18,7 @@ APS 负责把外部能力以统一 Connection 形式接入，并根据 Context�
 
 ```
 Connection
-├── Space
+├── Space      ← 特殊：连接与资源底座
 ├── AI
 ├── GitHub
 ├── Local
@@ -33,30 +33,50 @@ Connection 不等于 API，也不限定具体业务用途。具体资源、权�
 
 ## 三、Space
 
-Space 是 Connection 的一种，不是普通 UI 文件夹、项目目录或个人资料区。
+Space 是 APS 中承载连接与资源的基础工作底座。
 
-Space 表示可以被 APS 连接、进入、组织和使用的环境。Space 可以来自手机本地、PC、其他设备、云端、NAS 或未来插件提供的其他空间。
+Space 属于 Connection 体系，但不是普通 Connection 的简单同类。它的固定基础是 Address 与 Resource；其他能力按使用场景组合。
 
-Space 内可以按用户需要组织多个 Context。
+```
+Space
+├── Address      ← 定位
+├── Resource     ← 实际内容
+└── 可组合能力
+    ├── Connection
+    ├── AI
+    ├── Task
+    ├── Conversation
+    ├── Device
+    ├── Plugin
+    └── ...
+```
+
+**固定的是定位与实际内容；能力是可组合的。**
+
+Address 至少包含名称、地址、备注。一个 Space / Context 可以存在多个 Address。
+
+Space 不是普通 UI 文件夹、项目目录或个人资料区。
 
 ## 四、Context
 
-Context 是 APS 的内部语义 / 数据概念，表示一个可以独立承载状态、内容、任务、对话和工作的具体上下文。
+Context 是 APS 的内部语义 / 数据概念，表示 Space 内的具体工作上下文。
 
-Context 不限定为软件开发项目。“项目”只是 Context 的一种使用方式或用户自定义名称，不是 APS 顶层固定业务对象。
+Context 不固定承载 Task、Conversation、State、内容或工作记录的全部组合；它根据具体场景组合所需能力。
 
-Context 可以使用一个或多个 Connection，也可以没有 AI Connection。
+Context 可以使用一个或多个 Connection，也可以没有 AI Connection。Task 也不是所有 Context 的必需组成部分。
 
 ## 五、Resource 与 Connector
 
-Resource 是 Connection 实际指向或操作的外部资源。
+Resource 是 APS 实际可使用、读取或操作的内容；Address 用于定位 Resource，两者不等同。
+
+Connection 提供访问、调用或管理能力，Connector 将具体 Connection 落到真实能力。
 
 ```
-Connection
+Address
    ↓
 Resource
    ↓
-Connector
+Connection / Connector
    ↓
 读取 / 修改 / 查询 / 执行
 ```
@@ -115,7 +135,7 @@ AI 是 Connection，不是固定的 Decision AI、Worker AI、主 AI 或永久�
 
 ## 十、状态与事实
 
-State 是 Context 持续工作所需的权威状态；Task 是可执行的工作单元；Receipt / Evidence 是实际结果及确认依据。
+State 是 Context 持续工作时需要的权威状态；Task 是可执行的工作单元，但不是所有 Context 的固定组成部分；Receipt / Evidence 是实际结果及确认依据。
 
 ```
 AI / Connection 返回
@@ -133,9 +153,10 @@ State 更新
 
 ### 已确认
 - APS = Connection + Dispatcher；
-- Space 是 Connection；
+- Space 是承载连接与资源的基础工作底座，并属于 Connection 体系；
+- Address 与 Resource 是 Space 的固定基础；
 - AI、GitHub、Local、File、Device、API / Service、Plugin 均属于 Connection 体系；
-- Context 是独立工作上下文；
+- Context 是可组合能力的具体工作上下文；
 - “项目”只是 Context 的一种使用方式；
 - Dispatcher 使用“拆分 → 做 → 审查”；
 - AI 不采用固定职责角色。
@@ -160,4 +181,4 @@ State 更新
 
 当前代码中仍可能存在 Project、Project Address、Project Member、API Profile 等历史实现命名。这些属于迁移过程中的实现兼容，不代表当前产品语义重新回到 Project-centered 模型。
 
-新设计、新代码和新文档应优先使用 Connection、Space、Context、Resource、Task、Receipt、Dispatcher 等当前概念。
+新设计、新代码和新文档应优先使用 Connection、Space、Context、Address、Resource、Task、Receipt、Dispatcher 等当前概念。
