@@ -1,6 +1,6 @@
 # APS 构建前检查清单
 
-更新时间：2026-10-02
+更新时间：2026-10-07
 
 ## 目的
 
@@ -23,7 +23,7 @@
 ### A. 功能表
 
 逐项确认：
- - Project 是否能被用户实际进入和管理。
+- Project 是否能被用户实际进入和管理。
 - Project Conversation 是否已经与 Project 模型正确连接。
 - 是否能在 Project 内独立新建 / 切换 Conversation。
 - Project Conversation 是否使用正确的 Default AI / Project Member / API Profile 关系。
@@ -41,7 +41,7 @@
 重点检查：
 - Launcher 与实际页面入口。
 - Project / Project Conversation 数据模型及所有调用方。
-- 旧 BridgeProject / Workspace 兼容字段是否仍被业务代码使用。
+- 旧 BridgeProject / Workspace 兼容字段是否仍被业务代码使用；如存在，只作为兼容残留检查，不得作为当前业务模型。
 - API Profile 与权限代码是否存在错误耦合。
 - PermissionPolicy 是否读取正确的 Project / Conversation 有效权限。
 - 普通对话 GitHub 读取是否经过统一 GitHub 访问边界。
@@ -106,7 +106,7 @@ Actions 构建完成后必须记录：
 本项优先于 GitHub 修改施工。
 
 必须确认：
-- 普通对话不进入 Workspace 也能发起 GitHub 读取；
+- 普通对话不进入 Project 工作面也能发起 GitHub 读取；
 - GitHub 全局访问关闭时不会调用 GitHub API；
 - 授权无效 / Repository 不可访问时显示真实错误；
 - AI 能读取真实 Repository / Branch / 文件；
