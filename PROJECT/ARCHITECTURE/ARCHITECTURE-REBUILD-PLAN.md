@@ -75,20 +75,23 @@ Activity 主要承担 Android 生命周期、页面承载、导航和页面级�
 
 内部 Kotlin/Java package 可以按新职责重建；Android `applicationId` `com.abridgefs.app` 保持独立，不因内部包重建自动修改。
 
-### 7. Context 是当前工作核心，Connection 是统一能力入口
+### 7. Space 是基础底座，能力按 Context 组合
 
-重点保持：
+保持以下核心语义：
 
-- Space
-- Context
-- Connection
-- Resource
-- Task
-- Receipt / Evidence
-- Verification
-- Dispatcher
+- **Space**：承载连接与资源的基础工作底座；
+- **Address**：定位信息；
+- **Resource**：实际内容；
+- **Context**：Space 内的具体工作上下文；
+- **Connection**：统一外部能力入口；
+- **Connector**：具体 Connection 的实现边界；
+- **Task**：按需建立的工作交接单位；
+- **Receipt / Evidence**：实际结果及确认依据；
+- **Dispatcher**：任务调度能力。
 
-Resource、Relation、Capability、Connection、Account、Identity、Policy、Control Domain 等保留架构空间，但当前不建设完整基础设施。
+**固定的是定位与实际内容；能力是可组合的。**
+
+Address 与 Resource 是 Space 的固定基础，不应再被设计成 Project Address 或 Project-centered 顶层模型。
 
 ### 8. 维加只提供参考，不成为 APS 的施工清单
 
@@ -112,7 +115,15 @@ Resource、Relation、Capability、Connection、Account、Identity、Policy、Co
 
 ### Phase 2：Space / Context 主链路
 ```
-Space → Context → Context State → Context Domain → Context Store / Service → Connection / Resource
+Space
+ ↓
+Address / Resource
+ ↓
+Context
+ ↓
+Context Store / Service
+ ↓
+Connection / Connector
 ```
 
 ### Phase 3：Context Conversation
@@ -125,13 +136,21 @@ Context → Conversation → AI Connection → API Profile → AI Request → Re
 
 ### Phase 5：Connection / Resource / Connector
 ```
-Context → Connection → Resource → Connector → 具体外部能力
+Context / Space
+      ↓
+Connection
+      ↓
+Address → Resource
+      ↓
+Connector
+      ↓
+具体外部能力
 ```
 GitHub 是 Connection 类型及其 Connector / Resource 实现，不重新形成 Workspace 或 Project Address 业务模型。
 
 ### Phase 6：Dispatcher / 施工链路
 ```
-Context → Task → Dispatcher → 拆分 → 做 → Connection / Connector → 实际结果 → 审查 → Receipt / Evidence → Verify
+Context → 可选 Task → Dispatcher → 拆分 → 做 → Connection / Connector → 实际结果 → 审查 → Receipt / Evidence → Verify
 ```
 不恢复旧 Decision AI / Worker AI 模型。
 
@@ -225,7 +244,7 @@ APS 已从“大规模架构重建”进入：
 
 当前主链：
 
-Space / Context → Connection → Dispatcher → Task → 拆分 → 做 → 实际结果 → 审查 → Verify
+Space → Address / Resource → Context → Connection → 可选 Task → Dispatcher → 拆分 → 做 → 实际结果 → 审查 → Verify
 
 当前只继续处理明确 Bug、集成缺口、UI 行为、验证发现的问题和必要文档同步。
 
