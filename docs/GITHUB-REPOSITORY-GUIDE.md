@@ -11,7 +11,7 @@
 
 - Repository：`owla19s-ux/APS`
 - 长期分支：`main`
-- 产品：APS（AI + Project + Service）
+- 产品：APS（AI + Context + Service）
 - 当前产品模型：Project-centered
 - 当前正式架构：`PROJECT/ARCHITECTURE/APS-CURRENT-ARCHITECTURE.md`
 - 当前正式规格：`PROJECT/SPEC/APS-PRODUCT-SPEC.md`
@@ -100,7 +100,7 @@ APS 曾经历过旧架构与新架构并存的问题，因此 AI 施工时必须
 - 权限与 ConstructionLock；
 - Commit / Verify 是否真实发生。
 
-旧 Decision AI、Worker AI、固定 AI A / AI B、旧 Workspace-centered 模型只可作为历史资料，不得重新作为当前施工依据。
+旧 Decision AI、Worker AI、固定 AI A / AI B、旧 Space-centered 模型只可作为历史资料，不得重新作为当前施工依据。
 
 ## 6. 文档职责
 
