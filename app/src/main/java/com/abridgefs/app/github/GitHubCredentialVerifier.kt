@@ -3,7 +3,7 @@ package com.abridgefs.app.github
 import com.abridgefs.app.github.api.GitHubApi
 
 data class GitHubVerificationResult(
-    val credential: GitHubCredential,
+    val login: String,
     val repositoryCount: Int
 )
 
@@ -29,11 +29,7 @@ class GitHubCredentialVerifier(
         }
 
         return GitHubVerificationResult(
-            credential = GitHubCredential(
-                login = login,
-                accessToken = "",
-                type = GitHubCredential.Type.PERSONAL_ACCESS_TOKEN
-            ),
+            login = login,
             repositoryCount = repositoriesResponse.body()?.size ?: 0
         )
     }
