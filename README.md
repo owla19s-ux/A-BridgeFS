@@ -12,7 +12,7 @@ APS 是运行在本地 Android 设备上的 **AI 外部能力连接与调度客�
 
 ```
 Connection
-├── Space
+├── Space      ← 特殊：连接与资源底座
 ├── AI
 ├── GitHub
 ├── Local
@@ -23,28 +23,48 @@ Connection
 └── 未来其他连接
 ```
 
-Space、AI、GitHub、本地、文件、设备、API / Service、Plugin 都是同一 Connection 体系中的不同类型。
+Space、AI、GitHub、本地、文件、设备、API / Service、Plugin 都属于统一 Connection 体系，但 Space 是其中承载连接与资源的基础工作底座。
 
 Connection 不等于 API，也不限定具体业务用途。
 
-## Space / Context
+## Space / Address / Resource
 
-Space 是一种 Connection。Space 内可以组织多个 Context。
+Space 是 APS 中承载连接与资源的基础工作底座。
 
-Context 是 APS 的具体工作上下文，负责承载 Connection、Task、对话、State、工作记录、验证和调度所需状态。
+```
+Space
+├── Address      ← 定位
+├── Resource     ← 实际内容
+└── 可组合能力
+    ├── Connection
+    ├── AI
+    ├── Task
+    ├── Conversation
+    ├── Device
+    ├── Plugin
+    └── ...
+```
 
-Context 不限定为软件开发项目。“项目”只是 Context 的一种使用方式或用户自定义名称。
+**固定的是定位与实际内容；能力是可组合的。**
+
+Address 回答“在哪里”，Resource 表示“实际有什么”。一个 Space / Context 可以存在多个 Address；每个 Address 至少包含名称、地址、备注。
+
+## Context
+
+Context 是 Space 内的具体工作上下文，不固定承载 Task、对话、State、工作记录等全部能力，而是根据使用场景组合所需能力。
+
+“项目”只是 Context 的一种使用方式或用户自定义名称，不是 APS 顶层固定业务对象。
 
 ## Resource / Connector
 
-Connection 指向或操作 Resource。
+Connection 提供访问、调用或管理能力；Address 用于定位 Resource；Resource 是实际内容；Connector 是具体 Connection 的实现边界。
 
 ```
-Connection
+Address
    ↓
 Resource
    ↓
-Connector
+Connection / Connector
    ↓
 实际读取 / 修改 / 调用
 ```
@@ -53,7 +73,7 @@ Connector
 
 ## Dispatcher
 
-Dispatcher 是核心调度能力。第一阶段任务链：
+Dispatcher 是核心调度能力。需要任务调度的 Context 才建立 Task。第一阶段任务链：
 
 ```
 用户任务
@@ -92,8 +112,9 @@ Dispatcher 必须根据实际执行结果推进，不把 AI 口头“完成”�
 ### 已确定
 
 - APS = Connection + Dispatcher；
-- Space 是 Connection；
-- Context 是工作上下文；
+- Space 是承载连接与资源的基础工作底座，并属于 Connection 体系；
+- Address 与 Resource 是 Space 的固定基础；
+- Context 是可组合能力的具体工作上下文；
 - AI、GitHub、Local、File、Device、API / Service、Plugin 属于统一 Connection 体系；
 - Connector 是具体 Connection 的实现边界；
 - Dispatcher 使用“拆分 → 做 → 审查”；
