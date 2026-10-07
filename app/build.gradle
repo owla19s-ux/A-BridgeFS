@@ -6,7 +6,7 @@ android {
     compileSdk 35
 
     defaultConfig {
-        buildConfigField 'String', 'GITHUB_CLIENT_ID', '\"' + (System.getenv(\"GITHUB_CLIENT_ID\") ?: \"\") + '\"'
+        buildConfigField 'String', 'GITHUB_CLIENT_ID', '"' + (System.getenv("GITHUB_CLIENT_ID") ?: "") + '"'
         applicationId 'com.abridgefs.app'
         minSdk 30
         targetSdk 35
@@ -17,12 +17,12 @@ android {
 
     signingConfigs {
         release {
-            def keystorePath = System.getenv(\"A_BRIDGEFS_KEYSTORE_FILE\")
+            def keystorePath = System.getenv("A_BRIDGEFS_KEYSTORE_FILE")
             if (keystorePath) {
                 storeFile file(keystorePath)
-                storePassword System.getenv(\"A_BRIDGEFS_KEYSTORE_PASSWORD\")
-                keyAlias System.getenv(\"A_BRIDGEFS_KEY_ALIAS\")
-                keyPassword System.getenv(\"A_BRIDGEFS_KEY_PASSWORD\")
+                storePassword System.getenv("A_BRIDGEFS_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("A_BRIDGEFS_KEY_ALIAS")
+                keyPassword System.getenv("A_BRIDGEFS_KEY_PASSWORD")
             }
         }
     }
