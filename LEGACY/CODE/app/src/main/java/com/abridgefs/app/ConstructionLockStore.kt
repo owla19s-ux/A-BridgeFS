@@ -1,0 +1,109 @@
+package com.abridgefs.app
+
+import java.security.MessageDigest
+
+data class ConstructionLock(
+    val projectId: String,
+    val repository: String,
+    val branch: String,
+    val holderAiMemberId: String? = null,
+    val acquiredAt: Long? = null
+) {
+    val isFree: Boolean get() = holderAiMemberId.isNullOrBlank()
+    fun heldBy(aiMemberId: String): Boolean = aiMemberId.isNotBlank() && holderAiMemberId == aiMemberId
+}
+
+class ConstructionLockStore(private val context: android.content.Context) {
+    private val prefs = context.getSharedPreferences("construction_locks", android.content.Context.MODE_PRIVATE)
+
+    @Synchronized
+    fun get(project: BridgeProject, repository: String? = null, branch: String? = null): ConstructionLock? {
+        val identity = identity(project, repository, branch) ?: return null
+        val key = key(project.id, identity.first, identity.second)
+        val holder = prefs.getString("${key}_holder", null)
+        val acquiredAt = if (prefs.contains("${key}_time")) prefs.getLong("${key}_time", 0L) else null
+        return ConstructionLock(project.id, identity.first, identity.second, holder, acquiredAt)
+    }
+
+    @Synchronized
+    fun acquire(project: BridgeProject, aiMemberId: String): ConstructionLock {
+        require(aiMemberId.isNotBlank()) { "AI Member 未指定" }
+        val repo = project.github.repository?.trim().orEmpty().ifBlank { "LOCAL" }
+        val branch = project.github.branch?.trim().orEmpty().ifBlank {
+            project.localAddress?.trim().orEmpty().ifBlank { "PROJECT" }
+        }
+        require(aiMemberId in project.aiMembers.map { it.id }) { "AI Member 不属于当前项目" }
+
+        val current = get(project, repo, branch)
+        if (current != null && !current.isFree && !current.heldBy(aiMemberId)) {
+            error("当前施工对象已由其他 AI 持有施工权")
+        }
+        if (current?.heldBy(aiMemberId) == true) return current
+
+        val now = System.currentTimeMillis()
+        val lock = ConstructionLock(project.id, repo, branch, aiMemberId, now)
+        val key = key(project.id, repo, branch)
+        prefs.edit()
+            .putString("${key}_holder", aiMemberId)
+            .putLong("${key}_time", now)
+            .apply()
+        return lock
+    }
+
+    @Synchronized
+    fun release(project: BridgeProject, aiMemberId: String) {
+        val lock = get(project) ?: return
+        require(lock.heldBy(aiMemberId)) { "当前 AI 不持有施工权" }
+        val key = key(lock.projectId, lock.repository, lock.branch)
+        prefs.edit().remove("${key}_holder").remove("${key}_time").apply()
+    }
+
+    @Synchronized
+    fun transfer(project: BridgeProject, fromAiMemberId: String, toAiMemberId: String): ConstructionLock {
+        require(toAiMemberId.isNotBlank()) { "目标 AI Member 未指定" }
+        require(toAiMemberId in project.aiMembers.map { it.id }) { "目标 AI Member 不属于当前项目" }
+        val current = get(project) ?: error("当前没有施工权")
+        require(current.heldBy(fromAiMemberId)) { "当前 AI 不持有施工权" }
+        require(fromAiMemberId != toAiMemberId) { "不能转移给同一个 AI" }
+
+        val now = System.currentTimeMillis()
+        val key = key(current.projectId, current.repository, current.branch)
+        prefs.edit().putString("${key}_holder", toAiMemberId).putLong("${key}_time", now).apply()
+        return current.copy(holderAiMemberId = toAiMemberId, acquiredAt = now)
+    }
+
+    @Synchronized
+    fun requireHolder(project: BridgeProject, aiMemberId: String): ConstructionLock {
+        val lock = get(project) ?: error("当前施工对象没有施工权")
+        check(lock.heldBy(aiMemberId)) { "当前 AI 未持有施工权" }
+        return lock
+    }
+
+    @Synchronized
+    fun clearProject(projectId: String) {
+        val prefix = "lock_" + projectIdHash(projectId) + "_"
+        prefs.all.keys.filter { it.startsWith(prefix) }.forEach { key -> prefs.edit().remove(key).apply() }
+    }
+
+    private fun identity(project: BridgeProject, repository: String?, branch: String?): Pair<String, String>? {
+        val repo = repository?.trim().orEmpty().ifBlank { project.github.repository?.trim().orEmpty().ifBlank { "LOCAL" } }
+        val ref = branch?.trim().orEmpty().ifBlank {
+            project.github.branch?.trim().orEmpty().ifBlank { project.localAddress?.trim().orEmpty().ifBlank { "PROJECT" } }
+        }
+        if (repo.isBlank() || ref.isBlank()) return null
+        return repo to ref
+    }
+
+    private fun key(projectId: String, repository: String, branch: String): String =
+        "lock_" + projectIdHash(projectId) + "_" + identityHash(repository, branch)
+
+    private fun projectIdHash(value: String): String = sha256(value.trim())
+
+    private fun identityHash(repository: String, branch: String): String =
+        sha256(repository.trim() + "\u0000" + branch.trim())
+
+    private fun sha256(value: String): String {
+        val digest = MessageDigest.getInstance("SHA-256").digest(value.toByteArray(Charsets.UTF_8))
+        return digest.joinToString("") { "%02x".format(it) }
+    }
+}
