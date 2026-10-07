@@ -6,39 +6,28 @@ android {
     compileSdk 35
 
     defaultConfig {
-        buildConfigField 'String', 'GITHUB_CLIENT_ID', '"' + (System.getenv("GITHUB_CLIENT_ID") ?: "") + '"'
+        buildConfigField 'String', 'GITHUB_CLIENT_ID', '\"' + (System.getenv(\"GITHUB_CLIENT_ID\") ?: \"\") + '\"'
         applicationId 'com.abridgefs.app'
         minSdk 30
         targetSdk 35
         versionCode 3
         versionName '0.2.1'
-
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
 
     signingConfigs {
         release {
-            def keystorePath = System.getenv("A_BRIDGEFS_KEYSTORE_FILE")
+            def keystorePath = System.getenv(\"A_BRIDGEFS_KEYSTORE_FILE\")
             if (keystorePath) {
                 storeFile file(keystorePath)
-                storePassword System.getenv("A_BRIDGEFS_KEYSTORE_PASSWORD")
-                keyAlias System.getenv("A_BRIDGEFS_KEY_ALIAS")
-                keyPassword System.getenv("A_BRIDGEFS_KEY_PASSWORD")
+                storePassword System.getenv(\"A_BRIDGEFS_KEYSTORE_PASSWORD\")
+                keyAlias System.getenv(\"A_BRIDGEFS_KEY_ALIAS\")
+                keyPassword System.getenv(\"A_BRIDGEFS_KEY_PASSWORD\")
             }
         }
     }
-
-    buildTypes {
-        release {
-            signingConfig signingConfigs.release
-        }
-    }
-
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
-    }
-
+    buildTypes { release { signingConfig signingConfigs.release } }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = '17' }
 }
 
@@ -46,10 +35,13 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.2.1'
     androidTestImplementation 'androidx.test:runner:1.6.2'
-
     implementation 'androidx.core:core-ktx:1.15.0'
     implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation 'androidx.recyclerview:recyclerview:1.3.2'
     implementation 'androidx.constraintlayout:constraintlayout:2.2.2'
     implementation 'androidx.drawerlayout:drawerlayout:1.2.0'
+    implementation 'com.squareup.retrofit2:retrofit:3.0.0'
+    implementation 'com.squareup.retrofit2:converter-gson:3.0.0'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2'
 }
