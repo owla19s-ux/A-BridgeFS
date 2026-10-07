@@ -21,35 +21,32 @@ APS 当前第一阶段定位：
 ## 二、当前正式模型
 
 ```text
-Space（Connection）
-   ↓
-Context
-   ├─ Connection
-   ├─ Task
-   ├─ 对话
-   ├─ State
-   ├─ 工作记录
-   └─ 验证
+Space
+├── Address      ← 定位
+├── Resource     ← 实际内容
+└── 可组合能力
+    ├── Connection
+    ├── Task
+    ├── Conversation
+    ├── State
+    ├── Records
+    ├── Verification
+    └── ...
 ```
 
-Connection 类型：Space / AI / GitHub / Local / File / Device / API / Service / Plugin / 未来其他连接。
+Space 属于 Connection 体系，但特殊职责是承载连接与资源的基础工作底座。
 
-Dispatcher：
+**固定的是定位与实际内容；能力是可组合的。**
 
-```text
-Context + Task + 权限
-        ↓
-Dispatcher
-        ↓
-拆分 → 做 → 实际结果 → 审查
-```
+Address 回答“在哪里”，Resource 表示“实际有什么”。一个 Space / Context 可以存在多个 Address。Task、Conversation、State、工作记录、验证等不是所有 Context 的固定组成部分。
 
 ## 三、多 AI 协作状态
 
 ### 已确认
 
-- Space 是 Connection；
-- Context 是独立工作上下文；
+- Space 属于 Connection 体系，但承担连接与资源底座职责；
+- Address + Resource 是 Space 的固定基础；
+- Context 是 Space 内的具体工作上下文，能力按场景组合；
 - 一个 Context 可以使用多个 Connection；
 - AI 是 Connection，不是固定角色；
 - AI 具有拆分 / 做 / 审查三个独立能力权限；
