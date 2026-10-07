@@ -4,11 +4,11 @@
 
 第一阶段不追求完整施工链，而是分别把基础模块做成可独立工作的边界：
 
-1. Project：Project / Task / Address / Member / Store
-2. Conversation：Conversation / Message / API Profile
-3. Execution：Command / Permission / Receipt
-4. GitHub：Project Address / Read / Write / Commit / Actions / Verify
-5. UI：项目 / 对话 / 设置及其状态展示
+1. Context：Context / Task / Connection / State / Store
+2. Conversation：Conversation / Message / AI Connection / API Profile
+3. Execution：Task / Permission / Receipt
+4. Connection：GitHub / Local / File / Device 等 Connection 及其 Resource / Connector
+5. UI：空间 / Context / 对话 / 设置及其状态展示
 
 模块稳定后再进入 Integration，不在模块尚未验证时强行串联。
 
@@ -25,10 +25,10 @@
 
 ## 本轮已开始
 
-### Project 模块
+### Context 模块
 
 已完成：
-- 将 Project Task / Conversation / Receipt / AI Member 模型从 ProjectModels.kt 拆分到独立模型文件。
+- 将 Context Task / Conversation / Receipt / AI Connection 模型从 ProjectModels.kt 拆分到独立模型文件。
 - Task 完成状态修改统一经过 ProjectTaskStateService，避免 UI 直接改变 Task 生命周期状态。
 - 保留旧模型字段兼容层，暂不进行破坏性删除。
 
@@ -39,11 +39,11 @@
 
 ## 阶段完成标准
 
-Project 模块至少满足：
-- 新建 / 加载 / 保存 Project 正常。
-- Project Address 可独立持久化。
+Context 模块至少满足：
+- 新建 / 加载 / 保存 Context 正常。
+- Context 的 Connection / Resource 关系可独立持久化。
 - Task 状态修改有唯一业务入口。
-- Conversation、Member、Task、Receipt 数据互不承担对方职责。
+- Conversation、AI Connection、Task、Receipt 数据互不承担对方职责。
 - 进程重启后 Project 状态可恢复。
 - 不依赖完整 AI → Execution → GitHub 链路即可独立验证。
 - 对应模块测试通过。
@@ -54,13 +54,13 @@ Build、APK、真机不作为模块完成的第一条件。
 
 ## 本轮继续收口
 
-- ProjectConfigurationService 统一 Project 配置修改入口。
-- ProjectConversationSelectionService 统一 Project Conversation 选择。
-- ProjectTaskStateService 统一 Task lifecycle。
+- ContextConfigurationService 统一 Context 配置修改入口（当前实现可暂用 ProjectConfigurationService 命名）。
+- ContextConversationSelectionService 统一 Context Conversation 选择（当前实现可暂用 ProjectConversationSelectionService 命名）。
+- ContextTaskStateService 统一 Task lifecycle（当前实现可暂用 ProjectTaskStateService 命名）。
 - ConstructionLock 生命周期已绑定 Task，不再由旧 continuation 机制驱动。
 
 ## 当前收口判断
 
-Project / Conversation / Execution / GitHub / UI 的职责边界已基本形成。
+Context / Connection / Conversation / Execution / GitHub / UI 的职责边界已基本形成。
 
 下一阶段重点是主链 Integration 与云端验证体系建设；正式 APK 和真机验收后置。发现明确硬问题才继续修改。
