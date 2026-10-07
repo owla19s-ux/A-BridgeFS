@@ -74,27 +74,45 @@ class ApsActivity : Activity() {
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
+        AppLogger.log(this, "ACTIVITY_ON_CREATE")
         try {
+            AppLogger.log(this, "STARTUP_STEP", "window")
             window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+
+            AppLogger.log(this, "STARTUP_STEP", "project_store_load")
             projects = projectStore.load()
+            AppLogger.log(this, "STARTUP_STEP", "project_store_loaded count=${projects.size}")
             if (projects.isEmpty()) {
+                AppLogger.log(this, "STARTUP_STEP", "create_default_project")
                 val project = projectStore.newProject("默认项目")
                 projects += project
                 projectStore.save(projects)
             }
             currentProject = projects.firstOrNull()
+
+            AppLogger.log(this, "STARTUP_STEP", "conversation_store_load")
             standaloneConversations = standaloneConversationStore.load()
+            AppLogger.log(this, "STARTUP_STEP", "conversation_store_loaded count=${standaloneConversations.size}")
             if (standaloneConversations.isEmpty()) {
+                AppLogger.log(this, "STARTUP_STEP", "create_default_conversation")
                 val created = standaloneConversationStore.newConversation("新会话 1", null)
                 standaloneConversations += created
                 standaloneConversationStore.save(standaloneConversations)
             }
             currentStandaloneConversationId = standaloneConversations.firstOrNull()?.id
+
+            AppLogger.log(this, "STARTUP_STEP", "register_receipt_receiver")
             registerReceiver(receiptReceiver, IntentFilter("com.bridgefs.RESULT"), Context.RECEIVER_NOT_EXPORTED)
+
+            AppLogger.log(this, "STARTUP_STEP", "build_shell")
             buildShell()
+
+            AppLogger.log(this, "STARTUP_STEP", "recover_pending_receipts")
             recoverPendingReceipts()
+
             AppLogger.log(this, "APS_STARTUP_READY")
         } catch (t: Throwable) {
+            AppLogger.log(this, "APS_STARTUP_FAILED", t::class.simpleName + ": " + (t.message ?: "unknown"))
             AppLogger.recordCrash(this, t)
             showStartupError(t)
         }
