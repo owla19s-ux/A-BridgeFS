@@ -39,7 +39,7 @@
 
 ## 2. 当前架构特别注意
 
-APS 已经从旧的固定双 AI 模型转为 **Project-centered** 模型。
+APS 当前采用 **Space / Context / Connection** 模型；旧固定双 AI 和 Project-centered 模型均属于历史架构。
 
 以下历史架构已经废弃：
 
