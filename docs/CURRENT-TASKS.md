@@ -12,7 +12,7 @@
 验收重点：
 - 空间页进入 Space 并展示 Context；
 - Context 主要对话是主体；
-- Context 使用的 Connection / Resource、AI 权限、任务和状态可查看；
+- Context 使用的 Address / Resource、Connection、AI 权限以及当前存在的任务 / 状态能力可查看；
 - Context 的连接与配置独立展开 / 收起；
 - 不把内部服务对象全部平铺成复杂 Dashboard。
 
@@ -75,7 +75,7 @@ Context 对话
 建立：
 - 模块测试；
 - 契约测试；
-- Project 主链测试；
+- Context 主链测试；
 - Commit → Actions → Verify 验证。
 
 ### T7 — 独立对话 / 设置
@@ -111,7 +111,7 @@ Context 对话
 
 ## 2. 当前优先级
 
-Space / Context → Connection → 对话 → Task / Dispatcher → Execution → GitHub / Verify → Local Connection → 云端测试 → 独立对话 / 设置 → 多 AI 协作设计 → 真机验收
+Space → Address / Resource → Context → Connection → 对话 → 可选 Task / Dispatcher → Execution → GitHub / Verify → Local Connection → 云端测试 → 独立对话 / 设置 → 多 AI 协作设计 → 真机验收
 
 多 AI 协作虽然是重要能力，但在协议未确定前不进入实现阶段。
 
