@@ -27,7 +27,6 @@ internal fun ApsActivity.settingsPage() {
         val name = pair.first
         val subtitle = pair.second
         val open = settingOpen.contains(name)
-
         content.addView(
             section(name + "  ·  " + subtitle, open) {
                 if (open) settingOpen.remove(name) else settingOpen.add(name)
@@ -35,7 +34,6 @@ internal fun ApsActivity.settingsPage() {
             },
             LinearLayout.LayoutParams(-1, dp(50)).apply { topMargin = dp(5) }
         )
-
         if (open) {
             content.addView(card().apply {
                 when (name) {
@@ -44,10 +42,10 @@ internal fun ApsActivity.settingsPage() {
                         addView(value("连接页只负责进入 API / GitHub 等具体资源配置；模块内部维护各自的连接权限。"))
                         addView(secondaryButton("API Profiles") {
                             startActivity(Intent(this@settingsPage, ApiSettingsActivity::class.java))
-                        }, LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(5) })
+                        })
                         addView(secondaryButton("GitHub 连接") {
                             startActivity(Intent(this@settingsPage, GitHubActivity::class.java))
-                        }, LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(5) })
+                        })
                     }
                     "权限" -> {
                         addView(label("APS 系统级权限"))
@@ -58,7 +56,6 @@ internal fun ApsActivity.settingsPage() {
                         addView(settingSwitch("GitHub 全局访问", AccessPolicy.isGithubEnabled(this@settingsPage)) {
                             AccessPolicy.setGithubEnabled(this@settingsPage, it)
                         })
-                    }, LinearLayout.LayoutParams(-1, dp(42)).apply { topMargin = dp(5) })
                     }
                     else -> {
                         addView(label(name))
