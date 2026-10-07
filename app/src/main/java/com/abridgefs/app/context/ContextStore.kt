@@ -12,7 +12,7 @@ import org.json.JSONObject
  * Task、Conversation、Dispatcher 等不属于此 Store。
  */
 class ContextStore(context: AndroidContext) {
-    private val prefs = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
+    private val prefs = context.getSharedPreferences(PREFERENCES, AndroidContext.MODE_PRIVATE)
 
     fun get(id: String): Context? = load().firstOrNull { it.id == id }
 
