@@ -15,28 +15,37 @@ APS 第一阶段定位：
 
 ## 当前架构边界
 
-```
-AI Connector
-GitHub Connector
-Local Connector
+```text
+Connection
+├── Space
+├── AI
+├── GitHub
+├── Local
+├── File
+├── Device
+├── API / Service
+├── Plugin
+└── 未来其他连接
         ↓
+   Connector
+        ↑
     Dispatcher
-        ↓
-项目页 / 对话页 / 状态展示
+        ↑
+Context / Task / 权限
 ```
 
-项目页是 UI 工作面，不等于复杂 Project Engine。
+Space 是 Connection；Context 是工作上下文；AI 是 Connection；Dispatcher 负责“拆分 → 做 → 审查”阶段调度。
 
-Connector 负责外部能力边界；Dispatcher 负责轻量的请求分配与协调；没有明确需求和证据时，不得把它们扩展为完整 Agent Runtime。
+Connector 负责真实外部能力边界；Dispatcher 不得在没有需求和证据时扩展为完整 Agent Runtime。
 
 ## 项目页规则
 
-项目页负责展示和操作：
+空间页 / Context 工作面负责展示和操作：
 
-- 当前 Project；
-- Project Address；
-- Default AI / AI Members；
-- 项目主要对话；
+- 当前 Context；
+- Context 使用的 Connection / Resource；
+- AI Connection 及其 Context 权限；
+- Context 主要对话；
 - 请求 AI 协助；
 - 当前施工、Commit、Verify 等状态。
 
@@ -44,7 +53,7 @@ Connector 负责外部能力边界；Dispatcher 负责轻量的请求分配与�
 
 ## 多 AI 协作规则
 
-一个 Project 可以存在多个 AI Member。
+一个 Context 可以使用多个 AI Connection。
 
 当前只确认：
 
@@ -72,8 +81,8 @@ Connector 负责外部能力边界；Dispatcher 负责轻量的请求分配与�
 
 ## Local / GitHub
 
-- Local Project → Local Connector → Android 本地目录；
-- GitHub Project → GitHub Connector → GitHub API → 远程 Repository。
+- Local Connection → Local Connector → Android 本地目录；
+- GitHub Connection → GitHub Connector → GitHub API → 远程 Repository。
 
 BridgeFS 已不属于当前 APS 产品。旧 BridgeFS 代码和文档只能视为遗留资料；本地能力继续存在时，应按 Local Connector 重新理解。
 
