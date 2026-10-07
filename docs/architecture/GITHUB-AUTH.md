@@ -50,7 +50,7 @@ Repository 可访问
 例如：
 
 ```
-工作区允许修改 = 开
+Project Address 允许修改 = 开
 GitHub PAT = Contents Read-only
         ↓
 实际仍然不能写入
