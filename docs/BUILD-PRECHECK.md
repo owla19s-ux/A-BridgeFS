@@ -41,7 +41,7 @@
 重点检查：
 - Launcher 与实际页面入口。
 - Context / Conversation 数据模型及所有调用方。
-- 旧 Project / BridgeProject 兼容字段是否仍被业务代码使用。
+- 旧 Project / BridgeProject 兼容字段是否仍被业务代码使用；不得把历史 Project 模型重新作为当前 Space / Context 语义。
 - API Profile 与权限代码是否存在错误耦合。
 - PermissionPolicy 是否读取正确的 Context / Conversation 有效权限。
 - 普通对话 GitHub 读取是否经过统一 GitHub 访问边界。
@@ -73,7 +73,7 @@
 - 消息宽度：当前已解决，回归确认即可。
 - API 名称：当前消息中未显示，待修复。
 - API 头像：当前消息中未显示，待修复。
-- Workspace 独立页面 / 数据结构：当前 App 尚未真正完成。
+- Space / Context 工作面与数据结构：当前 App 尚未真正完成。
 - 独立新建 Conversation：当前 App 尚未真正完成。
 
 ## 三、构建后验证
