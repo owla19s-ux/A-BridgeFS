@@ -30,9 +30,9 @@ GitHub Account
         ↓
 可访问 Repositories
         ↓
-Context 选择 GitHub Resource
+Space / Context 选择 GitHub Resource
         ↓
-Context 选择 Branch Resource
+Address / Resource 确定 Repository / Branch
         ↓
 GitHub Connection Resources
 ```
@@ -65,7 +65,7 @@ Context 内对话读取当前 Context 关联的 Repository / Branch。两个 AI 
 
 修改属于另一条链路：
 
-施工 AI → Project / Repository / Branch → ConstructionLock → updateFile → Commit
+施工 AI → Context / GitHub Resource → ConstructionLock → updateFile → Commit
 
 普通对话读取成功，并不意味着普通对话拥有修改权限。
 
@@ -81,7 +81,7 @@ Context 内对话读取当前 Context 关联的 Repository / Branch。两个 AI 
 
 负责确认当前 App 代表哪个 GitHub 用户，以及令牌是否有效。
 
-### Project权限
+### Context 权限
 
 Context 进一步限制：
 
@@ -126,7 +126,7 @@ GitHub
 
 ## 5. 数据模型
 
-Context 的 GitHub Connection 关联保存：
+Context 的 GitHub Connection / Resource 关联保存：
 
 - `githubAccount`：当前绑定的 GitHub 登录名
 - `github.repositoryId`：GitHub Repository 稳定 ID
@@ -150,12 +150,14 @@ GitHubTokenStore
     ↓
 GitHubApiClient
     ↓
-GitHubProjectService
+GitHub Service
     ↓
-GitHubActivity
+GitHub UI / Context
     ↓
-Context.github
+Context 的 GitHub Connection / Resource
 ```
+
+代码中的 `GitHub Service` 等名称属于迁移期实现命名，不重新定义当前产品语义。
 
 选择后保存：
 
@@ -283,8 +285,8 @@ GitHub 是真实执行资源之一，不是 UI 装饰。
 
 GitHub 模块不决定 AI 角色。当前正式模型不设固定 Decision AI / Worker AI，也不设固定 AI A / AI B。
 
-施工写入链路必须同时满足：Global GitHub Access、Project GitHub Read/Write、RUNNING Task、AI Member 所属 Project、ConstructionLock holder。
+施工写入链路必须同时满足：Global GitHub Access、Context GitHub Read/Write、RUNNING Task、AI Member 所属 Project、ConstructionLock holder。
 
 GitHub Token 的真实权限仍是最终外部能力边界。
 
-GitHub 模块负责“能访问什么”；Context / Task / ConstructionLock 负责“当前哪个 Project、哪个 Task、哪个 AI Member 可以修改”。
+GitHub 模块负责“能访问什么”；Context / Task / ConstructionLock 负责“当前哪个 Context、哪个 Task、哪个 AI 可以修改”。
