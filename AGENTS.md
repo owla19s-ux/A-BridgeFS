@@ -34,7 +34,7 @@ Connection
 Context / Task / 权限
 ```
 
-Space 是 Connection；Context 是工作上下文；AI 是 Connection；Dispatcher 负责“拆分 → 做 → 审查”阶段调度。
+Space 属于 Connection 体系，但承担连接与资源底座职责；Address + Resource 是 Space 的固定基础。Context 是工作上下文；AI 是 Connection；Dispatcher 负责按需组织“拆分 → 做 → 审查”等阶段。
 
 Connector 负责真实外部能力边界；Dispatcher 不得在没有需求和证据时扩展为完整 Agent Runtime。
 
