@@ -31,26 +31,62 @@ UI 位于能力之上：
 
 项目页是人类查看和操作项目的主要面板，不是独立执行引擎。
 
-## 二、Project
+## 二、对象、资源与 State
 
-Project 是工作上下文容器，至少关联：
+APS 的架构对象不限定具体业务类型。这里暂称为“对象”，具体产品名称后续单独确定。
 
-- Project Address；
-- Default AI；
-- Project Members；
-- 项目主要对话；
-- 当前任务 / 状态；
-- 操作记录。
-
-### Project Address
+一个对象可以关联多个 Resource：
 
 ```
-Project
-├─ Local → Local Connector → Android 本地目录
-└─ GitHub → GitHub Connector → GitHub API → Repository / Branch
+对象
+├─ Resource → Local
+├─ Resource → GitHub
+├─ Resource → Cloud / Other
+└─ State
 ```
 
-两者并列，不要求统一成本地 Workspace。
+对象不等于某一个地址，也不要求资源复制到多个端。
+
+### Resource
+
+Resource 是对象实际涉及的外部资源。不同 Resource 通过对应 Connector 访问：
+
+```
+Local Resource → Local Connector
+GitHub Resource → GitHub Connector
+Other Resource → 对应 Connector
+```
+
+### State
+
+State 是对象持续工作的权威状态，包含任务、进度、回执及必要的证据引用。
+
+State 有明确的权威存储位置，但不要求与每个 Resource 各保存一份。
+
+例如：
+
+```
+对象
+├─ State → GitHub .aps/
+├─ Resource → GitHub Repository
+└─ Resource → Local 文档
+```
+
+### Task / Receipt
+
+Task 是可分配的施工单元；Receipt 是 AI / 工具提交的结果及确认依据。
+
+```
+Task
+ ↓
+AI 施工
+ ↓
+Receipt / Evidence
+ ↓
+确认
+ ↓
+State 更新
+```
 
 ## 三、Connector
 
@@ -100,35 +136,36 @@ Dispatcher 只负责：
 
 ## 五、多 AI 协作
 
-一个 Project 可以有多个 AI Member。
+多 AI 以 Task 作为交接单位，而不是要求共享完整 AI 长上下文。
 
-当前只定义最小路径：
+基本方向：
 
 ```
-当前 AI
+Task
  ↓
-请求 AI 协助
+分配 AI
  ↓
-Dispatcher
+施工
  ↓
-目标 AI Connector / AI Member
+Receipt
  ↓
-协助结果
+验收
  ↓
-当前 AI
+State 更新
+ ↓
+下一 AI
 ```
 
-其余施工协作协议暂未定型，属于独立设计问题：
+当前尚未确定：
 
-- 任务交接；
-- 上下文共享；
-- 结果回执；
-- 施工权；
-- 并行 / 串行；
-- 冲突控制；
-- 恢复。
+- Task 树与依赖模型；
+- 分配与施工权交接；
+- Receipt / Evidence 的正式协议；
+- 并行施工与 Resource 隔离；
+- 冲突处理与 Merge；
+- Dispatcher 需要保存的最小协作状态。
 
-不得从旧 Dispatcher 文档自动推导这些机制。
+因此本阶段只确定对象 / Resource / State / Task / Receipt 边界，不实现完整多 Agent Runtime。
 
 ## 六、状态
 
@@ -145,9 +182,14 @@ Dispatcher
 
 1. Connector 是外部能力边界；
 2. Dispatcher 是轻量分配层；
-3. Project 是工作上下文；
+3. 对象是工作上下文容器；
 4. 项目页是人类操作面板；
-5. GitHub 远程仓库是 GitHub Project 的资源来源；
+5. GitHub Repository 是 GitHub Resource 的资源来源；
 6. Local 保留，但按 Local Connector 演进；
 7. 多 AI 协作先定义边界，再设计协议；
 8. 代码事实优先于历史文档。
+
+
+## 八、对象与资源模型
+
+正式模型见 [APS-OBJECT-RESOURCE-MODEL.md](./APS-OBJECT-RESOURCE-MODEL.md)。本模型取代“一个 Project 只有一个 Project Address”的过度简化假设。一个对象可以关联多个 Resource，并单独指定 State 的权威存储位置。
