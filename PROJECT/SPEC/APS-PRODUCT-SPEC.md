@@ -16,12 +16,12 @@ APS 不以完整 Agent Runtime、复杂工作流引擎或自主执行平台为�
 
 ## 二、项目页
 
-Project 是 APS 的核心业务对象；**项目页是 Project 面向用户的主要 UI 工作面**。
+对象是 APS 的核心业务上下文；当前 UI 仍可使用“项目页”作为面向用户的页面名称，但页面不应反向限定底层对象只能用于软件开发。
 
 项目页主要展示和操作：
 
 - Project 基本信息；
-- Project Address；
+- 对象及其 Resource；
 - Default AI；
 - Project Members；
 - 项目主要对话；
@@ -30,29 +30,35 @@ Project 是 APS 的核心业务对象；**项目页是 Project 面向用户的�
 
 项目页本身主要承担人机交互和状态展示，不等于底层执行引擎。
 
-## 三、Project Address
+## 三、对象与 Resource
 
-第一阶段支持：
+第一阶段不再把一个对象限定为单一 Project Address。
 
-- Local；
-- GitHub。
-
-关系：
+一个 APS 对象可以关联多个 Resource，例如：
 
 ```
-Local Project
- → Local Connector
- → Android 本地目录
-
-GitHub Project
- → GitHub Connector
- → GitHub API
- → 远程 Repository
+对象
+├── Local Resource
+├── GitHub Resource
+├── Cloud / Other Resource
+└── State
 ```
 
-Local 与 GitHub 是并列的项目地址类型。
+Resource 的访问方式由 Connector 决定：
 
-GitHub 项目不以本地 Clone / Workspace 作为业务前提。
+```
+Local → Local Connector
+GitHub → GitHub Connector
+Other → 对应 Connector
+```
+
+云端不是本地副本，本地也不是云端缓存。APS 不默认建立多端同步。
+
+State 是对象持续工作的权威状态，可以存放在对象指定的任一可持久化 Resource 上，例如 GitHub 的 `.aps/` 或本地目录。
+
+因此：
+
+> **对象描述“正在持续维护的东西”，Resource 描述“它涉及的外部资源”，State 描述“当前做到哪里”。**
 
 ## 四、AI 与 API
 
@@ -63,7 +69,7 @@ GitHub 项目不以本地 Clone / Workspace 作为业务前提。
 | Default AI | 当前项目默认 Member |
 | AI Connector | 实际连接 AI API 的能力边界 |
 
-一个 Project 可以有多个 AI Member。
+一个对象可以有多个 AI Member。
 
 ## 五、Dispatcher
 
@@ -202,3 +208,18 @@ ConstructionLock 只属于修改阶段的权限控制，不是普通读取前置
 - 复杂 Workflow Engine；
 - 完整 Git 客户端；
 - Secretary / Orchestrator 作为既定架构。
+
+
+## 十一、对象 / Resource / State / Task / Receipt
+
+第一阶段正式采用以下关系：
+
+- **对象**：APS 持续管理的独立上下文，不限定具体业务类型；
+- **Resource**：对象实际涉及的本地、GitHub、云端或其他资源；
+- **State**：对象持续工作的权威状态；
+- **Task**：可分配的施工单元；
+- **Receipt**：AI / 工具提交的结果及确认依据。
+
+Task 不等于 AI，AI 可以被替换；多 AI 交接以 Task 与 Receipt 为基本单位，而不是共享完整长上下文。
+
+详细模型见 `PROJECT/ARCHITECTURE/APS-OBJECT-RESOURCE-MODEL.md`。
