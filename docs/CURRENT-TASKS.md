@@ -6,17 +6,17 @@
 
 ## 1. 当前第一阶段主线
 
-### T1 — 项目页
+### T1 — Space / Context 工作面
 **状态：开发中**
 
 验收重点：
-- 项目页是 Project 的核心人机工作面；
-- 项目主要对话是主体；
-- Project Address、Default AI、AI Members、任务和状态可查看；
+- 空间页进入 Space 并展示 Context；
+- Context 主要对话是主体；
+- Context 使用的 Connection / Resource、AI 权限、任务和状态可查看；
 - 项目配置独立展开 / 收起；
 - 不把内部服务对象全部平铺成复杂 Dashboard。
 
-### T2 — Project Conversation
+### T2 — Context Conversation
 **状态：开发中**
 
 目标：
@@ -24,21 +24,23 @@
 ```
 项目页
  ↓
-Project Address
+Connection / Resource
  ↓
-Default AI
+AI Connection
  ↓
 项目主要对话
  ↓
 真实读取 / 工作
 ```
 
-### T3 — Task / Execution
+### T3 — Task / Dispatcher / Execution
 **状态：开发中**
 
 继续验证：
 - Task 生命周期；
-- Permission；
+- 拆分 / 做 / 审查；
+- 三项 AI 权限；
+- Dispatcher；
 - ConstructionLock；
 - Execution；
 - Commit 前置条件。
@@ -52,7 +54,7 @@ Default AI
 - 文件读取 / 修改；
 - Commit；
 - Actions / Verify；
-- 远程 Repository 作为 GitHub Project 资源来源。
+- 远程 Repository 作为 GitHub Connection 的 Resource 来源。
 
 ### T5 — Local Connector
 **状态：待重构**
@@ -62,8 +64,8 @@ Default AI
 当前问题：现有本地操作模块较弱，历史 BridgeFS 执行语义较重。
 
 后续目标：
-- 保留 Android 本地目录 Project；
-- 将本地文件能力收口为 Local Connector；
+- 保留 Android Local Connection 及其目录 Resource；
+- 将本地目录 / 文件能力收口为 Local Connection + Local Connector；
 - 不恢复 BridgeFS 产品模型；
 - 不在没有实际需求前建立复杂本地执行引擎。
 
@@ -86,7 +88,7 @@ Default AI
 
 需要单独确定：
 
-1. 一个 Project 内多个 AI 如何分工；
+1. 一个 Context 内多个 AI Connection 如何分工；
 2. 任务如何交接；
 3. 上下文 / 工作状态如何共享；
 4. AI 如何确认前一个 AI 的结果；
@@ -109,7 +111,7 @@ Default AI
 
 ## 2. 当前优先级
 
-项目页 → Project Conversation → Task / Execution → GitHub / Verify → Local Connector → 云端测试 → 独立对话 / 设置 → 多 AI 协作设计 → 真机验收
+Space / Context → Connection → 对话 → Task / Dispatcher → Execution → GitHub / Verify → Local Connection → 云端测试 → 独立对话 / 设置 → 多 AI 协作设计 → 真机验收
 
 多 AI 协作虽然是重要能力，但在协议未确定前不进入实现阶段。
 
@@ -117,8 +119,8 @@ Default AI
 
 - 固定 Decision AI / Worker AI；
 - 固定 AI A / AI B；
-- 普通 Project 问题自动多 AI；
-- 复杂 Project Dashboard；
+- 普通 Context 问题自动多 AI；
+- 复杂 Context Dashboard；
 - 无限 Agent Loop；
 - GitHub 第二套 Workspace 模型；
 - BridgeFS 作为当前产品模块；
