@@ -1,6 +1,6 @@
 package com.abridgefs.app.context
 
-import android.content.Context
+import android.content.Context as AndroidContext
 import com.abridgefs.app.github.GitHubResource
 import org.json.JSONArray
 import org.json.JSONObject
@@ -11,7 +11,7 @@ import org.json.JSONObject
  * 只负责 Context 本身的保存、读取和删除。
  * Task、Conversation、Dispatcher 等不属于此 Store。
  */
-class ContextStore(context: Context) {
+class ContextStore(context: AndroidContext) {
     private val prefs = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
 
     fun get(id: String): Context? = load().firstOrNull { it.id == id }
