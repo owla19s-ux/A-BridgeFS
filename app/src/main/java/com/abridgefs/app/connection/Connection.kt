@@ -1,6 +1,6 @@
 package com.abridgefs.app.connection
 
-sealed interface Connection {
+interface Connection {
     val id: String
     val type: Type
 
