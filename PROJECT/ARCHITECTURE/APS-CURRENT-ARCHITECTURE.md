@@ -5,191 +5,122 @@
 ## 一、第一阶段架构
 
 ```
-                    APS
-                     │
-              ┌──────┴──────┐
-              │ Dispatcher  │
-              └──────┬──────┘
-                     │
-       ┌─────────────┼─────────────┐
-       ↓             ↓             ↓
- AI Connector   GitHub Connector  Local Connector
-       │             │             │
-       ↓             ↓             ↓
-    AI API       GitHub API     本地目录
+                         APS
+                          │
+                ┌─────────┴─────────┐
+                │                   │
+          Connection             Dispatcher
+                │                   │
+      ┌─────────┼─────────┐         │
+      ↓         ↓         ↓         │
+    Space      AI      GitHub ...    │
+      │         │         │         │
+      └─────────┼─────────┘         │
+                ↓                   │
+             Resource               │
+                │                   │
+             Connector ←────────────┘
+                │
+          实际读取 / 修改 / 调用
 ```
 
-UI 位于能力之上：
+Connection 是统一外部能力抽象；Connector 是具体能力实现边界；Dispatcher 是跨 Connection 的调度分配能力。
+
+## 二、UI 与架构关系
 
 ```
-                  APS UI
-                    │
-          ┌─────────┼─────────┐
-          ↓         ↓         ↓
-        项目页     对话页     配置页
+APS UI
+├── 空间页
+│    └── Space / Context 工作面
+├── 对话页
+│    └── AI Connection 的独立使用入口
+└── 设置页
+     └── 全局 Connection / 权限 / 验证 / 系统设置
 ```
 
-项目页是人类查看和操作项目的主要面板，不是独立执行引擎。
+## 三、Space / Context
 
-## 二、对象、资源与 State
+Space 是 Connection 的一种。Context 是 Space 内可独立承载状态、任务、内容和工作记录的上下文。“项目”可以作为 Context 的用户自定义名称或一种使用方式，但不再是 APS 顶层架构根。
 
-APS 的架构对象不限定具体业务类型。这里暂称为“对象”，具体产品名称后续单独确定。
+## 四、Connection / Resource
 
-一个对象可以关联多个 Resource：
-
-```
-对象
-├─ Resource → Local
-├─ Resource → GitHub
-├─ Resource → Cloud / Other
-└─ State
-```
-
-对象不等于某一个地址，也不要求资源复制到多个端。
-
-### Resource
-
-Resource 是对象实际涉及的外部资源。不同 Resource 通过对应 Connector 访问：
+第一阶段 Connection 类型正式定义为：
 
 ```
-Local Resource → Local Connector
-GitHub Resource → GitHub Connector
-Other Resource → 对应 Connector
+Connection
+├── Space
+├── AI
+├── GitHub
+├── Local
+├── File
+├── Device
+├── API / Service
+├── Plugin
+└── 未来其他连接
 ```
 
-### State
+Resource 是 Connection 实际指向的外部资源。APS 不默认复制资源，也不因为多个 Connection 自动建立多端同步。
 
-State 是对象持续工作的权威状态，包含任务、进度、回执及必要的证据引用。
+## 五、Connector
 
-State 有明确的权威存储位置，但不要求与每个 Resource 各保存一份。
+Connector 负责把具体 Connection 落到真实能力。
 
-例如：
+- AI Connector：负责 AI / 模型 API 连接、请求和响应；
+- GitHub Connector：负责 Repository、Branch、文件、Commit、Pull Request、Actions / Verify 等 GitHub 能力；
+- Local Connector：负责 Android 本地目录和本地文件的读取、修改及相关操作。
 
-```
-对象
-├─ State → GitHub .aps/
-├─ Resource → GitHub Repository
-└─ Resource → Local 文档
-```
+其他 Connection 可在后续建立对应 Connector。
 
-### Task / Receipt
+## 六、State / Task / Receipt
 
-Task 是可分配的施工单元；Receipt 是 AI / 工具提交的结果及确认依据。
+State 是 Context 持续工作的权威状态。Task 是可分配、可执行、可审查的工作单元。Receipt / Evidence 是实际执行结果及其确认依据。
 
 ```
+Context
+   ↓
 Task
- ↓
-AI 施工
- ↓
+   ↓
+Dispatcher
+   ↓
+Connection / AI
+   ↓
+实际执行
+   ↓
 Receipt / Evidence
- ↓
-确认
- ↓
+   ↓
 State 更新
 ```
 
-## 三、Connector
+## 七、Dispatcher
 
-### AI Connector
+第一阶段职责：
+1. 接收用户任务；
+2. 读取当前 Context、Connection 和权限；
+3. 组织“拆分 → 做 → 审查”；
+4. 为当前阶段选择有对应权限的 AI / Connection；
+5. 调用对应 Connector；
+6. 获取实际结果；
+7. 根据实际结果完成或回退任务。
 
-负责：
+AI 的口头结果不是执行事实。
 
-- API Profile；
-- AI 请求；
-- AI 响应；
-- 不同模型 / Provider 的连接差异。
+## 八、AI 权限
 
-### GitHub Connector
+AI 属于 Connection 体系。Context 为 AI 配置三个独立能力权限：拆分、做、审查。权限不是固定角色。一个 AI 可以拥有多个权限；多个 AI 可以成为同一阶段候选。同一任务同一时间只能存在一个实际“做”的修改执行者。
 
-负责：
+## 九、多 AI
 
-- Repository；
-- Branch；
-- 文件；
-- Commit；
-- Pull Request；
-- Actions / Verify 等 GitHub 能力。
+多 AI 以 Task 为交接单位。阶段与权限边界已确定；Task 交接、Context 状态共享、Receipt / Evidence 协议、并行 Task、Resource 冲突与合并、Dispatcher 持久化协作状态仍待设计。
 
-远程 Repository 是 GitHub Project 的资源来源。
+## 十、架构原则
 
-### Local Connector
-
-负责：
-
-- Android 本地目录；
-- 文件读取；
-- 文件修改；
-- 本地项目操作。
-
-当前本地操作实现较弱，后续需要独立重构；不得因为旧 BridgeFS 命名而重新建立 BridgeFS 产品模型。
-
-## 四、Dispatcher
-
-Dispatcher 只负责：
-
-- 根据请求选择目标 AI / Connector；
-- 传递必要的上下文；
-- 接收结果；
-- 在明确需要下一能力时再次分配。
-
-第一阶段不要求 Dispatcher 实现完整 Agent Runtime。
-
-## 五、多 AI 协作
-
-多 AI 以 Task 作为交接单位，而不是要求共享完整 AI 长上下文。
-
-基本方向：
-
-```
-Task
- ↓
-分配 AI
- ↓
-施工
- ↓
-Receipt
- ↓
-验收
- ↓
-State 更新
- ↓
-下一 AI
-```
-
-当前尚未确定：
-
-- Task 树与依赖模型；
-- 分配与施工权交接；
-- Receipt / Evidence 的正式协议；
-- 并行施工与 Resource 隔离；
-- 冲突处理与 Merge；
-- Dispatcher 需要保存的最小协作状态。
-
-因此本阶段只确定对象 / Resource / State / Task / Receipt 边界，不实现完整多 Agent Runtime。
-
-## 六、状态
-
-第一阶段只保留完成 UI 展示、任务恢复和协作所真正需要的最小状态。
-
-不要预先建立：
-
-- Reducer / Event Bus 全套运行时；
-- 无限 Action 队列；
-- Sub-Agent 生命周期；
-- 大型 Recovery Runtime。
-
-## 七、架构原则
-
-1. Connector 是外部能力边界；
-2. Dispatcher 是轻量分配层；
-3. 对象是工作上下文容器；
-4. 项目页是人类操作面板；
-5. GitHub Repository 是 GitHub Resource 的资源来源；
-6. Local 保留，但按 Local Connector 演进；
-7. 多 AI 协作先定义边界，再设计协议；
-8. 代码事实优先于历史文档。
-
-
-## 八、对象与资源模型
-
-正式模型见 [APS-OBJECT-RESOURCE-MODEL.md](./APS-OBJECT-RESOURCE-MODEL.md)。本模型取代“一个 Project 只有一个 Project Address”的过度简化假设。一个对象可以关联多个 Resource，并单独指定 State 的权威存储位置。
+1. Connection 是统一外部能力抽象；
+2. Connector 是具体 Connection 的实现边界；
+3. Space 是 Connection；
+4. Context 是工作上下文；
+5. Dispatcher 是轻量调度能力；
+6. Task 是工作的交接单位；
+7. Receipt / Evidence 是结果确认依据；
+8. 不建立 Project Address 作为顶层模型；
+9. 不恢复固定 Decision / Worker 角色；
+10. 代码事实优先于历史文档。
