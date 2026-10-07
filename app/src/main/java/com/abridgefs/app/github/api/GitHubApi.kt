@@ -11,6 +11,7 @@ import retrofit2.http.Query
 
 interface GitHubApi {
     @GET("user") suspend fun currentUser(): Response<JsonObject>
+    @GET("user/repos") suspend fun repositories(@Query("per_page") perPage: Int = 30): Response<List<JsonObject>>
     @GET("repos/{owner}/{repo}") suspend fun repository(@Path("owner") owner: String, @Path("repo") repo: String): Response<JsonObject>
     @GET("repos/{owner}/{repo}/branches") suspend fun branches(@Path("owner") owner: String, @Path("repo") repo: String): Response<List<JsonObject>>
     @GET("repos/{owner}/{repo}/branches/{branch}") suspend fun branch(@Path("owner") owner: String, @Path("repo") repo: String, @Path("branch") branch: String): Response<JsonObject>
