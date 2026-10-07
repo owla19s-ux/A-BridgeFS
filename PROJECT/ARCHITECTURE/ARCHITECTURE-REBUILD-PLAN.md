@@ -61,7 +61,7 @@ UI 存在但下面没有真实功能，也不视为完成。
 
 ### 4. Activity 不再成为业务总管家
 
-Activity 主要承担 Android 生命周期、页面承载、导航和页面级状态协调，不把 Project、Conversation、GitHub、API、施工、文件执行、权限等业务继续堆进一个 Activity。
+Activity 主要承担 Android 生命周期、页面承载、导航和页面级状态协调，不把 Context、Conversation、Connection、施工、文件执行、权限等业务继续堆进一个 Activity。
 
 ### 5. 按职责拆分文件
 
@@ -110,9 +110,9 @@ Resource、Relation、Capability、Connection、Account、Identity、Policy、Co
 - 将现有可复用代码按职责迁入或适配。
 - 不为了拆分制造空壳层。
 
-### Phase 2：Project 主链路
+### Phase 2：Space / Context 主链路
 ```
-Space / Context UI → Context State → Context Domain → Context Store / Service → Connection / Resource
+Space → Context → Context State → Context Domain → Context Store / Service → Connection / Resource
 ```
 
 ### Phase 3：Context Conversation
@@ -129,7 +129,7 @@ Context → Connection → Resource → Connector → 具体外部能力
 ```
 GitHub 是 Connection 类型及其 Connector / Resource 实现，不重新形成 Workspace 或 Project Address 业务模型。
 
-### Phase 6：施工链路
+### Phase 6：Dispatcher / 施工链路
 ```
 Context → Task → Dispatcher → 拆分 → 做 → Connection / Connector → 实际结果 → 审查 → Receipt / Evidence → Verify
 ```
