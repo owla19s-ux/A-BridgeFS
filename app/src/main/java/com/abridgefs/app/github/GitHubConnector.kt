@@ -1,5 +1,6 @@
 package com.abridgefs.app.github
 
+import com.abridgefs.app.connection.Connection
 import com.abridgefs.app.github.api.FileWriteRequest
 import com.abridgefs.app.github.api.GitHubApi
 import com.abridgefs.app.github.api.WorkflowDispatchRequest
@@ -12,9 +13,16 @@ data class GitHubWritePolicy(val enabled: Boolean = false) {
 
 class GitHubConnector(
     private val api: GitHubApi,
-    private val address: GitHubAddress,
+    val connection: GitHubConnection,
     private val writePolicy: GitHubWritePolicy = GitHubWritePolicy()
 ) {
+    private val address: GitHubAddress
+        get() = connection.address
+
+    init {
+        require(connection.type == Connection.Type.GITHUB)
+    }
+
     suspend fun repositories(perPage: Int = 30): Response<List<JsonObject>> =
         api.repositories(perPage)
 
