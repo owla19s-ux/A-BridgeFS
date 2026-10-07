@@ -13,7 +13,7 @@
 - 空间页进入 Space 并展示 Context；
 - Context 主要对话是主体；
 - Context 使用的 Connection / Resource、AI 权限、任务和状态可查看；
-- 项目配置独立展开 / 收起；
+- Context 的连接与配置独立展开 / 收起；
 - 不把内部服务对象全部平铺成复杂 Dashboard。
 
 ### T2 — Context Conversation
@@ -22,13 +22,13 @@
 目标：
 
 ```
-项目页
+Space / Context
  ↓
 Connection / Resource
  ↓
 AI Connection
  ↓
-项目主要对话
+Context 对话
  ↓
 真实读取 / 工作
 ```
