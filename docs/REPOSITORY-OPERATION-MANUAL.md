@@ -110,7 +110,16 @@ AGENTS.md：AI 施工总原则、事实优先级、Verify 规则和架构禁区�
 - 复杂 Context Dashboard；
 - 无限 Agent Loop。
 
-当前模型：Space（Connection）→ Context → Connection / Resource → Task / Dispatcher → 结果 / 验证。
+当前模型：
+Space
+→ Address / Resource
+→ Context
+→ 可组合 Connection / 能力
+→ 按需 Task / Dispatcher
+→ 实际结果
+→ Receipt / Evidence / Verify
+
+Space 属于 Connection 体系，但承担连接与资源底座职责；Address + Resource 是固定基础，Task 不是所有 Context 的固定组成部分。
 
 ## 12. 连续施工
 
@@ -159,7 +168,7 @@ APK 与预期不一致：检查 APK 对应 Commit、Build Run、Workflow 使用�
 
 - 长期分支：main
 - 旧历史分支：已清理
-- 当前产品模型：Space / Context / Connection
+- 当前产品模型：Space / Address / Resource / Context / Connection
 - 固定 Decision / Worker：废弃
 - 固定 AI A / AI B：废弃
 - Space / Context UI：开发中
@@ -167,4 +176,4 @@ APK 与预期不一致：检查 APK 对应 Commit、Build Run、Workflow 使用�
 - Secretary / Orchestrator：未来能力
 - 普通“对话”页：暂缓大改
 
-本手册属于仓库操作规范。未来 GitHub 工作流、构建链或 Project 架构发生变化时，应同步更新。
+本手册属于仓库操作规范。未来 GitHub 工作流、构建链或 APS 架构发生变化时，应同步更新。
