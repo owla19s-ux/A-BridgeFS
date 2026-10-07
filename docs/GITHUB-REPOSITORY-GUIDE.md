@@ -12,7 +12,7 @@
 - Repository：`owla19s-ux/APS`
 - 长期分支：`main`
 - 产品：APS（AI + Context + Service）
-- 当前产品模型：Project-centered
+- 当前产品模型：Space / Context / Connection
 - 当前正式架构：`PROJECT/ARCHITECTURE/APS-CURRENT-ARCHITECTURE.md`
 - 当前正式规格：`PROJECT/SPEC/APS-PRODUCT-SPEC.md`
 - 当前正式 UI：`PROJECT/UI/`
@@ -96,7 +96,7 @@ APS 曾经历过旧架构与新架构并存的问题，因此 AI 施工时必须
 - UI 是否真正连接到底层功能；
 - 是否存在旧实现仍被调用；
 - 是否存在重复业务链；
-- Project / API Profile / Project Member / Default AI 边界；
+- Connection / API Profile / Context AI 权限边界；
 - 权限与 ConstructionLock；
 - Commit / Verify 是否真实发生。
 
