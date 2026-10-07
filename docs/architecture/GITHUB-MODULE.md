@@ -6,7 +6,7 @@
 
 ## 1. 定位
 
-A-BridgeFS 中的 GitHub 不是“Repository + Branch 两个配置字段”，而是一个真实的协作资源模块。
+APS 中的 GitHub 不是“Repository + Branch 两个配置字段”，而是一个真实的协作资源模块。
 
 它负责把：
 
@@ -21,7 +21,7 @@ A-BridgeFS 中的 GitHub 不是“Repository + Branch 两个配置字段”，�
 
 ## 2. 与 Project 的关系
 
-GitHub 账号授权与工作区绑定分离。
+GitHub 账号授权与Project Address绑定分离。
 
 ```
 GitHub Authorization
@@ -45,7 +45,7 @@ GitHub 访问分为“读取”和“修改”两条能力链，不能混为一�
 
 ### 普通对话读取
 
-普通「对话」页也可以读取 GitHub。它不需要先进入 Workspace，也不需要 ConstructionLock。
+普通「对话」页也可以读取 GitHub。它不需要先进入 Project Address，也不需要 ConstructionLock。
 
 前提是：
 - GitHub 全局访问已开启；
@@ -75,7 +75,7 @@ Default AI / 获授权的 Project Member → Project Address / Repository / Bran
 
 `AccessPolicy.isGithubEnabled`
 
-关闭后，A-BridgeFS 不发起 GitHub API 请求。
+关闭后，APS 不发起 GitHub API 请求。
 
 ### GitHub 身份授权
 
@@ -135,7 +135,7 @@ Project Address 的 GitHub 资源保存：
 - `github.readEnabled`
 - `github.writeEnabled`
 
-授权凭据单独存储，不进入工作区普通 JSON。
+授权凭据单独存储，不进入Project Address普通 JSON。
 
 历史数据如果只有 `githubAccountLogin` 而没有 `githubAccount`，加载时仍兼容。
 
@@ -172,11 +172,11 @@ Branch 列表来自当前 Repository。
 
 不能把输入框中的任意字符串直接视为已存在 Branch。
 
-Branch 查询通过 `GitHubWorkspaceService` 执行，因此必须同时满足：
+Branch 查询通过 `GitHubProject AddressService` 执行，因此必须同时满足：
 
 - GitHub 全局访问开启
 - GitHub Token 已授权
-- 当前Project Address 允许读取
+- 当前 Project Address 允许读取
 - Repository 已配置
 
 ## 8. 能力映射
@@ -242,11 +242,11 @@ GitHub 页面必须区分：
 ```
 对话 / 协作 AI
         ↓
-A-BridgeFS
+APS
         ↓
 GitHub 权限判断
         ↓
-GitHub Workspace Service
+GitHub Project Address Service
         ↓
 Repository / Branch
         ↓
