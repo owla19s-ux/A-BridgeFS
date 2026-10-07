@@ -35,12 +35,12 @@ Android Keystore 加密保存
 
 APS 不自行扩大 GitHub 权限。
 
-最终实际操作权限：
+GitHub 是 Connection 类型之一；Context 使用 GitHub Connection 时的最终实际操作权限：
 
 ```
 GitHub 全局允许
 AND
-Project允许
+Context 允许
 AND
 GitHub 凭据实际权限
 AND
@@ -126,7 +126,7 @@ Repository 列表必须来自授权账号实际可访问的仓库。
 
 ## 8. Repository 与 Branch
 
-Project保存：
+Context / GitHub Connection 关联状态保存：
 
 - GitHub account login
 - Repository
@@ -134,7 +134,7 @@ Project保存：
 - APS 读取权限
 - APS 修改权限
 
-Token 本身不写入Project数据。
+Token 本身不写入 Context 数据。
 
 ## 9. 授权状态
 
