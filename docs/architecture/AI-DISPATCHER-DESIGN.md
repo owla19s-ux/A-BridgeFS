@@ -6,16 +6,20 @@
 
 ## 1. 当前结论
 
-第一阶段只确认：
+第一阶段正式确认：
+
+Connection 类型包括 Space、AI、GitHub、Local、File、Device、API / Service、Plugin 及未来其他连接。
+
+当前只确认：
 
 > Dispatcher 是 APS 的轻量调度分配层。
 
 ```
-用户 / 当前 AI
+用户 / 当前 Context
       ↓
  Dispatcher
       ↓
-AI Connector / GitHub Connector / Local Connector
+Connection → 对应 Connector
       ↓
 结果
 ```
@@ -24,7 +28,7 @@ Dispatcher 不等于 Agent Runtime。
 
 ## 2. 多 AI 协作仍是开放问题
 
-一个 Project 可以拥有多个 AI Member。
+一个 Context 可以使用多个 AI Connection。
 
 当前最小协作路径：
 
@@ -64,11 +68,11 @@ Dispatcher
 
 ## 4. 第一阶段 Dispatcher 最小职责
 
-1. 接收一个明确请求；
-2. 判断目标 AI / Connector；
-3. 转发必要上下文；
-4. 获取真实结果；
-5. 将结果返回给请求方；
-6. 在明确需要下一能力时再次分配。
+1. 接收用户任务；
+2. 读取当前 Context、Connection 和权限；
+3. 组织“拆分 → 做 → 审查”；
+4. 为当前阶段选择有对应权限的 AI / Connection；
+5. 获取真实执行结果；
+6. 根据审查结果完成或返回“做”。
 
 是否需要更复杂的状态和调度机制，以后由真实多 AI 施工需求证明。
