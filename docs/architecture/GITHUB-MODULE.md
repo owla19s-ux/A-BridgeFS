@@ -1,4 +1,4 @@
-# GitHub 模块架构
+# GitHub Connection 模块架构
 
 状态：专项模块架构参考（2026-10-06）
 
@@ -19,9 +19,9 @@ APS 中的 GitHub 不是“Repository + Branch 两个配置字段”，而是一
 
 连接成可操作的资源链。
 
-## 2. 与Project的关系
+## 2. 与 Context 的关系
 
-GitHub 账号授权与Project绑定分离。
+GitHub 账号授权与 Context 对 GitHub Connection 的使用分离。
 
 ```
 GitHub Authorization
@@ -30,14 +30,14 @@ GitHub Account
         ↓
 可访问 Repositories
         ↓
-Project 选择 Repository
+Context 选择 GitHub Resource
         ↓
-Project 选择 Branch
+Context 选择 Branch Resource
         ↓
-GitHub Project Resources
+GitHub Connection Resources
 ```
 
-Project保存的是“当前使用哪个 GitHub 资源”，而不是 GitHub 凭据本身。
+Context 保存的是“当前使用哪个 GitHub Resource”，而不是 GitHub 凭据本身。
 
 ## 3. 访问边界
 
@@ -57,9 +57,9 @@ GitHub 访问分为“读取”和“修改”两条能力链，不能混为一�
 
 普通对话 → API → GitHub → Repository / Branch → 文件读取 → AI
 
-### Project读取
+### Context 读取
 
-Project 对话读取当前 Project 绑定的 Repository / Branch。两个 AI 可以共享该读取能力。
+Context 内对话读取当前 Context 关联的 Repository / Branch。两个 AI 可以共享该读取能力。
 
 ### 修改
 
@@ -83,7 +83,7 @@ Project 对话读取当前 Project 绑定的 Repository / Branch。两个 AI 可
 
 ### Project权限
 
-Project进一步限制：
+Context 进一步限制：
 
 - 读取
 - 修改
@@ -126,7 +126,7 @@ GitHub
 
 ## 5. 数据模型
 
-Project GitHub 资源保存：
+Context 的 GitHub Connection 关联保存：
 
 - `githubAccount`：当前绑定的 GitHub 登录名
 - `github.repositoryId`：GitHub Repository 稳定 ID
@@ -154,7 +154,7 @@ GitHubProjectService
     ↓
 GitHubActivity
     ↓
-Project.github
+Context.github
 ```
 
 选择后保存：
@@ -176,7 +176,7 @@ Branch 查询通过 `GitHubProjectService` 执行，因此必须同时满足：
 
 - GitHub 全局访问开启
 - GitHub Token 已授权
-- 当前Project允许读取
+- 当前 Context允许读取
 - Repository 已配置
 
 ## 8. 能力映射
@@ -194,7 +194,7 @@ Branch 查询通过 `GitHubProjectService` 执行，因此必须同时满足：
 
 GitHub 的实际权限以当前授权方式和 GitHub API 返回为准，App 内部权限不能越过 GitHub 授权边界。
 
-## 9. GitHub Project不是 GitHub 全功能复制品
+## 9. GitHub Connection 不是 GitHub 全功能复制品
 
 第一版只需要让 APS 能够：
 
@@ -265,9 +265,9 @@ GitHub 是真实执行资源之一，不是 UI 装饰。
 
 - 做真实 GitHub 身份连接
 - 做 Repository / Branch 读取
-- 做Project绑定
+- 做 Context 的 GitHub Connection 关联
 - 做读取 / 修改边界
-- 建立 GitHub Project页面
+- 建立 GitHub Connection 页面
 - 统一 Repository / Branch 查询入口到 Project Service
 
 暂不提前做：
@@ -287,4 +287,4 @@ GitHub 模块不决定 AI 角色。当前正式模型不设固定 Decision AI / 
 
 GitHub Token 的真实权限仍是最终外部能力边界。
 
-GitHub 模块负责“能访问什么”；Project / Task / ConstructionLock 负责“当前哪个 Project、哪个 Task、哪个 AI Member 可以修改”。
+GitHub 模块负责“能访问什么”；Context / Task / ConstructionLock 负责“当前哪个 Project、哪个 Task、哪个 AI Member 可以修改”。
