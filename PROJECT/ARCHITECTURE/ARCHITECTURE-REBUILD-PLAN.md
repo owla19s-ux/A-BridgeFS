@@ -25,7 +25,7 @@
 
 ### 1. 新架构定方向，旧代码提供零件
 
-- 新 Project-centered 架构作为主方向。
+- 以 UI 已确认的 Space / Context / Connection / Dispatcher 模型作为当前主方向。
 - 参考 AI+ / AI-V1 / 维加已经思考和试错过的概念。
 - 不复制维加规模，不把维加完整体系搬入 APS。
 - 现有代码按实际价值选择复用、适配、提取、重写或放弃。
@@ -75,21 +75,18 @@ Activity 主要承担 Android 生命周期、页面承载、导航和页面级�
 
 内部 Kotlin/Java package 可以按新职责重建；Android `applicationId` `com.abridgefs.app` 保持独立，不因内部包重建自动修改。
 
-### 7. Project 是当前产品核心，但不是未来所有能力的唯一根
+### 7. Context 是当前工作核心，Connection 是统一能力入口
 
 重点保持：
 
-- Project
-- Project Member
-- Project Conversation
-- Address / Resource
-- Service / API
-- GitHub
+- Space
+- Context
+- Connection
+- Resource
 - Task
-- Execution
-- Result
-- Evidence
+- Receipt / Evidence
 - Verification
+- Dispatcher
 
 Resource、Relation、Capability、Connection、Account、Identity、Policy、Control Domain 等保留架构空间，但当前不建设完整基础设施。
 
@@ -115,12 +112,12 @@ Resource、Relation、Capability、Connection、Account、Identity、Policy、Co
 
 ### Phase 2：Project 主链路
 ```
-Project UI → Project state → Project domain → Project Store → Project Service → Project Address
+Space / Context UI → Context State → Context Domain → Context Store / Service → Connection / Resource
 ```
 
 ### Phase 3：Project Conversation
 ```
-Project → Project Conversation → Default Member → API Profile → AI Request → Response
+Context → Conversation → AI Connection → API Profile → AI Request → Response
 ```
 
 ### Phase 4：Project Member / API
@@ -128,21 +125,21 @@ Project → Project Conversation → Default Member → API Profile → AI Reque
 
 ### Phase 5：Address / Module
 ```
-Project → Address → Module → 具体外部能力
+Context → Connection → Resource → Connector → 具体外部能力
 ```
-GitHub 是一种 Address / Module 实现，不重新形成 Workspace 业务模型。
+GitHub 是 Connection 类型及其 Connector / Resource 实现，不重新形成 Workspace 或 Project Address 业务模型。
 
 ### Phase 6：施工链路
 ```
-Project → Default Member → Permission → ConstructionLock → Module → 修改 → Commit → Execution → Result → Evidence → Verify
+Context → Task → Dispatcher → 拆分 → 做 → Connection / Connector → 实际结果 → 审查 → Receipt / Evidence → Verify
 ```
 不恢复旧 Decision AI / Worker AI 模型。
 
 ### Phase 7：Request AI Assistance
-在 Default Member 连续施工稳定后，再接按需协助，不形成固定 AI 角色状态机。
+在三阶段任务链稳定后，再完善多 AI 按需协助，不形成固定 AI 角色状态机。
 
 ### Phase 8：独立 Conversation / Config
-保持独立「对话」与「配置」边界；独立对话不自动获得 Project 施工权限。
+保持独立「对话」与「设置」边界；独立对话不自动获得 Context 施工权限。
 
 ### Phase 9：清理与验证
 只有新结构和新链路验证稳定后，才处理旧 Workspace 残留、无效兼容字段、废弃 Store、旧 Activity、无效包和旧文档引用。
@@ -228,7 +225,7 @@ APS 已从“大规模架构重建”进入：
 
 当前主链：
 
-Project → Address → Default Member → Conversation → Permission → Task → Execution → ConstructionLock → Commit → Verify
+Space / Context → Connection → Dispatcher → Task → 拆分 → 做 → 实际结果 → 审查 → Verify
 
 当前只继续处理明确 Bug、集成缺口、UI 行为、验证发现的问题和必要文档同步。
 
