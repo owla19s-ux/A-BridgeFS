@@ -1,11 +1,7 @@
 package com.abridgefs.app
 
 import android.app.Activity
-import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
-import android.provider.Settings
-import android.text.InputType
 import android.view.Gravity
 import android.view.View
 import android.widget.*
@@ -48,118 +44,27 @@ class SettingsCategoryActivity : Activity() {
         box.addView(header)
 
         when (category) {
-            "执行与权限" -> buildExecution(box)
-            "指令" -> buildInstruction(box)
-            "文件与目录" -> buildFiles(box)
             "通知" -> buildNotice(box)
             "外观" -> buildAppearance(box)
-            "系统" -> buildSystem(box)
             "日志与诊断" -> buildLogs(box)
-            else -> buildSystem(box)
+            else -> buildRemovedNotice(box)
         }
         scroll.addView(box)
         return scroll
     }
 
-    private fun buildExecution(box: LinearLayout) {
-        val autoExecute = CheckBox(this).apply {
-            text = "允许 AI 回复自动触发 BridgeFS"
-            isChecked = prefs.getBoolean("ai_auto_bridgefs_enabled", true)
-        }
-        box.addView(autoExecute, LinearLayout.LayoutParams(-1, dp(48)))
+    private fun buildRemovedNotice(box: LinearLayout) {
         box.addView(TextView(this).apply {
-            text = "关闭后，AI 回复中的 [bridgefs] 指令不会自动执行；仍可正常对话。"
-            textSize = 12f
-            setTextColor(resources.getColor(R.color.bridgefs_text_secondary))
-            setPadding(dp(4), 0, dp(4), dp(10))
-        })
-
-        label(box, "AI 单次执行上限")
-        val limit = EditText(this).apply {
-            inputType = InputType.TYPE_CLASS_NUMBER
-            setText(prefs.getInt("command_limit", 3).toString())
-            hint = "1–20"
-        }
-        box.addView(limit, fieldParams())
-        val labels = mapOf(
-    FileAction.LIST to "查看目录",
-    FileAction.READ to "读取文件",
-    FileAction.WRITE to "创建/写入文件",
-    FileAction.EDIT to "修改文件",
-    FileAction.COMMIT to "提交到 GitHub"
-)
-        FileAction.values().forEachIndexed { index, action ->
-            val row = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
-            row.addView(TextView(this@SettingsCategoryActivity).apply {
-                text = labels[action] ?: action.name
-                textSize = 14f
-                setTextColor(resources.getColor(R.color.bridgefs_text_primary))
-            }, LinearLayout.LayoutParams(0, dp(50), 1f))
-            val spinner = Spinner(this@SettingsCategoryActivity)
-            spinner.adapter = ArrayAdapter(this@SettingsCategoryActivity, android.R.layout.simple_spinner_dropdown_item, arrayOf("允许", "需确认", "禁止"))
-            spinner.setSelection(when (prefs.getString("perm_" + action.name, if (action == FileAction.LIST || action == FileAction.READ) "allow" else "confirm")) {
-                "confirm" -> 1
-                "deny" -> 2
-                else -> 0
-            })
-            row.addView(spinner, LinearLayout.LayoutParams(dp(104), dp(50)))
-            row.tag = action
-            box.addView(row)
-        }
-        box.addView(actionButton("保存执行权限") {
-            prefs.edit()
-                .putBoolean("ai_auto_bridgefs_enabled", autoExecute.isChecked)
-                .putInt("command_limit", limit.text.toString().toIntOrNull()?.coerceIn(1, 20) ?: 3)
-                .apply()
-            for (i in 0 until box.childCount) {
-                val row = box.getChildAt(i) as? LinearLayout ?: continue
-                val action = row.tag as? FileAction ?: continue
-                val spinner = row.getChildAt(1) as? Spinner ?: continue
-                val value = when (spinner.selectedItemPosition) { 1 -> "confirm"; 2 -> "deny"; else -> "allow" }
-                prefs.edit().putString("perm_" + action.name, value).apply()
-            }
-            Toast.makeText(this, "执行权限已保存", Toast.LENGTH_SHORT).show()
-        })
-    }
-
-    private fun buildInstruction(box: LinearLayout) {
-        label(box, "A-BridgeFS 指令规范 " + BridgeCommandSpec.version)
-        val text = TextView(this).apply {
-            text = BridgeCommandSpec.documentation
-            textSize = 13f
-            setTextColor(resources.getColor(R.color.bridgefs_text_primary))
-            setPadding(dp(12), dp(12), dp(12), dp(12))
-            background = rounded(R.color.bridgefs_input_surface, 12)
-        }
-        box.addView(text, LinearLayout.LayoutParams(-1, -2))
-        box.addView(actionButton("复制全部指令规范") {
-            val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
-            cm.setPrimaryClip(android.content.ClipData.newPlainText("A-BridgeFS指令规范", text.text))
-            Toast.makeText(this, "指令规范已复制", Toast.LENGTH_SHORT).show()
-        })
-    }
-
-    private fun buildFiles(box: LinearLayout) {
-        label(box, "工作区目录")
-        box.addView(TextView(this).apply {
-            text = "现在的工作目录属于具体工作区，不再由这里设置。请返回“工作区”，在“工作目录”卡片中选择目录。"
+            text = "本地文件执行、BridgeFS 指令、悬浮窗和相关权限已从当前 APS 架构移除。"
             textSize = 14f
-            setTextColor(resources.getColor(R.color.bridgefs_text_primary))
-            setPadding(dp(12), dp(12), dp(12), dp(12))
-            background = rounded(R.color.bridgefs_input_surface, 12)
-        })
-        box.addView(actionButton("返回工作区") { finish() })
-        box.addView(TextView(this).apply {
-            text = "旧版 root_path 仍保留兼容读取，但新功能以工作区目录为准。"
-            textSize = 12f
             setTextColor(resources.getColor(R.color.bridgefs_text_secondary))
-            setPadding(dp(4), dp(10), dp(4), dp(10))
+            setPadding(dp(4), dp(12), dp(4), dp(16))
         })
     }
 
     private fun buildNotice(box: LinearLayout) {
         val pending = CheckBox(this).apply {
-            text = "执行完成后保留最新回执通知"
+            text = "保留通知设置"
             isChecked = prefs.getBoolean("receipt_notification", true)
         }
         box.addView(pending, LinearLayout.LayoutParams(-1, dp(48)))
@@ -172,43 +77,19 @@ class SettingsCategoryActivity : Activity() {
     private fun buildAppearance(box: LinearLayout) {
         label(box, "外观")
         box.addView(TextView(this).apply {
-            text = "当前 V0.1 使用系统默认浅色界面。主题扩展预留在这里。"
+            text = "当前 V0.1 使用系统默认浅色界面。"
             textSize = 14f
             setTextColor(resources.getColor(R.color.bridgefs_text_secondary))
             setPadding(dp(4), dp(8), dp(4), dp(16))
         })
     }
 
-    private fun buildSystem(box: LinearLayout) {
-        box.addView(actionButton("悬浮窗权限") {
-            if (!Settings.canDrawOverlays(this)) {
-                startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + packageName)))
-            } else Toast.makeText(this, "悬浮窗权限已开启", Toast.LENGTH_SHORT).show()
-        })
-        val auto = CheckBox(this).apply {
-            text = "自动显示悬浮球"
-            isChecked = prefs.getBoolean("auto_show_overlay", true)
-        }
-        box.addView(auto, LinearLayout.LayoutParams(-1, dp(48)))
-        box.addView(actionButton("保存系统设置") {
-            prefs.edit().putBoolean("auto_show_overlay", auto.isChecked).apply()
-            Toast.makeText(this, "系统设置已保存", Toast.LENGTH_SHORT).show()
-        })
-        box.addView(TextView(this).apply {
-            text = "ColorOS 可能还需要允许后台运行和自启动。"
-            textSize = 12f
-            setTextColor(resources.getColor(R.color.bridgefs_text_secondary))
-            setPadding(dp(4), dp(10), dp(4), dp(10))
-        })
-    }
-
     private fun buildLogs(box: LinearLayout) {
         label(box, "日志保留")
         box.addView(TextView(this).apply {
-            text = "运行日志：runtime / collaboration / execution / api / github\n" +
-                "日志目录：" + File(filesDir, "logs").absolutePath + "\n" +
-                "崩溃日志：" + File(filesDir, "crash").absolutePath + "\n" +
-                "日志按日期保存，不自动发送给 AI。\n协作日志与执行日志已分离。"
+            text = "运行日志目录：" + File(filesDir, "logs").absolutePath +
+                "\n崩溃日志目录：" + File(filesDir, "crash").absolutePath +
+                "\n日志按日期保存，不自动发送给 AI。"
             textSize = 13f
             setTextColor(resources.getColor(R.color.bridgefs_text_secondary))
             setPadding(dp(4), dp(8), dp(4), dp(18))
@@ -225,8 +106,6 @@ class SettingsCategoryActivity : Activity() {
         })
     }
 
-    private fun fieldParams() = LinearLayout.LayoutParams(-1, dp(50))
-
     private fun actionButton(text: String, action: () -> Unit) = TextView(this).apply {
         this.text = text
         textSize = 14f
@@ -238,11 +117,6 @@ class SettingsCategoryActivity : Activity() {
         }
         setOnClickListener { action() }
         layoutParams = LinearLayout.LayoutParams(-1, dp(46)).apply { topMargin = dp(10) }
-    }
-
-    private fun rounded(colorRes: Int, radius: Int) = GradientDrawable().apply {
-        setColor(resources.getColor(colorRes))
-        cornerRadius = dp(radius).toFloat()
     }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
