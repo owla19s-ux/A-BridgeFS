@@ -114,7 +114,7 @@ Dispatcher 必须根据实际执行结果推进，不把 AI 口头“完成”�
 - 固定 AI A / AI B；
 - 默认双 AI 循环；
 - Project / Workspace-centered 顶层模型；
-- Project Address 作为统一顶层模型；
+- Project Address 作为顶层模型；
 - BridgeFS 作为当前产品模块。
 
 代码中仍可能存在 Project、Project Address、Project Member 等历史命名；这些属于迁移兼容，不代表当前产品模型。
