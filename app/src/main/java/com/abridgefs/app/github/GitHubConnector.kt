@@ -15,6 +15,9 @@ class GitHubConnector(
     private val address: GitHubAddress,
     private val writePolicy: GitHubWritePolicy = GitHubWritePolicy()
 ) {
+    suspend fun repositories(perPage: Int = 30): Response<List<JsonObject>> =
+        api.repositories(perPage)
+
     suspend fun repository(): Response<JsonObject> =
         api.repository(address.owner, address.repo)
 
