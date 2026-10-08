@@ -60,6 +60,28 @@ class ConversationServiceTest {
     }
 
     @Test
+    fun send_and_save_persists_successful_response() = runBlocking {
+        val connector = object : AIConnector {
+            override suspend fun send(request: AIRequest): AIResponse =
+                AIResponse("已保存")
+        }
+        val store = InMemoryConversationStore()
+        val conversation = Conversation(
+            id = "conversation-save",
+            aiConnectionId = "ai-1"
+        )
+
+        val updated = ConversationService(connector).sendAndSave(
+            conversation,
+            "保存这次对话",
+            store
+        )
+
+        assertEquals(updated, store.getConversation(conversation.id))
+        assertEquals("已保存", store.getConversation(conversation.id)?.messages?.last()?.text)
+    }
+
+    @Test
     fun send_keeps_existing_messages() = runBlocking {
         val connector = object : AIConnector {
             override suspend fun send(request: AIRequest): AIResponse =
