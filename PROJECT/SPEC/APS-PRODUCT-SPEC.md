@@ -65,6 +65,36 @@ Context 不固定承载 Task、Conversation、State、内容或工作记录的�
 
 Context 可以使用一个或多个 Connection，也可以没有 AI Connection。Task 也不是所有 Context 的必需组成部分。
 
+## 五、软件开发结构
+
+“软件开发结构”是软件开发类 Context 的一种可组合能力，用于把产品设计、功能、架构、施工和验证连接到同一结构模型中。
+
+它不是新的顶层对象，也不替代 Context、Task 或 Resource。
+
+```text
+软件开发结构
+├── 目标
+├── UI / 交互
+├── 功能
+├── 架构
+├── 施工点
+├── 施工卡
+├── 代码 / 产物
+└── 验证
+```
+
+核心关系为：
+
+```text
+UI / 目标 → 功能 → 架构 → 施工点 → 施工卡 → 代码 / 产物 → 验证
+```
+
+关系允许一对多或多对多。施工卡是具体施工交接单位，可以关联一个或多个代码 / 产物；验证负责记录实际结果和证据。
+
+软件开发结构不是文件目录或 Git 分支结构，而是描述软件从设计到施工再到验证的语义关系。
+
+软件开发 Context 可以组合软件开发结构、Resource / Connection、AI、Task / Dispatcher、State 和 Receipt / Evidence / Verification。普通 Context 不要求具有软件开发结构。
+
 ## 五、Resource 与 Connector
 
 Resource 是 APS 实际可使用、读取或操作的内容；Address 用于定位 Resource，两者不等同。
