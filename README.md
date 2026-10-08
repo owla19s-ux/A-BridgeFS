@@ -117,7 +117,7 @@ Actions / Verify
 
 第一阶段主要工作面：
 
-- **空间页**：Space / Context 的主要人机工作面；
+- **空间页**：Space → 目录 → Context 的主要人机工作面；
 - **对话页**：独立 AI 对话、查询与测试，也可以关联 Context；
 - **设置页**：API、GitHub 等连接与系统配置。
 
