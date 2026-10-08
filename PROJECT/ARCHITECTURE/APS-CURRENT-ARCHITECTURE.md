@@ -43,25 +43,25 @@ APS UI
 
 Space 是 APS 中承载连接与资源的基础工作底座。它属于 Connection 体系，但不是普通 Connection 的简单同类；Space 的核心职责是组织定位信息、实际资源以及可组合能力。
 
-Space 的固定基础是：
+Space 的组织基础是：
 
-```
+``
 Space
-├── Address      ← 定位
-├── Resource     ← 实际内容
-└── 可组合能力
-    ├── Connection
-    ├── AI
-    ├── Task
-    ├── Conversation
-    ├── Device
-    ├── Plugin
+├── 名称
+└── 目录
+    ├── Context（项目）
+    │   ├── 名称
+    │   ├── Address[]
+    │   │   ├── 名称
+    │   │   ├── 地址
+    │   │   └── 备注
+    │   └── 可组合能力
     └── ...
 ```
 
-**固定的是定位与实际内容；能力是可组合的。**
+目录是 Space 内的分组管理结构；Context 是实际项目 / 工作上下文；Address 是 Context 的项目地址记录，可以有多个。
 
-Address 回答“在哪里”，Resource 表示 APS 实际可使用、读取或操作的内容。一个 Space / Context 可以存在多个 Address；每个 Address 至少包含名称、地址、备注。
+Resource 是 Address 所定位并由 Connection / Connector 实际使用的内容。Address 与 Resource 不等同。
 
 Context 是 Space 内的具体工作上下文。Context 不预设固定的 Task、Conversation、State 或工作记录组合，而是根据使用场景组合所需能力。
 
