@@ -1,5 +1,7 @@
 package com.abridgefs.app.context
 
+import com.abridgefs.app.github.GitHubResource
+
 /**
  * APS 的具体工作上下文。
  *
