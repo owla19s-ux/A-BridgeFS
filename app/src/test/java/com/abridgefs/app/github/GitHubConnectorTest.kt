@@ -55,7 +55,7 @@ class GitHubConnectorTest {
     }
 
     @Test
-    fun connector_requires_explicit_write_permission() {
+    fun connector_requires_explicit_write_permission() = runBlocking {
         val calls = mutableListOf<String>()
         val api = proxyApi { method, _, _ ->
             calls += method.name
