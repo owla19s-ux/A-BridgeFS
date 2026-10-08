@@ -19,7 +19,7 @@
 - **Receipt / Evidence**：实际结果及确认依据。
 - **软件开发结构**：软件开发 Context 中用于连接目标、UI / 交互、功能、架构、施工点、施工卡、代码 / 产物和验证的可组合结构能力。
 
-**固定的是定位与实际内容；能力是可组合的。**
+**Space 负责组织；Context 负责项目；Address 负责定位；Resource 负责实际内容；能力按 Context 组合。**
 
 当前正式 UI 定义位于 `PROJECT/UI/README.md`。其他正式架构文档应与其保持一致。
 
