@@ -65,6 +65,25 @@ Address 回答“在哪里”，Resource 表示 APS 实际可使用、读取或�
 
 Context 是 Space 内的具体工作上下文。Context 不预设固定的 Task、Conversation、State 或工作记录组合，而是根据使用场景组合所需能力。
 
+### 软件开发结构能力
+
+软件开发类 Context 可以额外组合“软件开发结构”能力。它不建立新的顶层 Project 对象，而是在 Context 内维护统一的结构关系。
+
+```text
+Context
+└── 软件开发结构
+    ├── 目标
+    ├── UI / 交互
+    ├── 功能
+    ├── 架构
+    ├── 施工点
+    ├── 施工卡
+    ├── 代码 / 产物
+    └── 验证
+```
+
+结构层负责描述关系，Task 负责实际工作交接，Resource / Connection 提供实际材料和外部能力，Receipt / Evidence / Verify 提供事实依据。关系允许一对多和多对多；UI 可以将同一结构以树、表、关系或施工视图呈现，但这些视图共享同一结构数据。
+
 ## 四、Connection / Resource / Connector
 
 第一阶段 Connection 类型正式定义为：
