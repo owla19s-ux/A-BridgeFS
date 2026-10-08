@@ -1,40 +1,38 @@
 # APS Context / Connection / Resource 模型
 
-更新时间：2026-10-07
+更新时间：2026-10-08
 
 ## 一、核心关系
 
-```
-                    Space
-             【连接与资源底座】
-                       │
-             ┌─────────┴─────────┐
-             │                   │
-          Address             Resource
-           定位                实际内容
-             │                   │
-             └─────────┬─────────┘
-                       │
-                  Context
-                       │
-                可组合能力
-                       │
-       Connection / Task / Conversation / ...
-                       │
-                   Connector
-                       │
-                    实际能力
+```text
+Space
+├── 名称
+└── 目录（分组管理）
+    ├── Context（项目）
+    │   ├── 名称
+    │   ├── Address[]（名称 / 地址 / 备注）
+    │   └── 可组合能力
+    └── ...
+
+Context（项目）
+   ↓
+Address[]
+   ↓ 定位
+Resource
+   ↓ 实际内容
+Connection / Connector
+   ↓
+读取 / 修改 / 查询 / 执行
 ```
 
-**固定的是定位与实际内容；能力是可组合的。**
-
-Space 属于 Connection 体系，但承担连接与资源底座职责；Address 与 Resource 是其固定基础。
+Space 负责组织；目录负责分组；Context 负责项目；Address 负责定位；Resource 负责实际内容。
 
 ## 二、Connection 类型
 
+
 ```
 Connection
-├── Space      ← 特殊：连接与资源底座
+├── Space      ← 特殊：工作空间 / 组织底座
 ├── AI
 ├── GitHub
 ├── Local
@@ -118,6 +116,6 @@ Context 可以存在多个 Task，但是否允许多个 AI 同时修改同一 Re
 
 ## 十、APS 职责边界
 
-APS 负责：管理 Space；管理 Space / Context 使用的 Address、Resource 与 Connection；根据 Address 定位 Resource；选择 Connector；按需调度 Task；接收实际结果；形成 Receipt / Evidence；更新 Context State。
+APS 负责：管理 Space、目录和 Context；管理 Context 使用的 Address、Resource 与 Connection；根据 Address 定位 Resource；选择 Connector；按需调度 Task；接收实际结果；形成 Receipt / Evidence；更新 Context State。
 
 APS 不负责：把所有 Resource 复制到本地；默认建立多端同步；保存所有 AI 的完整长上下文；没有需求时建立复杂 Agent Runtime。
