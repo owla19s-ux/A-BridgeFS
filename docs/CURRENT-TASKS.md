@@ -115,7 +115,7 @@ Context 对话
 
 范围：
 - 安装 / 启动；
-- 项目页操作；
+- 空间页 / Context 工作面操作；
 - 生命周期；
 - 系统权限；
 - 实际 API / GitHub；
@@ -123,7 +123,7 @@ Context 对话
 
 ## 2. 当前优先级
 
-Space → Address / Resource → Context → Connection → 对话 → 可选 Task / Dispatcher → Execution → GitHub / Verify → Local Connection → 云端测试 → 独立对话 / 设置 → 多 AI 协作设计 → 真机验收
+Space → Address / Resource → Context → 软件开发结构（按需） → Connection → 对话 → 可选 Task / Dispatcher → Execution → GitHub / Verify → Local Connection → 云端测试 → 独立对话 / 设置 → 多 AI 协作设计 → 真机验收
 
 多 AI 协作虽然是重要能力，但在协议未确定前不进入实现阶段。
 
