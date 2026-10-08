@@ -43,6 +43,7 @@ class ContextStore(context: AndroidContext) {
     private fun toJson(value: Context) = JSONObject().apply {
         put("id", value.id)
         put("name", value.name)
+        value.aiConnectionId?.let { put("aiConnectionId", it) }
         put("resources", JSONArray().apply {
             value.resources.forEach { put(toResourceJson(it)) }
         })
@@ -84,7 +85,8 @@ class ContextStore(context: AndroidContext) {
                 for (i in 0 until resources.length()) {
                     add(fromResourceJson(resources.getJSONObject(i)))
                 }
-            }
+            },
+            aiConnectionId = json.optString("aiConnectionId").ifBlank { null }
         )
     }
 
