@@ -1175,7 +1175,7 @@ Context 需要使用的能力按需出现，不建立固定的“资源 / 连接
 
 因此 Context 工作面是**一个主要工作面 + 多个可展开能力区域**，而不是 Dashboard。
 
-### 5. 连接与 AI 权限
+### 5. 连接、AI 成员与任务职责
 
 连接配置可以作为一个可展开区域：
 
@@ -1184,14 +1184,33 @@ Context 需要使用的能力按需出现，不建立固定的“资源 / 连接
 AI：3    GitHub：1    Local：1
 ```
 
-展开后管理：
+展开后分别管理三类不同内容：
 
-- Context 当前可使用的 Connection；
-- AI 成员；
-- AI 的拆分 / 做 / 审查权限；
-- 必要的连接授权。
+- **Context 可使用的 Connection**：决定 Context 可以访问哪些 AI、GitHub、Local、File 等连接；
+- **AI 成员**：从当前可用的 AI Connection 中选择 / 添加当前 Context 可以使用的 AI；
+- **任务职责**：为 AI 成员设置“拆分 / 做 / 审查”等任务职责；
+- **连接授权**：决定具体 Connection 是否允许当前 Context 实际访问或执行。
 
-AI 成员不是 Context 的固定身份，也不应在 UI 中显示为“主 AI / Worker AI / 决策 AI”。
+其中：
+
+- “拆分 / 做 / 审查”是**任务职责**，不是 AI 的系统权限；
+- AI 成员拥有某项任务职责，不代表它因此获得 GitHub、Local、File 等连接的访问权；
+- Connection 授权与任务职责分别判断，二者不能互相替代；
+- AI 成员也不是 Context 的固定身份，不应在 UI 中显示为“主 AI / Worker AI / 决策 AI”。
+
+因此 Context 内的实际执行至少遵循：
+
+```
+AI 成员
+   ↓
+任务职责是否允许
+   ↓
+Connection 是否已授权
+   ↓
+实际调用
+   ↓
+实际结果 / Verify
+```
 
 ### 6. 当前工作
 
