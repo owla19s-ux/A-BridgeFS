@@ -16,7 +16,7 @@
 
 Space 有自己的名称。Space 内通过“目录”对 Context（项目）进行分组管理；目录不是新的业务对象层。
 
-**空间（Space）是 APS 中承载连接与资源的基础工作底座。**
+**空间（Space）是 APS 中负责组织目录与 Context 的基础工作空间。**
 
 Space 属于 APS 的 Connection 体系，但它具有特殊性：**Space 不是与 AI、GitHub、File 等普通连接完全等价的连接，而是用于承载和组织地址、实际资源以及其他可组合能力的基础工作空间。**
 
@@ -33,13 +33,6 @@ Space
     │   ├── Address[]（名称 / 地址 / 备注）
     │   └── 可组合能力
     └── ...
-    ├── Connection
-    ├── AI
-    ├── Task
-    ├── Conversation
-    ├── Device
-    ├── Plugin
-    └── ...
 ```
 
 其中：
@@ -49,9 +42,9 @@ Space
 - **Address + Resource** 是 Space 的基础定义；
 - 其他能力按需要组合，不作为所有 Space / Context 的固定组成部分。
 
-一个 Space 可以关联多个 Address，每个地址记录至少包含**名称、地址、备注**。Address 不等于 Resource，也不要求一个 Space 只有一个地址。
+一个 Context 可以关联多个 Address，每个地址记录至少包含**名称、地址、备注**。Address 不等于 Resource。
 
-Space 也可以具有不同的可见性或访问方式，例如个人/不公开、公开以及未来其他共享方式。这些是空间属性，不改变 Space 作为连接与资源底座的定义。
+Space 也可以具有不同的可见性或访问方式，例如个人/不公开、公开以及未来其他共享方式。这些是空间属性。
 
 ### 2. 连接
 
@@ -116,7 +109,7 @@ APS 不要求 Context 固定绑定某一个 AI。AI 是连接，不是 Context �
 
 Context 表示空间中的一个具体工作上下文。它不预设固定的业务类型，也不要求固定包含任务、对话、验证或某一种连接。
 
-Context 的基础仍然围绕 Address / Resource，并根据具体用途组合所需的 Connection、Task、Conversation、State、Records、Verification 等能力。不同类型的 Context 可以采用不同组合，也可以没有 Task 或某一种连接。
+Context 具有名称、多个可选 Address 以及按场景组合的 Connection、Task、Conversation、State、Records、Verification 等能力。不同类型的 Context 可以采用不同组合，也可以没有 Task 或某一种连接。
 
 例如：
 
@@ -151,25 +144,21 @@ UI 与功能、功能与架构可以存在一对多或多对多关系；施工�
 
 ## 二、空间内部组织
 
-空间本身是连接；空间内部可以按照用户需要进行组织。
+Space 本身是一级工作空间；Space 内通过目录进行分组管理，目录下面放置 Context（项目）。目录只是组织结构，不承担独立业务语义。
 
 例如：
 
 ```
-空间
-│
-├── Space：APS 开发
-│    ├── APS（Context）
-│    ├── A-177（Context）
-│    └── 其他项目（Context）
-│
-├── 作品空间：我的作品
-│    ├── 作品A（Context）
-│    └── 作品B（Context）
-│
-└── 个人沉淀空间：我的资料
-     ├── 技术研究（Context）
-     └── 灵感记录（Context）
+Space：APS
+├── 目录：软件开发
+│   ├── APS（Context / 项目）
+│   └── A-177（Context / 项目）
+├── 目录：作品
+│   ├── 作品A（Context / 项目）
+│   └── 作品B（Context / 项目）
+└── 目录：资料
+    ├── 技术研究（Context）
+    └── 灵感记录（Context）
 ```
 
 “目录”是 Space 内的组织方式 / 分组结构；Context（项目）位于目录之下，不是 APS 顶层固定业务类型；名称和具体组织方式可以由用户决定。
@@ -181,9 +170,12 @@ Context 不是固定模块的集合，而是允许多种能力组合的工作语
 固定基础：
 
 ```
-Context
-├── Address
-├── Resource
+Context（项目）
+├── 名称
+├── Address[]
+│   ├── 名称
+│   ├── 地址
+│   └── 备注
 └── 可组合能力
     ├── Connection
     ├── Task
@@ -256,7 +248,7 @@ APS
 
 任务、对话、状态、工作记录、验证、调度等属于可组合能力，只有当前 Context 使用或支持时才需要在 UI 中显示；不把它们作为所有 Context 都必须存在的固定区域。
 
-空间名称、组织名称、Context 显示名称均由用户定义。
+Space 名称、目录名称、Context（项目）名称均由用户定义。
 
 空间页可以展示和管理当前可用连接，例如 AI、GitHub、本地、设备、插件及其他服务。调度状态和结果也可以在此展示。
 
