@@ -125,6 +125,7 @@ Actions / Verify
 
 - Space / Context 工作面；
 - Context Conversation；
+- 软件开发结构（按需能力）；
 - Task / Dispatcher / Execution；
 - GitHub / Commit / Verify；
 - Local Connector；
