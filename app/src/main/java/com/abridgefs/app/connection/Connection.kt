@@ -5,6 +5,7 @@ interface Connection {
     val type: Type
 
     enum class Type {
-        GITHUB
+        GITHUB,
+        AI
     }
 }
