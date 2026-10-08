@@ -4,7 +4,8 @@ import com.abridgefs.app.connection.Connection
 
 data class AIConnection(
     override val id: String,
-    val name: String
+    val name: String,
+    val avatar: String? = null
 ) : Connection {
     override val type: Connection.Type = Connection.Type.AI
 
