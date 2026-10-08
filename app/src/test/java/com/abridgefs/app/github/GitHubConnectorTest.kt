@@ -116,10 +116,18 @@ class GitHubConnectorTest {
     }
 
     @Test
-    fun public_github_api_reads_repository_and_file() = runBlocking {
+    fun connector_reads_public_github_repository_and_file() = runBlocking {
         val api = GitHubApiFactory.create("")
-        val repository = api.repository("owla19s-ux", "APS")
-        val file = api.file("owla19s-ux", "APS", "README.md", "main")
+        val context = Context("ctx-live", "APS")
+            .withResource(
+                ResourceRef.GitHub(
+                    GitHubResource.Repository(177, "owla19s-ux/APS", "main")
+                )
+            )
+        val connector = GitHubConnectorFactory.create(context, api)
+
+        val repository = connector.repository()
+        val file = connector.file("README.md")
 
         assertTrue(repository.isSuccessful)
         assertEquals("owla19s-ux/APS", repository.body()?.get("full_name")?.asString)
