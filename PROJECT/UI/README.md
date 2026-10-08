@@ -40,7 +40,7 @@ Space
 - **Address** 回答“在哪里”，是对资源位置的定位记录；
 - **Resource** 回答“实际有什么”，是 APS 可以使用、读取或操作的实际内容；
 - **目录 → Context** 是 Space 内的组织层级；
-- 其他能力按需要组合，不作为所有 Space / Context 的固定组成部分。
+- 其他能力按 Context 需要组合，不作为 Space 或 Context 的固定页面结构。
 
 一个 Context 可以关联多个 Address，每个地址记录至少包含**名称、地址、备注**。Address 不等于 Resource。
 
@@ -1022,13 +1022,13 @@ UI / 交互方案
 具体而言：
 
 1. **Space 是承载连接与资源的基础工作底座；**
-2. **Address + Resource 是 Space 的核心基础定义；**
+2. **Space 的核心组织结构是目录 → Context；Context 通过 Address 定位 Resource；**
 3. **Address 表示定位，Resource 表示实际内容；**
-4. **一个 Space / Context 可以拥有多个 Address；**
+4. **一个 Context 可以拥有多个 Address；**
 5. **Connection 是访问、调用或管理资源与能力的统一抽象；**
 6. **Context 不固定绑定某一种业务结构；**
 7. **Task、Conversation、State、Records、Verification、AI 等均按需要组合，不默认全部存在；**
-8. **UI 应根据当前 Space / Context 实际具备的能力动态呈现，而不是把可选能力写死为固定页面结构。**
+8. **UI 应根据当前 Context 实际具备的能力动态呈现，而不是把可选能力写死为固定页面结构。**
 
 ## 十五、后续 UI 细化范围
 
