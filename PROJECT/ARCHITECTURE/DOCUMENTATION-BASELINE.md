@@ -31,7 +31,7 @@
 
 Space 属于 Connection 体系，但主要承担目录与 Context 的组织职责，不是普通 Connection 的简单同类。
 
-Space 的固定基础：
+Space 的组织结构：
 
 ```
 Space
@@ -63,7 +63,7 @@ Context 是 Space 内的具体工作上下文，不固定承载 Task、Conversat
 
 ```
 Connection
-├── Space      ← 特殊：连接与资源底座
+├── Space      ← 特殊：工作空间 / 组织底座
 ├── AI
 ├── GitHub
 ├── Local
