@@ -4,6 +4,7 @@ import com.abridgefs.app.context.Context
 import com.abridgefs.app.context.ResourceRef
 import com.abridgefs.app.github.api.FileWriteRequest
 import com.abridgefs.app.github.api.GitHubApi
+import com.abridgefs.app.github.api.GitHubApiFactory
 import com.abridgefs.app.github.api.WorkflowDispatchRequest
 import com.google.gson.JsonObject
 import java.lang.reflect.Proxy
@@ -112,6 +113,18 @@ class GitHubConnectorTest {
             ),
             connector.connection
         )
+    }
+
+    @Test
+    fun public_github_api_reads_repository_and_file() = runBlocking {
+        val api = GitHubApiFactory.create("")
+        val repository = api.repository("owla19s-ux", "APS")
+        val file = api.file("owla19s-ux", "APS", "README.md", "main")
+
+        assertTrue(repository.isSuccessful)
+        assertEquals("owla19s-ux/APS", repository.body()?.get("full_name")?.asString)
+        assertTrue(file.isSuccessful)
+        assertEquals("README.md", file.body()?.get("name")?.asString)
     }
 
     private fun proxyApi(
