@@ -1,6 +1,6 @@
 # APS 当前状态与工作记录
 
-更新时间：2026-10-07
+更新时间：2026-10-08
 
 > 当前事实以代码、Commit、Actions / Verify、APK / 真机结果为准。本文件用于记录当前阶段状态，不作为历史架构的复原依据。
 
@@ -12,11 +12,11 @@ APS 当前第一阶段定位：
 
 核心 UI：
 
-- **空间页**：Space / Context 的主要人机工作面；
+- **空间页**：Space → 目录 → Context 的主要人机工作面；
 - **对话页**：独立 AI 对话 / 查询 / 测试；
 - **设置页**：API、GitHub 等配置。
 
-空间页中的 Space、Context、AI、状态、操作记录主要用于人类查看和操作。
+空间页中的 Space、目录、Context、AI、状态、操作记录主要用于人类查看和操作。
 
 ## 二、当前正式模型
 
@@ -38,11 +38,11 @@ Space
     └── ...
 ```
 
-Space 属于 Connection 体系，但特殊职责是承载连接与资源的基础工作底座。
+Space 属于 Connection 体系，但主要职责是组织目录与 Context。
 
 **Space 负责组织；Context 负责项目；Address 负责定位；Resource 负责实际内容；能力按 Context 组合。**
 
-Address 回答“在哪里”，Resource 表示“实际有什么”。一个 Space / Context 可以存在多个 Address。Task、Conversation、State、工作记录、验证等不是所有 Context 的固定组成部分。
+Address 属于 Context，回答“在哪里”；Resource 表示 Address 所定位的实际内容。Task、Conversation、State、工作记录、验证等不是所有 Context 的固定组成部分。
 
 ### 软件开发结构
 
