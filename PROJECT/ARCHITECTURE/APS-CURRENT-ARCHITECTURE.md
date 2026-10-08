@@ -1,6 +1,6 @@
 # APS 当前架构基线
 
-更新时间：2026-10-07
+更新时间：2026-10-08
 
 ## 一、第一阶段架构
 
@@ -32,7 +32,7 @@ Connection 是统一外部能力抽象；Connector 是具体能力实现边界�
 ```
 APS UI
 ├── 空间页
-│    └── Space / Context 工作面
+│    └── Space → 目录 → Context 工作面
 ├── 对话页
 │    └── AI Connection 的独立使用入口
 └── 设置页
@@ -41,11 +41,11 @@ APS UI
 
 ## 三、Space / Address / Resource / Context
 
-Space 是 APS 中承载连接与资源的基础工作底座。它属于 Connection 体系，但不是普通 Connection 的简单同类；Space 的核心职责是组织定位信息、实际资源以及可组合能力。
+Space 是 APS 中负责组织目录与 Context 的基础工作空间。它属于 Connection 体系，但不是普通 Connection 的简单同类；Space 的核心职责是组织 Space 名称、目录和 Context。
 
-Space 的组织基础是：
+Space 的组织结构是：
 
-``
+```
 Space
 ├── 名称
 └── 目录
@@ -90,7 +90,7 @@ Context
 
 ```
 Connection
-├── Space      ← 特殊：连接与资源底座
+├── Space      ← 特殊：工作空间 / 组织底座
 ├── AI
 ├── GitHub
 ├── Local
@@ -158,12 +158,14 @@ AI 属于 Connection 体系。Context 为 AI 配置三个独立能力权限：�
 
 1. Connection 是统一外部能力抽象；
 2. Connector 是具体 Connection 的实现边界；
-3. Space 是承载连接与资源的基础工作底座，并属于 Connection 体系；
-4. Address 与 Resource 是 Space 的固定基础；
-5. Context 是可组合能力的具体工作上下文，不是固定对象集合；
-6. Dispatcher 是轻量调度能力；
-7. Task 是工作的交接单位，但不是所有 Context 的固定组成部分；
-8. Receipt / Evidence 是结果确认依据；
-9. 不建立 Project Address 作为顶层模型；
-10. 不恢复固定 Decision / Worker 角色；
-11. 代码事实优先于历史文档。
+3. Space 是负责组织目录与 Context 的基础工作空间，并属于 Connection 体系；
+4. 目录用于分组管理 Context；
+5. Context 是实际项目 / 工作上下文，并可维护多个 Address（名称 / 地址 / 备注）；
+6. Resource 由 Address 定位并由 Connection / Connector 实际使用；
+7. Context 是可组合能力的具体工作上下文，不是固定对象集合；
+8. Dispatcher 是轻量调度能力；
+9. Task 是工作的交接单位，但不是所有 Context 的固定组成部分；
+10. Receipt / Evidence 是结果确认依据；
+11. 不建立 Project Address 作为顶层模型；
+12. 不恢复固定 Decision / Worker 角色；
+13. 代码事实优先于历史文档。
