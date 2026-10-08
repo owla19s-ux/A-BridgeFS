@@ -22,7 +22,7 @@ Space 属于 APS 的 Connection 体系，但它具有特殊性：**Space 不是�
 
 Space 不是普通的 UI 文件夹、项目目录或个人资料区。它可以来自手机本地、PC、其他设备、云端、NAS 或未来由插件提供的其他空间。
 
-Space 的核心基础固定为：
+Space 的核心组织结构为：
 
 ```
 Space
@@ -39,7 +39,7 @@ Space
 
 - **Address** 回答“在哪里”，是对资源位置的定位记录；
 - **Resource** 回答“实际有什么”，是 APS 可以使用、读取或操作的实际内容；
-- **Address + Resource** 是 Space 的基础定义；
+- **目录 → Context** 是 Space 内的组织层级；
 - 其他能力按需要组合，不作为所有 Space / Context 的固定组成部分。
 
 一个 Context 可以关联多个 Address，每个地址记录至少包含**名称、地址、备注**。Address 不等于 Resource。
@@ -114,10 +114,11 @@ Context 具有名称、多个可选 Address 以及按场景组合的 Connection�
 例如：
 
 ```
-Space：APS 开发
-├── APS（Context）
-├── A-177（Context）
-└── 其他项目（Context）
+Space：APS
+└── 目录：软件开发
+    ├── APS（Context / 项目）
+    ├── A-177（Context / 项目）
+    └── 其他项目（Context / 项目）
 ```
 
 这里“APS”“A-177”等都是用户自定义的显示名称；Context 是代码和数据模型使用的统一语义。UI 不要求用户使用“Context / 上下文”这个词。
@@ -203,7 +204,7 @@ Context（项目）
 
 **Address 与 Resource 是两个不同概念。**
 
-- **Address**：定位信息，回答“在哪里”；
+- **Address**：Context 的项目地址记录，回答“在哪里”；
 - **Resource**：实际内容，回答“那里有什么”。
 
 一个 Context 可以关联多个 Address：
@@ -226,7 +227,7 @@ Context（项目）
 
 资源通过对应 Connector 访问。APS 不默认复制或同步这些资源。
 
-因此，**Address 不是 Resource，Resource 也不是 Address；Space 的基础定义是 Address + Resource。**
+因此，**Address 不是 Resource，Resource 也不是 Address；Space 的基础是目录与 Context，Context 通过 Address 定位 Resource。**
 
 ## 五、三页总览
 
