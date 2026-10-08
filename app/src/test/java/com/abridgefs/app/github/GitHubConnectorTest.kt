@@ -1,5 +1,7 @@
 package com.abridgefs.app.github
 
+import com.abridgefs.app.context.Context
+import com.abridgefs.app.context.ResourceRef
 import com.abridgefs.app.github.api.FileWriteRequest
 import com.abridgefs.app.github.api.GitHubApi
 import com.abridgefs.app.github.api.WorkflowDispatchRequest
@@ -83,6 +85,33 @@ class GitHubConnectorTest {
 
         assertTrue(denied)
         assertTrue(calls.isEmpty())
+    }
+
+    @Test
+    fun factory_assembles_context_and_api_into_executable_connector() = runBlocking {
+        val calls = mutableListOf<String>()
+        val api = proxyApi { method, _, _ ->
+            calls += method.name
+            Response.success(JsonObject())
+        }
+        val context = Context("ctx-1", "APS")
+            .withResource(
+                ResourceRef.GitHub(
+                    GitHubResource.Repository(177, "owla19s-ux/APS", "main")
+                )
+            )
+
+        val connector = GitHubConnectorFactory.create(context, api)
+        connector.repository()
+
+        assertEquals(listOf("repository"), calls)
+        assertEquals(
+            GitHubConnection(
+                "github:repository:177",
+                GitHubAddress("owla19s-ux/APS", "main")
+            ),
+            connector.connection
+        )
     }
 
     private fun proxyApi(
