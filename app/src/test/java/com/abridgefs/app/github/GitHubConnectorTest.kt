@@ -7,6 +7,7 @@ import com.google.gson.JsonObject
 import java.lang.reflect.Proxy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import retrofit2.Response
 
@@ -25,7 +26,7 @@ class GitHubConnectorTest {
     }
 
     @Test
-    fun connector_forwards_repository_branch_commit_and_file_to_connection_address() {
+    fun connector_forwards_repository_branch_commit_and_file_to_connection_address() = runBlocking {
         val calls = mutableListOf<String>()
         val api = proxyApi { method, args, _ ->
             calls += method.name + ":" + args.filterNotNull().dropLast(1).joinToString(",")
