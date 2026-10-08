@@ -10,9 +10,9 @@
 
 当前正式 UI 定义优先作为语义基准：
 
-> **Space 是 APS 中承载连接与资源的基础工作底座。**
+> **Space 是 APS 中负责组织目录与 Context 的基础工作空间。**
 
-**固定的是定位与实际内容；能力是可组合的。**
+**Space 负责组织；Context 负责项目；Address 负责定位；Resource 负责实际内容；能力按 Context 组合。**
 
 ## 二、文档分层
 
@@ -29,15 +29,19 @@
 
 ### Space / Address / Resource / Context
 
-Space 属于 Connection 体系，但承担连接与资源底座职责，不是普通 Connection 的简单同类。
+Space 属于 Connection 体系，但主要承担目录与 Context 的组织职责，不是普通 Connection 的简单同类。
 
 Space 的固定基础：
 
 ```
 Space
-├── Address      ← 定位
-├── Resource     ← 实际内容
-└── 可组合能力
+├── 名称
+└── 目录
+    ├── Context（项目）
+    │   ├── 名称
+    │   ├── Address[]（名称 / 地址 / 备注）
+    │   └── 可组合能力
+    └── ...
     ├── Connection
     ├── AI
     ├── Task
@@ -47,9 +51,9 @@ Space
     └── ...
 ```
 
-**固定的是定位与实际内容；能力是可组合的。**
+**Space 负责组织；Context 负责项目；Address 负责定位；Resource 负责实际内容；能力按 Context 组合。**
 
-Address 回答“在哪里”，Resource 表示“实际有什么”。一个 Space / Context 可以存在多个 Address；每个 Address 至少包含名称、地址、备注。
+Address 回答“在哪里”，Resource 表示“实际有什么”。一个 Context 可以存在多个 Address；每个 Address 至少包含名称、地址、备注。
 
 Context 是 Space 内的具体工作上下文，不固定承载 Task、Conversation、State、内容或工作记录的全部组合，而是按场景组合能力。
 
