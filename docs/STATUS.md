@@ -12,11 +12,11 @@ APS 当前第一阶段定位：
 
 核心 UI：
 
-- **项目页**：Project 的主要人机工作面；
+- **空间页**：Space / Context 的主要人机工作面；
 - **对话页**：独立 AI 对话 / 查询 / 测试；
 - **设置页**：API、GitHub 等配置。
 
-项目页中的项目、AI、状态、操作记录主要用于人类查看和操作。
+空间页中的 Space、Context、AI、状态、操作记录主要用于人类查看和操作。
 
 ## 二、当前正式模型
 
@@ -39,6 +39,18 @@ Space 属于 Connection 体系，但特殊职责是承载连接与资源的基�
 **固定的是定位与实际内容；能力是可组合的。**
 
 Address 回答“在哪里”，Resource 表示“实际有什么”。一个 Space / Context 可以存在多个 Address。Task、Conversation、State、工作记录、验证等不是所有 Context 的固定组成部分。
+
+### 软件开发结构
+
+当前已确认“软件开发结构”作为软件开发 Context 的可组合能力纳入 APS，不作为新的顶层 Project 模型。
+
+```text
+目标 / UI → 功能 → 架构 → 施工点 → 施工卡 → 代码 / 产物 → 验证
+```
+
+当前状态：**已设计，尚未实现。**
+
+它与现有 Context、Task、Resource、State、Receipt / Evidence、Verify 的分工是：结构维护开发语义关系；Resource / Connection 提供实际资料和外部能力；Task 承接具体施工；State 保存当前工作状态；Receipt / Evidence / Verify 确认实际结果。
 
 ## 三、多 AI 协作状态
 
