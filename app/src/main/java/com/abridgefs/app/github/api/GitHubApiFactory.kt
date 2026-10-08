@@ -10,11 +10,13 @@ import retrofit2.converter.gson.GsonConverterFactory
 object GitHubApiFactory {
     fun create(token: String): GitHubApi {
         val auth = Interceptor { chain ->
-            chain.proceed(chain.request().newBuilder()
-                .header("Authorization", "Bearer $token")
+            val request = chain.request().newBuilder()
                 .header("Accept", "application/vnd.github+json")
                 .header("X-GitHub-Api-Version", "2022-11-28")
-                .build())
+            if (token.isNotBlank()) {
+                request.header("Authorization", "Bearer $token")
+            }
+            chain.proceed(request.build())
         }
         val client = OkHttpClient.Builder().addInterceptor(auth).build()
         return Retrofit.Builder()
