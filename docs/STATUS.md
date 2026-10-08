@@ -22,9 +22,13 @@ APS 当前第一阶段定位：
 
 ```text
 Space
-├── Address      ← 定位
-├── Resource     ← 实际内容
-└── 可组合能力
+├── 名称
+└── 目录
+    ├── Context（项目）
+    │   ├── 名称
+    │   ├── Address[]（名称 / 地址 / 备注）
+    │   └── 可组合能力
+    └── ...
     ├── Connection
     ├── Task
     ├── Conversation
@@ -36,7 +40,7 @@ Space
 
 Space 属于 Connection 体系，但特殊职责是承载连接与资源的基础工作底座。
 
-**固定的是定位与实际内容；能力是可组合的。**
+**Space 负责组织；Context 负责项目；Address 负责定位；Resource 负责实际内容；能力按 Context 组合。**
 
 Address 回答“在哪里”，Resource 表示“实际有什么”。一个 Space / Context 可以存在多个 Address。Task、Conversation、State、工作记录、验证等不是所有 Context 的固定组成部分。
 
@@ -56,8 +60,8 @@ Address 回答“在哪里”，Resource 表示“实际有什么”。一个 Sp
 
 ### 已确认
 
-- Space 属于 Connection 体系，但承担连接与资源底座职责；
-- Address + Resource 是 Space 的固定基础；
+- Space 属于 Connection 体系，但主要承担目录与 Context 的组织职责；
+- 目录用于分组 Context；Context 可以有多个 Address；Resource 由 Address 定位；
 - Context 是 Space 内的具体工作上下文，能力按场景组合；
 - 一个 Context 可以使用多个 Connection；
 - AI 是 Connection，不是固定角色；
