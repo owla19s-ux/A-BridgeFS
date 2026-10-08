@@ -1,6 +1,6 @@
 # APS 产品需求与行为规范
 
-更新时间：2026-10-07
+更新时间：2026-10-08
 > 本文件是 APS 第一阶段当前正式产品定义。状态必须区分：已确认、已设计未实现、开发中、已实现、已验证、待设计、废弃。
 
 ## 一、产品定位
@@ -33,27 +33,27 @@ Connection 不等于 API，也不限定具体业务用途。具体资源、权�
 
 ## 三、Space
 
-Space 是 APS 中承载连接与资源的基础工作底座。
+Space 是 APS 的最高层工作空间。Space 有自己的名称，用于承载和组织用户的目录与 Context。
 
-Space 属于 Connection 体系，但不是普通 Connection 的简单同类。它的固定基础是 Address 与 Resource；其他能力按使用场景组合。
+Space 内采用“目录 → Context（项目）”的组织层级。目录只是分组管理结构，不是新的业务对象层；Context 才是实际工作的项目 / 工作上下文。
 
 ```
 Space
-├── Address      ← 定位
-├── Resource     ← 实际内容
-└── 可组合能力
-    ├── Connection
-    ├── AI
-    ├── Task
-    ├── Conversation
-    ├── Device
-    ├── Plugin
-    └── ...
+├── 名称
+└── 目录
+    ├── Context（项目）
+    │   ├── 名称
+    │   ├── Address[]
+    │   │   ├── 名称
+    │   │   ├── 地址
+    │   │   └── 备注
+    │   └── 可组合能力
+    └── Context（项目）
 ```
 
-**固定的是定位与实际内容；能力是可组合的。**
+Space 负责组织；Context 负责实际工作；Address 记录 Context 所关联的位置入口。
 
-Address 至少包含名称、地址、备注。一个 Space / Context 可以存在多个 Address。
+Address 与 Resource 不再定义为 Space 的固定直接子对象。Address 属于 Context 的项目资料，可用于定位 GitHub、Local、文件、文档、设备或其他外部资源；Resource 是被 Address 定位并由 Connection / Connector 实际使用的内容。
 
 Space 不是普通 UI 文件夹、项目目录或个人资料区。
 
@@ -185,8 +185,11 @@ State 更新
 
 ### 已确认
 - APS = Connection + Dispatcher；
-- Space 是承载连接与资源的基础工作底座，并属于 Connection 体系；
-- Address 与 Resource 是 Space 的固定基础；
+- Space 是承载目录与 Context 的基础工作空间，并属于 Connection 体系；
+- 目录用于分组管理 Context；
+- Context 是实际项目 / 工作上下文；
+- Context 可以有多个 Address，每个 Address 至少有名称、地址、备注；
+- Resource 是 Address 所定位并由 Connection / Connector 使用的实际内容；
 - AI、GitHub、Local、File、Device、API / Service、Plugin 均属于 Connection 体系；
 - Context 是可组合能力的具体工作上下文；
 - “项目”只是 Context 的一种使用方式；
