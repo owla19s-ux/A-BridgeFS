@@ -14,6 +14,8 @@
 
 ### 1. 空间
 
+Space 有自己的名称。Space 内通过“目录”对 Context（项目）进行分组管理；目录不是新的业务对象层。
+
 **空间（Space）是 APS 中承载连接与资源的基础工作底座。**
 
 Space 属于 APS 的 Connection 体系，但它具有特殊性：**Space 不是与 AI、GitHub、File 等普通连接完全等价的连接，而是用于承载和组织地址、实际资源以及其他可组合能力的基础工作空间。**
@@ -24,9 +26,13 @@ Space 的核心基础固定为：
 
 ```
 Space
-├── Address       ← 地址 / 定位
-├── Resource      ← 实际内容 / 资源
-└── 可组合能力
+├── 名称
+└── 目录
+    ├── Context（项目）
+    │   ├── 名称
+    │   ├── Address[]（名称 / 地址 / 备注）
+    │   └── 可组合能力
+    └── ...
     ├── Connection
     ├── AI
     ├── Task
@@ -115,7 +121,7 @@ Context 的基础仍然围绕 Address / Resource，并根据具体用途组合�
 例如：
 
 ```
-项目空间：APS 开发
+Space：APS 开发
 ├── APS（Context）
 ├── A-177（Context）
 └── 其他项目（Context）
@@ -152,7 +158,7 @@ UI 与功能、功能与架构可以存在一对多或多对多关系；施工�
 ```
 空间
 │
-├── 项目空间：APS 开发
+├── Space：APS 开发
 │    ├── APS（Context）
 │    ├── A-177（Context）
 │    └── 其他项目（Context）
@@ -166,7 +172,7 @@ UI 与功能、功能与架构可以存在一对多或多对多关系；施工�
      └── 灵感记录（Context）
 ```
 
-“项目空间”“作品空间”“个人沉淀空间”是空间内部的组织方式 / 分组概念，不是 APS 顶层固定业务类型；名称和具体组织方式可以由用户决定。
+“目录”是 Space 内的组织方式 / 分组结构；Context（项目）位于目录之下，不是 APS 顶层固定业务类型；名称和具体组织方式可以由用户决定。
 
 ## 三、Context 的内容边界
 
@@ -208,10 +214,10 @@ Context
 - **Address**：定位信息，回答“在哪里”；
 - **Resource**：实际内容，回答“那里有什么”。
 
-一个 Space / Context 可以关联多个 Address：
+一个 Context 可以关联多个 Address：
 
 ```
-Space / Context
+Context（项目）
 └── Address
     ├── GitHub
     │   ├── 名称：主仓库
@@ -1018,7 +1024,7 @@ UI / 交互方案
 
 当前 UI 文档以以下原则作为后续设计的基础：
 
-> **固定的是定位与实际内容；能力是可组合的。**
+> **Space 负责组织；Context 负责项目；Address 负责定位；Resource 负责实际内容；能力按 Context 组合。**
 
 具体而言：
 
