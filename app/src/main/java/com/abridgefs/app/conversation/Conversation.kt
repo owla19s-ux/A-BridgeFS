@@ -2,13 +2,13 @@ package com.abridgefs.app.conversation
 
 data class Conversation(
     val id: String,
-    val contextId: String,
+    val contextId: String? = null,
     val aiConnectionId: String,
     val messages: List<Message> = emptyList()
 ) {
     init {
         require(id.isNotBlank()) { "Conversation ID 不能为空" }
-        require(contextId.isNotBlank()) { "Context ID 不能为空" }
+        require(contextId?.isNotBlank() != false) { "Context ID 不能为空" }
         require(aiConnectionId.isNotBlank()) { "AI Connection ID 不能为空" }
     }
 
