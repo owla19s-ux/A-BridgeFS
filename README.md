@@ -12,7 +12,7 @@ APS 使用统一 Connection 体系连接外部能力：
 
 ```
 Connection
-├── Space      ← 特殊：连接与资源底座
+├── Space      ← 特殊：工作空间 / 组织底座
 ├── AI
 ├── GitHub
 ├── Local
@@ -23,7 +23,7 @@ Connection
 └── 未来其他连接
 ```
 
-Space 属于 Connection 体系，但承担承载连接与资源的基础工作底座职责。
+Space 属于 Connection 体系，但主要承担目录与 Context 的组织职责。
 
 Connection 不等于 API，也不限定具体业务用途。
 
@@ -47,7 +47,7 @@ Space
     └── ...
 ```
 
-**Space 负责组织；Context 负责项目；Address 负责定位；Resource 负责实际内容；能力按 Context 组合。**
+**Space 负责组织；目录负责分组；Context 负责项目；Address 负责定位；Resource 负责实际内容；能力按 Context 组合。**
 
 Address 回答“在哪里”，Resource 表示“实际有什么”。Space 内通过目录分组管理 Context；一个 Context 可以存在多个 Address，每个 Address 有名称、地址、备注。
 
