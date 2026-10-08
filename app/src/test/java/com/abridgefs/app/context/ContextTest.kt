@@ -1,5 +1,7 @@
 package com.abridgefs.app.context
 
+import com.abridgefs.app.github.GitHubResource
+
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test
