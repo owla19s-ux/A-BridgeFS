@@ -25,7 +25,7 @@
 
 ### 1. 新架构定方向，旧代码提供零件
 
-- 以 UI 已确认的 Space / Context / Connection / Dispatcher 模型作为当前主方向。
+- 以 UI 已确认的 Space → 目录 → Context → Connection / Dispatcher 模型作为当前主方向。
 - 参考 AI+ / AI-V1 / 维加已经思考和试错过的概念。
 - 不复制维加规模，不把维加完整体系搬入 APS。
 - 现有代码按实际价值选择复用、适配、提取、重写或放弃。
@@ -92,7 +92,7 @@ Activity 主要承担 Android 生命周期、页面承载、导航和页面级�
 
 **固定的是定位与实际内容；能力是可组合的。**
 
-Address 与 Resource 是 Space 的固定基础，不应再被设计成 Project Address 或 Project-centered 顶层模型。
+目录与 Context 是 Space 内的组织层级；Address 是 Context 的项目地址资料，Resource 由 Address 定位，不应再建立 Project Address 顶层模型。
 
 ### 8. 维加只提供参考，不成为 APS 的施工清单
 
@@ -114,7 +114,7 @@ Address 与 Resource 是 Space 的固定基础，不应再被设计成 Project A
 - 将现有可复用代码按职责迁入或适配。
 - 不为了拆分制造空壳层。
 
-### Phase 2：Space / Context 主链路
+### Phase 2：Space → 目录 → Context 主链路
 ```
 Space
  ↓
