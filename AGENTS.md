@@ -34,11 +34,11 @@ Connection
 Context / Task / 权限
 ```
 
-Space 属于 Connection 体系，但承担连接与资源底座职责；Address + Resource 是 Space 的固定基础。Context 是工作上下文；AI 是 Connection；Dispatcher 负责按需组织“拆分 → 做 → 审查”等阶段。
+Space 属于 Connection 体系，但主要承担目录与 Context 的组织职责；目录用于分组 Context；Context 可以有多个 Address；Resource 由 Address 定位。Context 是工作上下文；AI 是 Connection；Dispatcher 负责按需组织“拆分 → 做 → 审查”等阶段。
 
 Connector 负责真实外部能力边界；Dispatcher 不得在没有需求和证据时扩展为完整 Agent Runtime。
 
-## 项目页规则
+## 空间页规则
 
 空间页 / Context 工作面负责展示和操作：
 
@@ -49,7 +49,7 @@ Connector 负责真实外部能力边界；Dispatcher 不得在没有需求和�
 - 请求 AI 协助；
 - 当前施工、Commit、Verify 等状态。
 
-项目页中的状态卡、配置和记录主要服务于人类查看与操作，不应反向定义底层业务架构。
+空间页中的状态卡、配置和记录主要服务于人类查看与操作，不应反向定义底层业务架构。
 
 ## 多 AI 协作规则
 
