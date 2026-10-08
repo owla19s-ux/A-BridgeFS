@@ -8,10 +8,12 @@
 
 当前架构语义基线：
 
-- **Space**：承载连接与资源的基础工作底座；
-- **Address**：定位信息；
+- **Space**：工作空间 / 组织底座；
+- **目录**：Space 内的分组管理结构；
+- **Context**：实际项目 / 工作上下文；
+- **Address**：Context 的项目地址记录；
 - **Resource**：实际内容 / 资源；
-- **Context**：Space 内按场景组合能力的具体工作上下文；
+- **Context**：Space 内目录中的实际项目 / 工作上下文；
 - **Connection**：统一外部能力入口；
 - **Connector**：具体 Connection 的实现边界；
 - **Task**：按需建立的工作交接单位；
