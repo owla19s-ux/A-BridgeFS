@@ -59,7 +59,11 @@ class ContextConversationRuntimeTest {
     fun serviceFor_rejects_conversation_from_other_context() {
         val connection = AIConnection("ai-1", "Test AI")
         val context = Context("context-1", "Test Context", aiConnectionId = connection.id)
-        val conversation = Conversation("conversation-2", "context-2", connection.id)
+        val conversation = Conversation(
+            id = "conversation-2",
+            contextId = "context-2",
+            aiConnectionId = connection.id
+        )
 
         ContextConversationRuntime(
             mapOf(connection.id to connection),
