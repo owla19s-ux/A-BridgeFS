@@ -49,7 +49,7 @@ Connection
 
 ## 三、Address / Resource
 
-Address 是定位信息，至少包含名称、地址、备注。一个 Space / Context 可以存在多个 Address。
+Address 是 Context 的项目地址记录，至少包含名称、地址、备注。一个 Context 可以存在多个 Address。
 
 Resource 是 APS 实际可使用、读取或修改的内容。Resource 与 Address 不等同：Address 回答“在哪里”，Resource 表示“实际有什么”。
 
