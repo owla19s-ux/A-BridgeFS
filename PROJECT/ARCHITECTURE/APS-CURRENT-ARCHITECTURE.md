@@ -15,10 +15,10 @@
       ↓         ↓         ↓         │
     Space      AI      GitHub ...    │
       │                             │
-      ├── Address                   │
-      ├── Resource                  │
-      │                             │
-      └── 可组合能力 ────────────────┘
+      └── 目录 → Context             │
+             └── Address[] → Resource│
+                                     │
+             可组合能力 ─────────────┘
                 │
              Connector
                 │
@@ -39,7 +39,7 @@ APS UI
      └── 全局 Connection / 权限 / 验证 / 系统设置
 ```
 
-## 三、Space / Address / Resource / Context
+## 三、Space / 目录 / Context / Address / Resource
 
 Space 是 APS 中负责组织目录与 Context 的基础工作空间。它属于 Connection 体系，但不是普通 Connection 的简单同类；Space 的核心职责是组织 Space 名称、目录和 Context。
 
