@@ -6,11 +6,11 @@
 
 ## 1. 当前第一阶段主线
 
-### T1 — Space / Context 工作面
+### T1 — Space → 目录 → Context 工作面
 **状态：开发中**
 
 验收重点：
-- 空间页进入 Space 并展示 Context；
+- 空间页进入 Space，按目录展示 Context；
 - Context 主要对话是主体；
 - Context 使用的 Address / Resource、Connection、AI 权限以及当前存在的任务 / 状态能力可查看；
 - Context 的连接与配置独立展开 / 收起；
@@ -84,6 +84,8 @@ Context 对话
 ### T8 — 软件开发结构
 **状态：已设计 / 待实现**
 
+基础组织前提：Space → 目录（分组）→ Context（项目）。每个 Context 具有名称，并可维护多个 Address（名称 / 地址 / 备注）。
+
 目标：在软件开发 Context 中建立统一的软件开发结构能力，连接：
 
 ```text
@@ -94,7 +96,7 @@ Context 对话
 
 其中 UI / 交互必须预留“待用户确认 → 已确认 → 已变更 / 待重新确认”的状态；用户确认是设计认可，不等同于代码 Verify。第一版可以暂不实现完整确认交互。
 
-### T8 — 多 AI 协作施工
+### T9 — 多 AI 协作施工
 **状态：待设计**
 
 这是当前尚未解决的重要问题。
@@ -111,7 +113,7 @@ Context 对话
 
 **当前只保留“请求 AI 协助”的入口和边界，不提前确定具体协作协议。**
 
-### T9 — 正式 APK / 真机验收
+### T10 — 正式 APK / 真机验收
 **状态：待主链收口后验收**
 
 范围：
@@ -124,7 +126,7 @@ Context 对话
 
 ## 2. 当前优先级
 
-Space → Address / Resource → Context → 软件开发结构（按需） → Connection → 对话 → 可选 Task / Dispatcher → Execution → GitHub / Verify → Local Connection → 云端测试 → 独立对话 / 设置 → 多 AI 协作设计 → 真机验收
+Space → 目录 → Context → Address / Resource → 软件开发结构（按需） → Connection → 对话 → 可选 Task / Dispatcher → Execution → GitHub / Verify → Local Connection → 云端测试 → 独立对话 / 设置 → 多 AI 协作设计 → 真机验收
 
 多 AI 协作虽然是重要能力，但在协议未确定前不进入实现阶段。
 
