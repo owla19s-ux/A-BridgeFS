@@ -22,7 +22,7 @@
 目标：
 
 ```
-Space / Context
+Space → 目录 → Context
  ↓
 Connection / Resource
  ↓
