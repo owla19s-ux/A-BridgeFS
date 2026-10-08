@@ -34,6 +34,23 @@ class ContextStoreTest {
     }
 
     @Test
+    fun context_persists_ai_connection_binding() {
+        val appContext = InstrumentationRegistry.getInstrumentation().targetContext
+        val firstStore = ContextStore(appContext)
+        firstStore.delete("ctx-ai-store-test")
+
+        val context = Context("ctx-ai-store-test", "APS")
+            .withAIConnection("ai:test")
+
+        firstStore.save(context)
+
+        val secondStore = ContextStore(appContext)
+        assertEquals(context, secondStore.get("ctx-ai-store-test"))
+
+        secondStore.delete("ctx-ai-store-test")
+    }
+
+    @Test
     fun saving_same_id_replaces_existing_context() {
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
         val store = ContextStore(appContext)
