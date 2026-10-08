@@ -38,6 +38,28 @@ class ConversationServiceTest {
     }
 
     @Test
+    fun send_allows_conversation_without_context() = runBlocking {
+        var received: AIRequest? = null
+        val connector = object : AIConnector {
+            override suspend fun send(request: AIRequest): AIResponse {
+                received = request
+                return AIResponse("独立对话响应")
+            }
+        }
+
+        val conversation = Conversation(
+            id = "conversation-independent",
+            aiConnectionId = "ai-1"
+        )
+
+        val updated = ConversationService(connector).send(conversation, "直接提问")
+
+        assertEquals(null, received?.contextId)
+        assertEquals("直接提问", received?.userText)
+        assertEquals("独立对话响应", updated.messages.last().text)
+    }
+
+    @Test
     fun send_keeps_existing_messages() = runBlocking {
         val connector = object : AIConnector {
             override suspend fun send(request: AIRequest): AIResponse =
