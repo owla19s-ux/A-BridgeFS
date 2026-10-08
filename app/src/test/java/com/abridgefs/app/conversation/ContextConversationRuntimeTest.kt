@@ -12,6 +12,22 @@ import org.junit.Test
 
 class ContextConversationRuntimeTest {
     @Test
+    fun openConversation_creates_context_bound_conversation() {
+        val connection = AIConnection("ai-1", "Test AI")
+        val context = Context("context-1", "Test Context", aiConnectionId = connection.id)
+
+        val conversation = ContextConversationRuntime(
+            connections = mapOf(connection.id to connection),
+            connectorRegistry = AIConnectorRegistry(emptyMap())
+        ).openConversation(context, "conversation-1")
+
+        assertEquals("conversation-1", conversation.id)
+        assertEquals(context.id, conversation.contextId)
+        assertEquals(connection.id, conversation.aiConnectionId)
+        assertEquals(emptyList<Message>(), conversation.messages)
+    }
+
+    @Test
     fun serviceFor_resolves_context_ai_connection_to_connector() = runBlocking {
         val connection = AIConnection("ai-1", "Test AI")
         val connector = object : AIConnector {
@@ -19,25 +35,24 @@ class ContextConversationRuntimeTest {
                 AIResponse("已处理: " + request.userText)
         }
         val context = Context("context-1", "Test Context", aiConnectionId = connection.id)
-        val conversation = Conversation("conversation-1", context.id, connection.id)
-
-        val service = ContextConversationRuntime(
+        val runtime = ContextConversationRuntime(
             connections = mapOf(connection.id to connection),
             connectorRegistry = AIConnectorRegistry(mapOf(connection.id to connector))
-        ).serviceFor(context, conversation)
+        )
+        val conversation = runtime.openConversation(context, "conversation-1")
 
-        val updated = service.send(conversation, "读取 Context")
+        val updated = runtime.serviceFor(context, conversation)
+            .send(conversation, "读取 Context")
 
         assertEquals("已处理: 读取 Context", updated.messages.last().text)
     }
 
     @Test(expected = IllegalStateException::class)
-    fun serviceFor_rejects_context_without_ai_connection() {
+    fun openConversation_rejects_context_without_ai_connection() {
         val context = Context("context-1", "Test Context")
-        val conversation = Conversation("conversation-1", context.id, "ai-1")
 
         ContextConversationRuntime(emptyMap(), AIConnectorRegistry(emptyMap()))
-            .serviceFor(context, conversation)
+            .openConversation(context, "conversation-1")
     }
 
     @Test(expected = IllegalArgumentException::class)

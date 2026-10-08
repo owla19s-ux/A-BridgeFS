@@ -15,6 +15,25 @@ class ContextConversationRuntime(
     private val connections: Map<String, AIConnection>,
     private val connectorRegistry: AIConnectorRegistry
 ) {
+    fun openConversation(context: Context, conversationId: String): Conversation {
+        val connectionId = context.aiConnectionId
+            ?: error("Context 未绑定 AI Connection")
+
+        require(conversationId.isNotBlank()) {
+            "Conversation ID 不能为空"
+        }
+
+        require(connections.containsKey(connectionId)) {
+            "未找到 Context 对应的 AI Connection: " + connectionId
+        }
+
+        return Conversation(
+            id = conversationId,
+            contextId = context.id,
+            aiConnectionId = connectionId
+        )
+    }
+
     fun serviceFor(context: Context, conversation: Conversation): ConversationService {
         require(conversation.contextId == context.id) {
             "Conversation 不属于当前 Context"
