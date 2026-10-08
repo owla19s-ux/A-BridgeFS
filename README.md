@@ -27,13 +27,17 @@ Space 属于 Connection 体系，但承担承载连接与资源的基础工作�
 
 Connection 不等于 API，也不限定具体业务用途。
 
-### Space / Address / Resource
+### Space / 目录 / Context / Address / Resource
 
 ```
 Space
-├── Address      ← 定位
-├── Resource     ← 实际内容
-└── 可组合能力
+├── 名称
+└── 目录
+    ├── Context（项目）
+    │   ├── 名称
+    │   ├── Address[]（名称 / 地址 / 备注）
+    │   └── 可组合能力
+    └── ...
     ├── Connection
     ├── Task
     ├── Conversation
@@ -43,9 +47,9 @@ Space
     └── ...
 ```
 
-**固定的是定位与实际内容；能力是可组合的。**
+**Space 负责组织；Context 负责项目；Address 负责定位；Resource 负责实际内容；能力按 Context 组合。**
 
-Address 回答“在哪里”，Resource 表示“实际有什么”。一个 Space / Context 可以存在多个 Address。
+Address 回答“在哪里”，Resource 表示“实际有什么”。Space 内通过目录分组管理 Context；一个 Context 可以存在多个 Address，每个 Address 有名称、地址、备注。
 
 ### Context
 
@@ -113,17 +117,17 @@ Actions / Verify
 
 第一阶段主要工作面：
 
-- **项目页**：Space / Context 的主要人机工作面；
+- **空间页**：Space / Context 的主要人机工作面；
 - **对话页**：独立 AI 对话、查询与测试，也可以关联 Context；
 - **设置页**：API、GitHub 等连接与系统配置。
 
-项目页中的项目、AI、状态、操作记录主要用于人类查看和操作。
+空间页中的项目、AI、状态、操作记录主要用于人类查看和操作。
 
 ## 第一阶段当前状态
 
 当前主线正在继续收口：
 
-- Space / Context 工作面；
+- Space → 目录 → Context 工作面；
 - Context Conversation；
 - 软件开发结构（按需能力）；
 - Task / Dispatcher / Execution；
