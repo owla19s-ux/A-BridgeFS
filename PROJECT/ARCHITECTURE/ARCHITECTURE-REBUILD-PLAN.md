@@ -75,14 +75,15 @@ Activity 主要承担 Android 生命周期、页面承载、导航和页面级�
 
 内部 Kotlin/Java package 可以按新职责重建；Android `applicationId` `com.abridgefs.app` 保持独立，不因内部包重建自动修改。
 
-### 7. Space 是基础底座，能力按 Context 组合
+### 7. Space → 目录 → Context 是基础组织层级，能力按 Context 组合
 
 保持以下核心语义：
 
-- **Space**：承载连接与资源的基础工作底座；
-- **Address**：定位信息；
-- **Resource**：实际内容；
-- **Context**：Space 内的具体工作上下文；
+- **Space**：最高层工作空间，负责组织目录与 Context；
+- **目录**：Space 内的分组管理结构；
+- **Context**：实际项目 / 工作上下文；
+- **Address**：Context 的项目地址记录，一个 Context 可以有多个，至少包含名称、地址、备注；
+- **Resource**：Address 所定位并由 Connection / Connector 使用的实际内容；
 - **Connection**：统一外部能力入口；
 - **Connector**：具体 Connection 的实现边界；
 - **Task**：按需建立的工作交接单位；
@@ -117,9 +118,11 @@ Address 与 Resource 是 Space 的固定基础，不应再被设计成 Project A
 ```
 Space
  ↓
-Address / Resource
+目录（分组）
  ↓
-Context
+Context（项目）
+ ↓
+Address[] / Resource
  ↓
 Context Store / Service
  ↓
