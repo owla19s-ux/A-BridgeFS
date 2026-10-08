@@ -2,7 +2,7 @@
 
 APS 是运行在本地 Android 设备上的 **AI 外部能力连接器 + 调度分配器**。
 
-第一阶段重点不是建立复杂 Agent Runtime，而是先把 **Connection、Space / Context、Resource、Dispatcher、Execution、GitHub / Verify** 这些基础能力收口，并通过真实代码与验证结果推进。
+第一阶段重点不是建立复杂 Agent Runtime，而是先把 **Connection、Space → 目录 → Context、Resource、Dispatcher、Execution、GitHub / Verify** 这些基础能力收口，并通过真实代码与验证结果推进。
 
 ## 核心模型
 
@@ -57,9 +57,9 @@ Context 是 Space 内的具体工作上下文。
 
 Context 不固定承载 Task、Conversation、State、工作记录、验证等全部能力，而是根据使用场景组合所需能力。
 
-“项目”可以是 Context 的一种使用方式或用户自定义名称，不是 APS 顶层固定业务模型。
+Context 是实际项目 / 工作上下文；“项目”是其常见使用方式，不是 APS 顶层固定业务模型。
 
-一个 Context 可以使用多个 Connection，并按实际需要关联 Address、Resource、AI、Task 等能力。
+一个 Context 可以使用多个 Connection，并按实际需要维护多个 Address、Resource、AI、Task 等能力。
 
 ## Dispatcher
 
