@@ -4,10 +4,10 @@ import com.abridgefs.app.ai.AIConnector
 import com.abridgefs.app.ai.AIRequest
 
 /**
- * Conversation 的最小运行边界。
+ * Conversation 的运行边界。
  *
- * ConversationService 不负责持久化、Dispatcher 或具体 AI Provider。
- * Conversation 可以独立存在，也可以关联 Context；关联信息原样传给 AI Connector。
+ * 普通对话页使用 sendAndSave()，每次成功响应后立即保存。
+ * Context Conversation 可以继续使用 send()，由其上层决定记录边界。
  */
 class ConversationService(
     private val connector: AIConnector
@@ -27,5 +27,15 @@ class ConversationService(
         return conversation
             .addMessage(userMessage)
             .addMessage(Message(Message.Role.AI, response.text))
+    }
+
+    suspend fun sendAndSave(
+        conversation: Conversation,
+        userText: String,
+        store: ConversationStoreApi
+    ): Conversation {
+        val updated = send(conversation, userText)
+        store.saveConversation(updated)
+        return updated
     }
 }
