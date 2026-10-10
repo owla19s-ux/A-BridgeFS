@@ -85,8 +85,9 @@ class OpenAICompatibleConnector(
     private fun safeError(body: String): String {
         if (body.isBlank()) return "服务未提供错误详情"
         // Keep server messages short and avoid reflecting request headers or API keys.
-        return body.replace(Regex("(?i)(bearer\\s+)[^\\s\"}]+"), "\\$1[redacted]")
-            .take(240)
+        return Regex("(?i)(bearer\\\\s+)[^\\\\s\\\"}]+").replace(body) { match ->
+            match.groupValues[1] + "[redacted]"
+        }.take(240)
     }
 
     companion object {
