@@ -637,7 +637,7 @@ class ConversationActivity : AppCompatActivity() {
         }
         AlertDialog.Builder(this)
             .setTitle(title)
-            .setMessage("$operation失败：$detail$recoveryNote")
+            .setMessage("${operation}失败：$detail$recoveryNote")
             .setPositiveButton("重新选择目录") { _, _ -> pickLocalDirectory() }
             .setNegativeButton(if (keepEditorOpen) "保留编辑内容" else "关闭", null)
             .show()
