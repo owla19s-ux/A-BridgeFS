@@ -59,6 +59,24 @@ class AndroidLocalDocumentGateway(context: Context) : LocalDocumentGateway {
     }
 
     override fun writeText(treeUri: String, documentId: String, content: String) {
+        writeDocument(treeUri, documentId, content, expectedOriginalContent = null)
+    }
+
+    override fun writeTextIfUnchanged(
+        treeUri: String,
+        documentId: String,
+        expectedContent: String,
+        content: String
+    ) {
+        writeDocument(treeUri, documentId, content, expectedOriginalContent = expectedContent)
+    }
+
+    private fun writeDocument(
+        treeUri: String,
+        documentId: String,
+        content: String,
+        expectedOriginalContent: String?
+    ) {
         val bytes = content.toByteArray(StandardCharsets.UTF_8)
         if (bytes.size > MAX_TEXT_BYTES) throw IOException("文件超过 2 MiB 文本写入上限")
         val uri = DocumentsContract.buildDocumentUriUsingTree(Uri.parse(treeUri), documentId)
@@ -67,8 +85,16 @@ class AndroidLocalDocumentGateway(context: Context) : LocalDocumentGateway {
         // snapshot so ordinary write/close failures can attempt to restore the original.
         val originalBytes = readBytes(uri, MAX_TEXT_BYTES)
 
-        // Optimistic conflict check: avoid overwriting content that changed after the snapshot.
-        // This narrows, but cannot eliminate, the race between the check and provider write.
+        // When saving an open editor, compare against the exact content originally shown to
+        // the user, not merely a new snapshot taken at save time.
+        if (expectedOriginalContent != null) {
+            val expectedBytes = expectedOriginalContent.toByteArray(StandardCharsets.UTF_8)
+            if (!originalBytes.contentEquals(expectedBytes)) {
+                throw IOException("文件在编辑期间已发生变化；为避免覆盖新内容，已取消本次保存")
+            }
+        }
+
+        // A second check narrows, but cannot eliminate, the race between checking and writing.
         val latestBytes = readBytes(uri, MAX_TEXT_BYTES)
         if (!latestBytes.contentEquals(originalBytes)) {
             throw IOException("文件在保存前已发生变化；为避免覆盖新内容，已取消本次保存")
