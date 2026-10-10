@@ -53,12 +53,12 @@
 | UI-012 | UI-011 | 对话分组 | 新建、重命名、删除分组；移动对话 | FN-006 | 已确认 | 已实现待验证：Activity 已接入分组筛选、新建/重命名/删除分组及移动对话入口；CI 已通过，仍需设备交互验收 |
 | UI-013 | UI-011 | 对话管理列表 | 新建、查看、切换、重命名、删除对话 | FN-005,FN-007 | 已确认 | 已实现待验证：Activity 已接入新建/切换/重命名/删除；保存失败边界与设备交互仍待验收 |
 | UI-014 | UI-011 | 消息与输入区 | 展示消息、输入、发送、显示调用状态 | FN-007,FN-009 | 已确认 | 部分实现：基础消息与发送 UI 存在；错误/取消/流式状态处理未发现完整实现 |
-| UI-015 | UI-011 | AI 连接、模型与头像 | 选择 AI 连接及具体模型，显示头像 | FN-008,FN-010 | 已确认 | 部分实现：AIConnection 有 name/avatar 字段；选择控件、模型目录和头像显示未发现 |
+| UI-015 | UI-011 | AI 连接、模型与头像 | 选择 AI 连接及具体模型，显示头像 | FN-008,FN-010 | 已确认 | 部分实现：已可配置默认 API Profile 并获取模型目录，ConversationActivity 使用已保存模型；对话内连接/模型切换与头像显示仍未实现 |
 | UI-016 | UI-011 | 连接 / 资料选择入口 | 通过“＋”选择 Local、File、GitHub 等已授权资源 | FN-011,FN-012,FN-014 | 已确认 | 未发现入口实现 |
 | UI-017 | UI-011 | AI Code 三级策略按钮 | 当前普通对话切换“自动 / 询问 / 拦截” | FN-020 | 已确认 | 未发现实现 |
 | UI-018 | UI-001 | 设置页 | 连接与服务、权限、验证、系统 | FN-021,FN-022,FN-023 | 已确认 | 未发现页面实现 |
 | UI-019 | UI-018 | 连接与服务 | 添加、编辑、测试、启停各类连接 | FN-022 | 已确认 | 未发现统一设置 UI |
-| UI-020 | UI-019 | AI / API 配置 | 配置服务地址、认证、模型列表与默认模型 | FN-008 | 需细化 | 未发现完整 API Profile / 模型配置实现 |
+| UI-020 | UI-019 | AI / API 配置 | 配置服务地址、认证、模型列表与默认模型 | FN-008 | 已确认 | 部分实现：AISettingsActivity 支持地址、API Key、模型目录、保存/删除；当前仅一个默认 Profile，统一设置入口与连接状态持久展示仍待补齐 |
 | UI-021 | UI-019 | GitHub 配置 | 凭证管理、验证、仓库/分支选择与测试 | FN-013,FN-014,FN-015,FN-016 | 已确认 | 代码存在未接 UI：认证、验证、Connector/API 组件存在；设置 UI 未发现 |
 | UI-022 | UI-019 | Local / File 配置 | 选择本地目录、授权读写、测试访问 | FN-012,FN-022 | 已确认 | 未发现 Local/File Connector 与设置 UI |
 | UI-023 | UI-018 | 系统权限与系统选项 | Android 权限、通知、后台及其他通用选项 | FN-021,FN-023 | 需细化 | 未发现设置 UI |
@@ -78,9 +78,9 @@
 | FN-004 | Address / Resource 关联 | 多个 Address 定位资源；操作前解析实际 Resource；不把地址等同内容 | 已确认 | 部分实现 | 当前 ResourceRef 仅覆盖 GitHub Resource；通用 Address 模型待建 |
 | FN-005 | 对话管理 | 创建、查看、切换、重命名、删除普通对话；支持独立/可关联 Context | 已确认 | 部分实现 | ConversationManager/Store 与对应 UI 动作已接入；需补足失败保存边界并做设备交互验收 |
 | FN-006 | 对话分组管理 | 分组 CRUD、将对话移动到分组；删组不删对话 | 已确认 | 已实现待验证 | ConversationGroup/Store 与 Activity 分组管理 UI 已接入；CI 通过，设备交互待验收 |
-| FN-007 | 对话自动保存 | 对话与分组持久化；记录归属独立于项目文件；失败时不丢用户消息 | 已确认 | 部分实现 | ConversationStore 持久化存在；当前 sendAndSave 在收到响应后保存完整轮次，失败/退出时的用户消息保留仍需补齐 |
-| FN-008 | AI 连接与模型配置 | 每个连接管理服务地址/认证/模型；对话明确选择连接 + 模型 | 需细化 | 部分实现 | AIConnection/AIConnector/Registry 存在；真实 Provider、模型选择和 API 配置未发现 |
-| FN-009 | AI 请求执行 | 发送真实请求、处理响应、失败、超时、取消和状态展示 | 已确认 | 部分实现 | ConversationService/AIConnector 抽象存在；ConversationActivity 使用固定占位响应，真实 API 未接入 |
+| FN-007 | 对话自动保存 | 对话与分组持久化；记录归属独立于项目文件；失败时不丢用户消息 | 已确认 | 部分实现 | sendAndSave 已在 AI 请求前保存用户消息；新增测试覆盖请求异常时保留用户消息，仍需设备端生命周期验收 |
+| FN-008 | AI 连接与模型配置 | 每个连接管理服务地址/认证/模型；对话明确选择连接 + 模型 | 已确认 | 部分实现 | AIProfile、加密存储、模型目录及 OpenAI-compatible Provider 已接入；目前只有一个默认 Profile，对话内选择多个连接/模型仍待实现 |
+| FN-009 | AI 请求执行 | 发送真实请求、处理响应、失败、超时、取消和状态展示 | 已确认 | 部分实现 | ConversationActivity 已根据默认 Profile 调用 OpenAI-compatible `/chat/completions`；失败提示存在，流式响应、取消、重试及真实服务端验收仍缺 |
 | FN-010 | AI 头像显示 | AI 连接可配置头像；对话标题/消息区按设计显示 | 已确认 | 部分实现 | AIConnection.avatar 字段存在；头像 UI/资源解析未发现 |
 | FN-011 | 连接选择与资料引用 | 用户明确选择资源；区分读取、生成、写入；遵守授权 | 已确认 | 未实现 | 未发现通用资源选择与连接调度 UI/链路 |
 | FN-012 | Local / File 文件读写 | 选择已授权目录；读取、修改、保存；返回实际结果；失败不伪报成功 | 已确认 | 未实现 | 未发现 Local/File Connector |
@@ -108,8 +108,8 @@
 | ME-002 | Context Store | 保存/加载/删除 Context；唯一维护 Context 本身状态 | 部分实现 | `context/Context.kt`、`context/ContextStore.kt`；目前 Context Resource 类型覆盖不足，且 Store 测试/错误恢复需补核 |
 | ME-003 | Conversation Store | 对话/消息/分组持久化；分组与对话记录分离；移动和删除边界清晰 | 部分实现 | `conversation/ConversationStore.kt` 使用 SharedPreferences + JSON；大数据量、迁移、写入失败保障需后续评估 |
 | ME-004 | Conversation Service | 把用户消息、AI 调用、响应消息和保存组合起来 | 部分实现 | `ConversationService.kt`、相关测试；完整错误/取消路径及失败前消息保存需补齐 |
-| ME-005 | AI Connector 抽象与 Registry | 将连接 ID 解析为可调用 Connector；不把抽象层误认为具体 Provider | 部分实现 | `ai/AIConnector.kt`、`AIConnectorRegistry.kt`；目前没有发现真实 API Provider/网络调用实现 |
-| ME-006 | API Profile、模型目录与密钥管理 | 维护端点、认证、模型、请求参数；密钥安全保存；连接与模型选择可分别调整 | 未发现完整实现 | 当前可见 AIConnection 只有 id/name/avatar；需要设计模型配置对象、持久化、安全存储与连接测试 |
+| ME-005 | AI Connector 抽象与 Registry | 将连接 ID 解析为可调用 Connector；不把抽象层误认为具体 Provider | 部分实现 | `ai/AIConnector.kt`、`AIConnectorRegistry.kt` 与 `OpenAICompatibleConnector.kt`；抽象、Registry 和一种兼容 Provider 已存在，其他 Provider 与多连接注册仍待扩展 |
+| ME-006 | API Profile、模型目录与密钥管理 | 维护端点、认证、模型、请求参数；密钥安全保存；连接与模型选择可分别调整 | 部分实现 | `AIProfile.kt`、`AIProfileStore.kt`、`AISettingsActivity.kt`；端点/模型可配置、模型目录可查询、API Key 使用 Android Keystore 加密；当前仅单 Profile，仍需补连接验证结果持久化与多 Profile 管理 |
 | ME-007 | GitHub REST API 与 Connector | 封装账号、仓库、分支、提交、内容、Actions 等远端调用 | 代码存在 | `github/api/GitHubApi.kt`、`GitHubConnector.kt`、对应 Factory；需持续补齐失败状态、速率限制和 UI 集成验证 |
 | ME-008 | GitHub 凭证加密与验证 | 凭证加密保存、加载/清除；验证 GitHub 身份与仓库访问 | 代码存在 | `GitHubCredentialStore.kt`、`GitHubCredentialVerifier.kt` 及相应测试；端到端设置流程未接 UI |
 | ME-009 | GitHub Resource 映射与并发读取 | Context 资源转 GitHub Connection；并发拉取仓库、分支、提交、文件快照 | 代码存在 | `GitHubConnectionFactory.kt`、`GitHubConcurrentReader.kt`；Resource 地址冲突及错误项处理需按实际场景验证 |
@@ -122,6 +122,8 @@
 | ME-016 | 测试与验证证据 | 以测试、实际连接结果和必要的端到端证据核对功能状态 | 部分实现 | Conversation、Context、GitHub 有单元测试文件；每个业务闭环的测试覆盖与当前 Verify 状态需要逐项核对 |
 | ME-017 | Connection 基础抽象 | 提供连接稳定 ID 与类型；具体 Connector 通过连接身份解析，不把 Connection 当成实际资源 | 部分实现 | `connection/Connection.kt` 目前只定义 GITHUB、AI 两种类型；Local、File、API/Service 等通用类型尚未纳入该接口，需按模块施工时扩展，不提前一次性实现全部类型 |
 | ME-018 | Context Conversation Runtime 组装 | 校验 Context、Conversation 与 AI Connection 的归属关系，并解析对应 Connector / ConversationService | 部分实现 | `conversation/ContextConversationRuntime.kt` 已有组装边界及测试；当前 ConversationActivity 未使用该 Runtime，且没有真实 Provider，不能据此认定 Context 对话链已打通 |
+| ME-019 | AI Profile 安全持久化 | 保存 API 名称、Base URL、模型及加密 API Key；密钥不以明文写入偏好存储 | 部分实现 | `ai/AIProfileStore.kt` 使用 Android Keystore AES-GCM 加密密钥；需要补自动化加密存储测试与凭证轮换/恢复边界 |
+| ME-020 | OpenAI-compatible Provider | 使用已选模型调用 `/chat/completions` 并解析模型目录与响应 | 部分实现 | `ai/OpenAICompatibleConnector.kt` 已实现模型列表和非流式聊天请求；尚未进行真实供应商端到端验证，且不同供应商的兼容差异需要逐一验证 |
 
 ---
 
@@ -170,6 +172,8 @@
 | FN-008 | ME-005 | depends_on | 对话需要把 AI Connection 解析为 Connector |
 | FN-008 | ME-006 | depends_on | 真实模型切换需要模型目录和 API 配置机制 |
 | FN-009 | ME-005 | depends_on | AI 请求走 AI Connector 抽象 |
+| FN-008 | ME-019 | depends_on | API 凭证通过 Android Keystore 加密持久化 |
+| FN-009 | ME-020 | implements_through | 当前真实请求通过 OpenAI-compatible Provider 执行 |
 | FN-009 | ME-006 | depends_on | 真实 API 请求依赖 Provider/模型配置机制 |
 | FN-011 | ME-012 | guards | 所有连接调用受统一访问授权约束 |
 | FN-012 | ME-011 | implements_through | 本地文件操作由 Local/File Connector 执行 |
