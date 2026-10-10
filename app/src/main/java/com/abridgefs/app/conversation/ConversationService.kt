@@ -1,6 +1,7 @@
 package com.abridgefs.app.conversation
 
 import com.abridgefs.app.ai.AIConnector
+import com.abridgefs.app.ai.AIMessage
 import com.abridgefs.app.ai.AIRequest
 import com.abridgefs.app.ai.AIResponse
 
@@ -22,7 +23,13 @@ class ConversationService(
         val response = connector.send(
             AIRequest(
                 contextId = conversation.contextId,
-                userText = userText
+                userText = userText,
+                history = conversation.messages.map { message ->
+                    AIMessage(
+                        role = if (message.role == Message.Role.USER) AIMessage.Role.USER else AIMessage.Role.ASSISTANT,
+                        content = message.text
+                    )
+                }
             )
         )
 
@@ -42,7 +49,13 @@ class ConversationService(
         val response = connector.send(
             AIRequest(
                 contextId = conversation.contextId,
-                userText = userText
+                userText = userText,
+                history = conversation.messages.map { message ->
+                    AIMessage(
+                        role = if (message.role == Message.Role.USER) AIMessage.Role.USER else AIMessage.Role.ASSISTANT,
+                        content = message.text
+                    )
+                }
             )
         )
         val completed = withUserMessage.addMessage(Message(Message.Role.AI, response.text))
