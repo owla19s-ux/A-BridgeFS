@@ -6,6 +6,10 @@
 
 - `PROJECT/ARCHITECTURE/APS-CURRENT-ARCHITECTURE.md`
 
+当前专项规范：
+
+- `PROJECT/ARCHITECTURE/THIRD-PARTY-MODULE-COMPATIBILITY.md`：第三方开源模块接入、Connector 契约、兼容性、安全与验证标准。
+
 当前架构语义基线：
 
 - **Space**：工作空间 / 组织底座；
@@ -13,7 +17,6 @@
 - **Context**：实际项目 / 工作上下文；
 - **Address**：Context 的项目地址记录；
 - **Resource**：实际内容 / 资源；
-- **Context**：Space 内目录中的实际项目 / 工作上下文；
 - **Connection**：统一外部能力入口；
 - **Connector**：具体 Connection 的实现边界；
 - **Task**：按需建立的工作交接单位；
