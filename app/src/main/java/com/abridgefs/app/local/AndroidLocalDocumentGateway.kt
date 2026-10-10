@@ -66,9 +66,9 @@ class AndroidLocalDocumentGateway(context: Context) : LocalDocumentGateway {
         // SAF providers do not universally support atomic replacement. Keep an exact byte
         // snapshot so ordinary write/close failures can attempt to restore the original.
         val originalBytes = readBytes(uri, MAX_TEXT_BYTES)
-        val output = resolver.openOutputStream(uri, "wt")
-            ?: throw IOException("无法打开本地文件进行写入")
         try {
+            val output = resolver.openOutputStream(uri, "wt")
+                ?: throw IOException("无法打开本地文件进行写入")
             output.use { it.write(bytes) }
         } catch (writeError: Exception) {
             try {
