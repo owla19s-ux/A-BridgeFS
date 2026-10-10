@@ -3,6 +3,7 @@ package com.abridgefs.app
 import android.app.AlertDialog
 import android.os.Bundle
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
@@ -31,8 +32,10 @@ class ConversationActivity : AppCompatActivity() {
     private lateinit var input: EditText
     private lateinit var title: TextView
     private lateinit var sendButton: Button
+    private lateinit var cancelButton: Button
     private lateinit var requestStatus: TextView
-    private var requestInFlight = false
+    @Volatile private var requestInFlight = false
+    @Volatile private var requestCancelled = false
     private var current: Conversation? = null
     private var selectedGroupFilter: String? = null
 
@@ -151,6 +154,13 @@ class ConversationActivity : AppCompatActivity() {
             setOnClickListener { sendMessage() }
         }
         composer.addView(sendButton)
+        cancelButton = Button(this).apply {
+            text = "取消请求"
+            visibility = View.GONE
+            isEnabled = false
+            setOnClickListener { cancelCurrentRequest() }
+        }
+        root.addView(cancelButton)
         root.addView(composer)
         return root
     }
@@ -383,7 +393,10 @@ class ConversationActivity : AppCompatActivity() {
         val text = input.text.toString().trim()
         if (text.isEmpty()) return
         requestInFlight = true
+        requestCancelled = false
         sendButton.isEnabled = false
+        cancelButton.visibility = View.VISIBLE
+        cancelButton.isEnabled = true
         requestStatus.text = "正在请求 AI……"
         input.text.clear()
         Thread {
@@ -394,7 +407,9 @@ class ConversationActivity : AppCompatActivity() {
                 runOnUiThread {
                     requestInFlight = false
                     sendButton.isEnabled = true
-                    requestStatus.text = "回复已收到并保存"
+                    cancelButton.isEnabled = false
+                    cancelButton.visibility = View.GONE
+                    requestStatus.text = if (requestCancelled) "请求已取消" else "回复已收到并保存"
                     current = updated
                     refresh()
                 }
@@ -402,7 +417,9 @@ class ConversationActivity : AppCompatActivity() {
                 runOnUiThread {
                     requestInFlight = false
                     sendButton.isEnabled = true
-                    requestStatus.text = "请求失败；用户消息已保留"
+                    cancelButton.isEnabled = false
+                    cancelButton.visibility = View.GONE
+                    requestStatus.text = if (requestCancelled) "请求已取消；用户消息已保留" else "请求失败；用户消息已保留"
                     // sendAndSave 在请求前已保存用户消息；失败时重新加载并显示该记录。
                     current = store.getConversation(conversation.id)
                     refresh()
@@ -410,6 +427,21 @@ class ConversationActivity : AppCompatActivity() {
                 }
             }
         }.start()
+    }
+
+    private fun cancelCurrentRequest() {
+        if (!requestInFlight) return
+        requestCancelled = true
+        cancelButton.isEnabled = false
+        requestStatus.text = "正在取消请求……"
+        val activeConnector = connector
+        if (activeConnector is com.abridgefs.app.ai.OpenAICompatibleConnector) {
+            if (!activeConnector.cancelCurrentRequest()) {
+                requestStatus.text = "请求已进入结束阶段……"
+            }
+        } else {
+            requestStatus.text = "当前连接不支持中断网络请求"
+        }
     }
 
     private fun toast(message: String) {
