@@ -19,6 +19,12 @@ class OpenAICompatibleConnector(
 
     override suspend fun send(request: AIRequest): AIResponse = withContext(Dispatchers.IO) {
         val messages = JsonArray().apply {
+            request.history.forEach { message ->
+                add(JsonObject().apply {
+                    addProperty("role", message.role.apiValue)
+                    addProperty("content", message.content)
+                })
+            }
             add(JsonObject().apply {
                 addProperty("role", "user")
                 addProperty("content", request.userText)
