@@ -1,6 +1,8 @@
 package com.abridgefs.app
 
 import android.app.AlertDialog
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
@@ -22,10 +24,17 @@ import com.abridgefs.app.conversation.ConversationGroup
 import com.abridgefs.app.conversation.ConversationManager
 import com.abridgefs.app.conversation.ConversationService
 import com.abridgefs.app.conversation.ConversationStore
+import com.abridgefs.app.local.AndroidLocalDocumentGateway
+import com.abridgefs.app.local.LocalConnection
+import com.abridgefs.app.local.LocalConnectionStore
+import com.abridgefs.app.local.LocalEntry
+import com.abridgefs.app.local.LocalFileConnector
+import java.util.UUID
 
 class ConversationActivity : AppCompatActivity() {
     private lateinit var store: ConversationStore
     private lateinit var manager: ConversationManager
+    private lateinit var localConnectionStore: LocalConnectionStore
     private lateinit var conversationList: LinearLayout
     private lateinit var groupList: LinearLayout
     private lateinit var messageList: LinearLayout
@@ -47,6 +56,7 @@ class ConversationActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         store = ConversationStore(this)
         manager = ConversationManager(store)
+        localConnectionStore = LocalConnectionStore(this)
         configureAI()
         setContentView(buildUi())
         refresh()
@@ -106,6 +116,10 @@ class ConversationActivity : AppCompatActivity() {
         header.addView(Button(this).apply {
             text = "新对话"
             setOnClickListener { createConversation() }
+        })
+        header.addView(Button(this).apply {
+            text = "本地文件"
+            setOnClickListener { openLocalFiles() }
         })
         root.addView(header)
 
@@ -405,6 +419,151 @@ class ConversationActivity : AppCompatActivity() {
             .show()
     }
 
+    private fun openLocalFiles() {
+        val connection = localConnectionStore.all().firstOrNull()
+        if (connection == null) {
+            pickLocalDirectory()
+            return
+        }
+        AlertDialog.Builder(this)
+            .setTitle("本地文件")
+            .setItems(arrayOf("浏览当前目录", "选择其他目录")) { _, which ->
+                if (which == 0) showLocalEntries(connection, null)
+                else pickLocalDirectory()
+            }
+            .setNegativeButton("关闭", null)
+            .show()
+    }
+
+    private fun pickLocalDirectory() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+            addFlags(
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
+                    Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+            )
+        }
+        startActivityForResult(intent, REQUEST_LOCAL_TREE)
+    }
+
+    @Deprecated("Uses Activity result callback for Android document-tree selection")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != REQUEST_LOCAL_TREE || resultCode != RESULT_OK) return
+        val uri = data?.data ?: return
+        val grantFlags = data.flags and
+            (Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+        val canRead = grantFlags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0
+        val canWrite = grantFlags and Intent.FLAG_GRANT_WRITE_URI_PERMISSION != 0
+        if (!canRead) {
+            toast("系统未授予目录读取权限")
+            return
+        }
+        try {
+            contentResolver.takePersistableUriPermission(uri, grantFlags)
+            val existing = localConnectionStore.all().firstOrNull()
+            val connection = LocalConnection(
+                id = existing?.id ?: UUID.randomUUID().toString(),
+                name = "本地目录",
+                treeUri = uri.toString(),
+                canRead = canRead,
+                canWrite = canWrite
+            )
+            localConnectionStore.save(connection)
+            toast(if (canWrite) "本地目录已授权读取和写入" else "本地目录已授权读取")
+            showLocalEntries(connection, null)
+        } catch (error: Exception) {
+            toast("保存本地目录授权失败：" + (error.message ?: "未知错误"))
+        }
+    }
+
+    private fun showLocalEntries(connection: LocalConnection, parentDocumentId: String?) {
+        Thread {
+            val result = runCatching {
+                kotlinx.coroutines.runBlocking {
+                    LocalFileConnector(connection, AndroidLocalDocumentGateway(this@ConversationActivity))
+                        .listChildren(parentDocumentId)
+                }
+            }
+            runOnUiThread {
+                result.onSuccess { entries ->
+                    if (entries.isEmpty()) {
+                        toast("此目录没有可显示的文件")
+                        return@onSuccess
+                    }
+                    val labels = entries.map {
+                        (if (it.isDirectory) "[目录] " else "[文件] ") + it.displayName
+                    }.toTypedArray()
+                    AlertDialog.Builder(this)
+                        .setTitle(connection.name)
+                        .setItems(labels) { _, index ->
+                            val entry = entries[index]
+                            if (entry.isDirectory) showLocalEntries(connection, entry.documentId)
+                            else openLocalTextFile(connection, entry)
+                        }
+                        .setNeutralButton("选择其他目录") { _, _ -> pickLocalDirectory() }
+                        .setNegativeButton("关闭", null)
+                        .show()
+                }.onFailure { error ->
+                    toast("读取目录失败：" + (error.message ?: "未知错误"))
+                }
+            }
+        }.start()
+    }
+
+    private fun openLocalTextFile(connection: LocalConnection, entry: LocalEntry) {
+        Thread {
+            val result = runCatching {
+                kotlinx.coroutines.runBlocking {
+                    LocalFileConnector(connection, AndroidLocalDocumentGateway(this@ConversationActivity))
+                        .readText(entry)
+                }
+            }
+            runOnUiThread {
+                result.onSuccess { fileText ->
+                    val editor = EditText(this).apply {
+                        inputType = android.text.InputType.TYPE_CLASS_TEXT or
+                            android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE or
+                            android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+                        gravity = Gravity.TOP
+                        minLines = 8
+                        setText(fileText)
+                        isEnabled = connection.canWrite
+                    }
+                    val dialog = AlertDialog.Builder(this)
+                        .setTitle(entry.displayName)
+                        .setView(editor)
+                        .setNegativeButton("关闭", null)
+                    if (connection.canWrite) {
+                        dialog.setPositiveButton("保存修改") { _, _ ->
+                            val newText = editor.text.toString()
+                            Thread {
+                                val writeResult = runCatching {
+                                    kotlinx.coroutines.runBlocking {
+                                        LocalFileConnector(connection, AndroidLocalDocumentGateway(this@ConversationActivity))
+                                            .writeText(entry, newText)
+                                    }
+                                }
+                                runOnUiThread {
+                                    writeResult.onSuccess {
+                                        toast("文件已写入")
+                                    }.onFailure { error ->
+                                        toast("写入失败：" + (error.message ?: "未知错误"))
+                                    }
+                                }
+                            }.start()
+                        }
+                    } else {
+                        dialog.setPositiveButton("完成", null)
+                    }
+                    dialog.show()
+                }.onFailure { error ->
+                    toast("无法读取文件：" + (error.message ?: "未知错误"))
+                }
+            }
+        }.start()
+    }
+
     private fun promptCreateGroup() {
         val field = EditText(this).apply { hint = "分组名称" }
         AlertDialog.Builder(this)
@@ -591,5 +750,6 @@ class ConversationActivity : AppCompatActivity() {
 
     private companion object {
         const val UNGROUPED_FILTER = "__aps_ungrouped__"
+        const val REQUEST_LOCAL_TREE = 4107
     }
 }
