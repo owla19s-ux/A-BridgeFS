@@ -108,7 +108,7 @@ class OpenAICompatibleConnectorTest {
             body.writeTo(buffer)
             buffer.readUtf8()
         }.orEmpty()
-        assertTrue(requestBody.contains("\\"stream\\":true"))
+        assertTrue(requestBody.contains("\"stream\":true"))
     }
 
     @Test

@@ -541,7 +541,7 @@ class ConversationActivity : AppCompatActivity() {
                         val snapshot = partialText.toString()
                         runOnUiThread {
                             if (streamingMessageView == null) {
-                                streamingMessageView = TextView(this).apply { setPadding(8, 8, 8, 8) }
+                                streamingMessageView = TextView(this@ConversationActivity).apply { setPadding(8, 8, 8, 8) }
                                 messageList.addView(streamingMessageView)
                             }
                             streamingMessageView?.text = "AI: " + snapshot
