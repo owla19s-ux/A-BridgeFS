@@ -8,6 +8,7 @@
 
 - `ARCHITECTURE/`：正式架构
 - `UI/`：正式 UI 规范与页面设计
+- `MAP/README.md`：滚动维护的 UI / 功能 / 底层机制 / 依赖关系表
 - `SPEC/`：正式需求、行为与接口规范
 - 当前状态与阶段记录统一位于 `docs/STATUS.md`
 - `HISTORY/`：必要的历史设计与迁移记录
