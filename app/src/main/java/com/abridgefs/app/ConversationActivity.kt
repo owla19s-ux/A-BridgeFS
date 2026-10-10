@@ -342,10 +342,52 @@ class ConversationActivity : AppCompatActivity() {
             setText(conversation.aiModelId ?: profile.model)
             setSelection(text.length)
         }
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48, 8, 48, 0)
+            addView(field, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ))
+            addView(Button(this@ConversationActivity).apply {
+                text = "获取模型列表"
+                setOnClickListener {
+                    text = "正在获取……"
+                    isEnabled = false
+                    Thread {
+                        val result = runCatching {
+                            kotlinx.coroutines.runBlocking {
+                                com.abridgefs.app.ai.OpenAICompatibleConnector(profile).listModels()
+                            }
+                        }
+                        runOnUiThread {
+                            text = "获取模型列表"
+                            isEnabled = true
+                            result.onSuccess { models ->
+                                if (models.isEmpty()) {
+                                    toast("服务未返回模型目录，请手动输入模型 ID")
+                                } else {
+                                    AlertDialog.Builder(this@ConversationActivity)
+                                        .setTitle("选择模型")
+                                        .setItems(models.toTypedArray()) { _, index ->
+                                            field.setText(models[index])
+                                        }
+                                        .setNegativeButton("取消", null)
+                                        .show()
+                                }
+                            }.onFailure { error ->
+                                toast("获取模型列表失败：" + (error.message ?: "未知错误"))
+                            }
+                        }
+                    }.start()
+                }
+            }, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ))
+        }
         AlertDialog.Builder(this)
             .setTitle("设置当前对话模型")
-            .setMessage("仅影响当前对话；留空将使用连接默认模型。可填写 API 服务支持的模型 ID。")
-            .setView(field)
+            .setMessage("仅影响当前对话；留空将使用连接默认模型。可从模型目录选择，也可手动输入模型 ID。")
+            .setView(content)
             .setNegativeButton("取消", null)
             .setPositiveButton("保存") { _, _ ->
                 val model = field.text.toString().trim().ifBlank { null }
