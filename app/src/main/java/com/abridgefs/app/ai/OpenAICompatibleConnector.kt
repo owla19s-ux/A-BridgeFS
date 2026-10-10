@@ -75,6 +75,14 @@ class OpenAICompatibleConnector(
         }
     }
 
+    /** Performs a real non-streaming chat completion to verify model access and chat permissions. */
+    suspend fun testChatCompletion(): String {
+        return send(AIRequest(
+            contextId = null,
+            userText = "Reply with OK only."
+        )).text
+    }
+
     /** Fetches the provider's model catalog. The user still chooses and saves a model explicitly. */
     suspend fun listModels(): List<String> = withContext(Dispatchers.IO) {
         val request = Request.Builder()

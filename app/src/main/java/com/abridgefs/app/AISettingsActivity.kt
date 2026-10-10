@@ -84,7 +84,7 @@ class AISettingsActivity : AppCompatActivity() {
         }, buttonParams())
         root.addView(Button(this).apply {
             text = "测试聊天请求"
-            setOnClickListener { testChatRequest() }
+            setOnClickListener { testChatConnection() }
         }, buttonParams())
         status = TextView(this).apply {
             text = if (saved == null) "状态：尚未配置" else "状态：已保存配置；尚未测试连接"
@@ -120,6 +120,22 @@ class AISettingsActivity : AppCompatActivity() {
         return ScrollView(this).apply { addView(root) }
     }
 
+    private fun testChatConnection() {
+        val profile = buildProfileOrNull() ?: return
+        status.text = "状态：正在发送实际聊天测试请求……"
+        executor.execute {
+            try {
+                val reply = runBlocking { OpenAICompatibleConnector(profile).testChatCompletion() }
+                runOnUiThread {
+                    status.text = "聊天测试成功：模型已返回响应（${reply.take(80)}）"
+                }
+            } catch (error: Exception) {
+                runOnUiThread {
+                    status.text = "聊天测试失败：${error.message ?: error::class.simpleName ?: "未知错误"}"
+                }
+            }
+        }
+    }
     private fun fetchModels() {
         val profile = buildProfileOrNull(requireModel = false) ?: return
         status.text = "状态：正在请求模型列表……"
@@ -142,30 +158,6 @@ class AISettingsActivity : AppCompatActivity() {
             } catch (error: Exception) {
                 runOnUiThread {
                     status.text = "连接失败：${error.message ?: error::class.simpleName ?: "未知错误"}"
-                }
-            }
-        }
-    }
-
-    private fun testChatRequest() {
-        val profile = buildProfileOrNull() ?: return
-        status.text = "状态：正在发送最小聊天测试请求……"
-        executor.execute {
-            try {
-                val response = runBlocking {
-                    OpenAICompatibleConnector(profile).send(
-                        com.abridgefs.app.ai.AIRequest(
-                            contextId = null,
-                            userText = "Reply with OK."
-                        )
-                    )
-                }
-                runOnUiThread {
-                    status.text = "聊天请求成功：服务已返回内容（${response.text.length} 个字符）。"
-                }
-            } catch (error: Exception) {
-                runOnUiThread {
-                    status.text = "聊天请求失败：${error.message ?: error::class.simpleName ?: "未知错误"}"
                 }
             }
         }
