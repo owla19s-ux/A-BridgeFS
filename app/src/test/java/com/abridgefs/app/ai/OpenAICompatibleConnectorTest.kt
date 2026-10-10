@@ -55,7 +55,7 @@ class OpenAICompatibleConnectorTest {
             body.writeTo(buffer)
             buffer.readUtf8()
         }.orEmpty()
-        assertTrue(requestBody.contains("\"model\":\"model-test\""))
+        assertTrue(requestBody.contains("\"model\":\"conversation-model\""))
         assertTrue(requestBody.contains("\"role\":\"assistant\""))
         assertTrue(requestBody.contains("Earlier answer"))
     }
