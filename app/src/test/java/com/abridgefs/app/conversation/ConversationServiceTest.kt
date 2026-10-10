@@ -102,4 +102,34 @@ class ConversationServiceTest {
         assertEquals("继续处理", updated.messages[2].text)
         assertTrue(updated !== conversation)
     }
+
+    @Test
+    fun send_and_save_preserves_user_message_when_connector_fails() = runBlocking {
+        val connector = object : AIConnector {
+            override suspend fun send(request: AIRequest): AIResponse {
+                throw IllegalStateException("网络不可用")
+            }
+        }
+        val store = InMemoryConversationStore()
+        val conversation = Conversation(
+            id = "conversation-failure",
+            aiConnectionId = "ai-1"
+        )
+
+        try {
+            ConversationService(connector).sendAndSave(
+                conversation,
+                "这条消息不能丢",
+                store
+            )
+            throw AssertionError("预期请求失败")
+        } catch (error: IllegalStateException) {
+            assertEquals("网络不可用", error.message)
+        }
+
+        val saved = store.getConversation(conversation.id)
+        assertEquals(1, saved?.messages?.size)
+        assertEquals(Message.Role.USER, saved?.messages?.single()?.role)
+        assertEquals("这条消息不能丢", saved?.messages?.single()?.text)
+    }
 }
