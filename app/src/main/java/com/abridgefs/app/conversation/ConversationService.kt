@@ -51,6 +51,7 @@ class ConversationService(
             AIRequest(
                 contextId = conversation.contextId,
                 userText = userText,
+                modelId = conversation.aiModelId,
                 history = conversation.messages.map { message ->
                     AIMessage(
                         role = if (message.role == Message.Role.USER) AIMessage.Role.USER else AIMessage.Role.ASSISTANT,

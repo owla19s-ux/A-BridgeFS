@@ -61,15 +61,19 @@ class ConversationServiceTest {
     }
 
     @Test
-    fun send_and_save_persists_successful_response() = runBlocking {
+    fun send_and_save_persists_successful_response_and_selected_model() = runBlocking {
+        var received: AIRequest? = null
         val connector = object : AIConnector {
-            override suspend fun send(request: AIRequest): AIResponse =
-                AIResponse("已保存")
+            override suspend fun send(request: AIRequest): AIResponse {
+                received = request
+                return AIResponse("已保存")
+            }
         }
         val store = InMemoryConversationStore()
         val conversation = Conversation(
             id = "conversation-save",
-            aiConnectionId = "ai-1"
+            aiConnectionId = "ai-1",
+            aiModelId = "selected-model"
         )
 
         val updated = ConversationService(connector).sendAndSave(
@@ -78,6 +82,7 @@ class ConversationServiceTest {
             store
         )
 
+        assertEquals("selected-model", received?.modelId)
         assertEquals(updated, store.getConversation(conversation.id))
         assertEquals("已保存", store.getConversation(conversation.id)?.messages?.last()?.text)
     }
