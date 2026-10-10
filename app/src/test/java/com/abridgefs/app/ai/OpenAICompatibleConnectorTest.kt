@@ -84,4 +84,16 @@ class OpenAICompatibleConnectorTest {
 
         assertEquals(listOf("model-a", "model-b"), models)
     }
+    @Test
+    fun cancelCurrentRequest_returnsFalseWhenNoChatRequestIsActive() {
+        val profile = AIProfile(
+            name = "Test API",
+            baseUrl = "https://api.example.com/v1",
+            model = "model-a",
+            apiKey = "secret-test"
+        )
+
+        assertEquals(false, OpenAICompatibleConnector(profile).cancelCurrentRequest())
+    }
+
 }
