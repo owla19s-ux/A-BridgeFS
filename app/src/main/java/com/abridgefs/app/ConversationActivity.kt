@@ -425,6 +425,15 @@ class ConversationActivity : AppCompatActivity() {
             pickLocalDirectory()
             return
         }
+        if (!hasPersistedReadGrant(connection.treeUri)) {
+            AlertDialog.Builder(this)
+                .setTitle("本地目录授权已失效")
+                .setMessage("系统当前没有该目录的持久读取授权。请重新选择目录并授权后继续使用。")
+                .setPositiveButton("重新授权") { _, _ -> pickLocalDirectory() }
+                .setNegativeButton("取消", null)
+                .show()
+            return
+        }
         AlertDialog.Builder(this)
             .setTitle("本地文件")
             .setItems(arrayOf("浏览当前目录", "选择其他目录")) { _, which ->
@@ -433,6 +442,13 @@ class ConversationActivity : AppCompatActivity() {
             }
             .setNegativeButton("关闭", null)
             .show()
+    }
+
+    private fun hasPersistedReadGrant(treeUri: String): Boolean {
+        val expectedUri = Uri.parse(treeUri)
+        return contentResolver.persistedUriPermissions.any {
+            it.uri == expectedUri && it.isReadPermission
+        }
     }
 
     private fun pickLocalDirectory() {
