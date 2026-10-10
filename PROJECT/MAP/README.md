@@ -50,8 +50,8 @@
 | UI-009 | UI-006 | 连接与权限区域 | 选择 Context 可用连接并管理资源操作授权 | FN-022,FN-011,FN-020 | 已确认 | 部分实现：GitHub Connection 装配/写权限边界有代码；通用授权与 UI 未发现 |
 | UI-010 | UI-006 | 软件开发结构 | 结构树、施工表、验证视图；用户确认 UI 方案 | FN-017,FN-018,FN-019 | 已确认 | 未发现对应结构数据模型和 UI 实现 |
 | UI-011 | UI-001 | 普通对话页 | 独立对话，不强制关联 Context | FN-005,FN-006,FN-007,FN-008,FN-009 | 已确认 | 部分实现：ConversationActivity 存在并作为 Launcher；调用仍使用固定占位 Connector |
-| UI-012 | UI-011 | 对话分组 | 新建、重命名、删除分组；移动对话 | FN-006 | 已确认 | 代码存在未接 UI：ConversationGroup 与 Store 支持基本数据操作；Activity 未展示分组管理 |
-| UI-013 | UI-011 | 对话管理列表 | 新建、查看、切换、重命名、删除对话 | FN-005,FN-007 | 已确认 | 部分实现：新建/切换入口存在；重命名/删除入口未发现 |
+| UI-012 | UI-011 | 对话分组 | 新建、重命名、删除分组；移动对话 | FN-006 | 已确认 | 已实现待验证：Activity 已接入分组筛选、新建/重命名/删除分组及移动对话入口；CI 已通过，仍需设备交互验收 |
+| UI-013 | UI-011 | 对话管理列表 | 新建、查看、切换、重命名、删除对话 | FN-005,FN-007 | 已确认 | 已实现待验证：Activity 已接入新建/切换/重命名/删除；保存失败边界与设备交互仍待验收 |
 | UI-014 | UI-011 | 消息与输入区 | 展示消息、输入、发送、显示调用状态 | FN-007,FN-009 | 已确认 | 部分实现：基础消息与发送 UI 存在；错误/取消/流式状态处理未发现完整实现 |
 | UI-015 | UI-011 | AI 连接、模型与头像 | 选择 AI 连接及具体模型，显示头像 | FN-008,FN-010 | 已确认 | 部分实现：AIConnection 有 name/avatar 字段；选择控件、模型目录和头像显示未发现 |
 | UI-016 | UI-011 | 连接 / 资料选择入口 | 通过“＋”选择 Local、File、GitHub 等已授权资源 | FN-011,FN-012,FN-014 | 已确认 | 未发现入口实现 |
@@ -76,8 +76,8 @@
 | FN-002 | Context 管理 | Context 新建、读取、修改、删除、移动/复制/归档；稳定 ID | 已确认 | 部分实现 | `context/Context.kt`、`ContextStore.kt`；多项管理动作和 UI 未发现 |
 | FN-003 | Context 模板管理 | 内置/自定义模板、从已有 Context 保存模板、复制/编辑/删除模板 | 已确认 | 未实现 | 未发现模板实现 |
 | FN-004 | Address / Resource 关联 | 多个 Address 定位资源；操作前解析实际 Resource；不把地址等同内容 | 已确认 | 部分实现 | 当前 ResourceRef 仅覆盖 GitHub Resource；通用 Address 模型待建 |
-| FN-005 | 对话管理 | 创建、查看、切换、重命名、删除普通对话；支持独立/可关联 Context | 已确认 | 部分实现 | ConversationManager/Store 存在；UI 动作不完整 |
-| FN-006 | 对话分组管理 | 分组 CRUD、将对话移动到分组；删组不删对话 | 已确认 | 代码存在未接 UI | ConversationGroup/ConversationStore 支持基本操作；UI 未接入 |
+| FN-005 | 对话管理 | 创建、查看、切换、重命名、删除普通对话；支持独立/可关联 Context | 已确认 | 部分实现 | ConversationManager/Store 与对应 UI 动作已接入；需补足失败保存边界并做设备交互验收 |
+| FN-006 | 对话分组管理 | 分组 CRUD、将对话移动到分组；删组不删对话 | 已确认 | 已实现待验证 | ConversationGroup/Store 与 Activity 分组管理 UI 已接入；CI 通过，设备交互待验收 |
 | FN-007 | 对话自动保存 | 对话与分组持久化；记录归属独立于项目文件；失败时不丢用户消息 | 已确认 | 部分实现 | ConversationStore 持久化存在；当前 sendAndSave 在收到响应后保存完整轮次，失败/退出时的用户消息保留仍需补齐 |
 | FN-008 | AI 连接与模型配置 | 每个连接管理服务地址/认证/模型；对话明确选择连接 + 模型 | 需细化 | 部分实现 | AIConnection/AIConnector/Registry 存在；真实 Provider、模型选择和 API 配置未发现 |
 | FN-009 | AI 请求执行 | 发送真实请求、处理响应、失败、超时、取消和状态展示 | 已确认 | 部分实现 | ConversationService/AIConnector 抽象存在；ConversationActivity 使用固定占位响应，真实 API 未接入 |
