@@ -8,4 +8,7 @@ data class GitHubCredential(
     enum class Type {
         PERSONAL_ACCESS_TOKEN
     }
+
+    override fun toString(): String =
+        "GitHubCredential(login=$login, accessToken=[redacted], type=$type)"
 }
