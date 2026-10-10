@@ -109,7 +109,7 @@
 | ME-003 | Conversation Store | 对话/消息/分组持久化；分组与对话记录分离；移动和删除边界清晰 | 部分实现 | `conversation/ConversationStore.kt` 使用 SharedPreferences + JSON；大数据量、迁移、写入失败保障需后续评估 |
 | ME-004 | Conversation Service | 把用户消息、AI 调用、响应消息和保存组合起来 | 部分实现 | `ConversationService.kt`、相关测试；完整错误/取消路径及失败前消息保存需补齐 |
 | ME-005 | AI Connector 抽象与 Registry | 将连接 ID 解析为可调用 Connector；不把抽象层误认为具体 Provider | 部分实现 | `ai/AIConnector.kt`、`AIConnectorRegistry.kt` 与 `OpenAICompatibleConnector.kt`；抽象、Registry 和一种兼容 Provider 已存在，其他 Provider 与多连接注册仍待扩展 |
-| ME-006 | API Profile、模型目录与密钥管理 | 维护端点、认证、模型、请求参数；密钥安全保存；连接与模型选择可分别调整 | 部分实现 | `AIProfile.kt`、`AIProfileStore.kt`、`AISettingsActivity.kt`；端点/模型可配置、模型目录可查询、API Key 使用 Android Keystore 加密；当前仅单 Profile，仍需补连接验证结果持久化与多 Profile 管理 |
+| ME-006 | API Profile、模型目录与密钥管理 | 维护多个端点、认证、模型与默认连接；密钥安全保存；连接与模型选择可分别调整 | 部分实现 | `AIProfile.kt`、`AIProfileStore.kt`、`AISettingsActivity.kt`；已加入多 Profile 存储、默认连接选择和旧单 Profile 迁移；仍需验证迁移/密钥隔离，并补连接测试结果、模型能力和请求参数管理 |
 | ME-007 | GitHub REST API 与 Connector | 封装账号、仓库、分支、提交、内容、Actions 等远端调用 | 代码存在 | `github/api/GitHubApi.kt`、`GitHubConnector.kt`、对应 Factory；需持续补齐失败状态、速率限制和 UI 集成验证 |
 | ME-008 | GitHub 凭证加密与验证 | 凭证加密保存、加载/清除；验证 GitHub 身份与仓库访问 | 代码存在 | `GitHubCredentialStore.kt`、`GitHubCredentialVerifier.kt` 及相应测试；端到端设置流程未接 UI |
 | ME-009 | GitHub Resource 映射与并发读取 | Context 资源转 GitHub Connection；并发拉取仓库、分支、提交、文件快照 | 代码存在 | `GitHubConnectionFactory.kt`、`GitHubConcurrentReader.kt`；Resource 地址冲突及错误项处理需按实际场景验证 |
@@ -122,7 +122,7 @@
 | ME-016 | 测试与验证证据 | 以测试、实际连接结果和必要的端到端证据核对功能状态 | 部分实现 | Conversation、Context、GitHub 有单元测试文件；每个业务闭环的测试覆盖与当前 Verify 状态需要逐项核对 |
 | ME-017 | Connection 基础抽象 | 提供连接稳定 ID 与类型；具体 Connector 通过连接身份解析，不把 Connection 当成实际资源 | 部分实现 | `connection/Connection.kt` 目前只定义 GITHUB、AI 两种类型；Local、File、API/Service 等通用类型尚未纳入该接口，需按模块施工时扩展，不提前一次性实现全部类型 |
 | ME-018 | Context Conversation Runtime 组装 | 校验 Context、Conversation 与 AI Connection 的归属关系，并解析对应 Connector / ConversationService | 部分实现 | `conversation/ContextConversationRuntime.kt` 已有组装边界及测试；当前 ConversationActivity 未使用该 Runtime，且没有真实 Provider，不能据此认定 Context 对话链已打通 |
-| ME-019 | AI Profile 安全持久化 | 保存 API 名称、Base URL、模型及加密 API Key；密钥不以明文写入偏好存储 | 部分实现 | `ai/AIProfileStore.kt` 使用 Android Keystore AES-GCM 加密密钥；需要补自动化加密存储测试与凭证轮换/恢复边界 |
+| ME-019 | AI Profile 安全持久化 | 多连接分别保存 API 名称、Base URL、模型及加密 API Key；密钥不以明文写入偏好存储 | 部分实现 | `ai/AIProfileStore.kt` 按 Profile ID 使用独立 Android Keystore AES-GCM 密钥，并将非敏感元数据与密钥分开存储；加入旧单 Profile 迁移，仍需验证迁移、密钥隔离、损坏恢复与凭证轮换 |
 | ME-020 | OpenAI-compatible Provider | 使用已选模型调用 `/chat/completions` 并解析模型目录与响应 | 部分实现 | `ai/OpenAICompatibleConnector.kt` 已实现模型列表和非流式聊天请求；尚未进行真实供应商端到端验证，且不同供应商的兼容差异需要逐一验证 |
 
 ---

@@ -17,11 +17,13 @@ import com.abridgefs.app.ai.AIProfile
 import com.abridgefs.app.ai.AIProfileStore
 import com.abridgefs.app.ai.OpenAICompatibleConnector
 import kotlinx.coroutines.runBlocking
+import java.util.UUID
 import java.util.concurrent.Executors
 
 /** Global AI/API profile settings. Model catalog retrieval is explicit and never silently changes selection. */
 class AISettingsActivity : AppCompatActivity() {
     private lateinit var profileStore: AIProfileStore
+    private var selectedProfileId: String? = null
     private lateinit var nameField: EditText
     private lateinit var baseUrlField: EditText
     private lateinit var keyField: EditText
@@ -37,6 +39,7 @@ class AISettingsActivity : AppCompatActivity() {
 
     private fun buildContent(): ScrollView {
         val saved = profileStore.load()
+        selectedProfileId = saved?.id
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), dp(16), dp(20), dp(24))
@@ -87,23 +90,24 @@ class AISettingsActivity : AppCompatActivity() {
         root.addView(status)
 
         root.addView(Button(this).apply {
+            text = "连接列表 / 切换连接"
+            setOnClickListener { showProfiles() }
+        }, buttonParams())
+        root.addView(Button(this).apply {
+            text = "新建连接"
+            setOnClickListener { startNewProfile() }
+        }, buttonParams())
+        root.addView(Button(this).apply {
+            text = "设为默认连接"
+            setOnClickListener { setCurrentAsDefault() }
+        }, buttonParams())
+        root.addView(Button(this).apply {
             text = "保存连接"
             setOnClickListener { saveProfile() }
         }, buttonParams())
         root.addView(Button(this).apply {
-            text = "删除 API 配置"
-            setOnClickListener {
-                AlertDialog.Builder(this@AISettingsActivity)
-                    .setTitle("删除 API 配置")
-                    .setMessage("删除后需要重新输入 API 地址、密钥和模型。")
-                    .setNegativeButton("取消", null)
-                    .setPositiveButton("删除") { _, _ ->
-                        profileStore.clear()
-                        Toast.makeText(this@AISettingsActivity, "API 配置已删除", Toast.LENGTH_SHORT).show()
-                        finish()
-                    }
-                    .show()
-            }
+            text = "删除当前连接"
+            setOnClickListener { confirmDeleteCurrentProfile() }
         }, buttonParams())
         root.addView(Button(this).apply {
             text = "返回对话"
@@ -140,24 +144,117 @@ class AISettingsActivity : AppCompatActivity() {
     }
 
     private fun saveProfile() {
-        val profile = buildProfileOrNull() ?: return
+        val id = selectedProfileId ?: UUID.randomUUID().toString()
+        val profile = buildProfileOrNull(id = id) ?: return
         try {
-            profileStore.save(profile)
-            status.text = "状态：配置已加密保存；模型：${profile.model}"
-            Toast.makeText(this, "API 配置已保存", Toast.LENGTH_SHORT).show()
+            val makeDefault = profileStore.loadAll().isEmpty()
+            profileStore.save(profile, makeDefault = makeDefault)
+            selectedProfileId = profile.id
+            status.text = "状态：连接已加密保存；模型：${profile.model}"
+            Toast.makeText(this, "API 连接已保存", Toast.LENGTH_SHORT).show()
         } catch (error: Exception) {
             status.text = "保存失败：${error.message ?: "未知错误"}"
         }
     }
 
-    private fun buildProfileOrNull(requireModel: Boolean = true): AIProfile? {
+    private fun showProfiles() {
+        val profiles = profileStore.loadAll()
+        if (profiles.isEmpty()) {
+            status.text = "当前没有已保存的 API 连接。"
+            return
+        }
+        val defaultId = profileStore.defaultProfileId()
+        val labels = profiles.map { profile ->
+            (if (profile.id == defaultId) "★ " else "") +
+                profile.name + " · " + profile.model
+        }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle("选择 API 连接")
+            .setItems(labels) { _, index ->
+                val profile = profiles[index]
+                selectedProfileId = profile.id
+                populateFields(profile)
+                status.text = if (profile.id == defaultId) {
+                    "当前连接：默认连接"
+                } else {
+                    "已选择连接；保存修改不会自动更改默认连接"
+                }
+            }
+            .setNegativeButton("关闭", null)
+            .show()
+    }
+
+    private fun populateFields(profile: AIProfile) {
+        nameField.setText(profile.name)
+        baseUrlField.setText(profile.baseUrl)
+        keyField.setText(profile.apiKey)
+        modelField.setText(profile.model, false)
+    }
+
+    private fun startNewProfile() {
+        selectedProfileId = UUID.randomUUID().toString()
+        nameField.setText("新 API 连接")
+        baseUrlField.setText("")
+        keyField.setText("")
+        modelField.setText("", false)
+        status.text = "新建连接尚未保存。填写地址、密钥和模型后保存。"
+    }
+
+    private fun setCurrentAsDefault() {
+        val id = selectedProfileId
+        if (id == null || profileStore.load(id) == null) {
+            status.text = "请先选择并保存一个 API 连接。"
+            return
+        }
+        try {
+            profileStore.setDefault(id)
+            status.text = "已设为默认 API 连接。普通对话将使用该连接。"
+        } catch (error: Exception) {
+            status.text = "设置默认连接失败：${error.message ?: "未知错误"}"
+        }
+    }
+
+    private fun confirmDeleteCurrentProfile() {
+        val id = selectedProfileId
+        if (id == null || profileStore.load(id) == null) {
+            status.text = "当前连接尚未保存，无需删除。"
+            return
+        }
+        AlertDialog.Builder(this)
+            .setTitle("删除当前连接")
+            .setMessage("删除后，该连接的加密密钥和配置将从本机移除。")
+            .setNegativeButton("取消", null)
+            .setPositiveButton("删除") { _, _ ->
+                try {
+                    profileStore.delete(id)
+                    val next = profileStore.load()
+                    selectedProfileId = next?.id
+                    if (next != null) populateFields(next) else {
+                        nameField.setText("")
+                        baseUrlField.setText("")
+                        keyField.setText("")
+                        modelField.setText("", false)
+                    }
+                    status.text = if (next == null) "连接已删除；当前没有剩余连接。" else
+                        "连接已删除。已加载默认连接：${next.name}"
+                } catch (error: Exception) {
+                    status.text = "删除失败：${error.message ?: "未知错误"}"
+                }
+            }
+            .show()
+    }
+
+    private fun buildProfileOrNull(
+        requireModel: Boolean = true,
+        id: String = selectedProfileId ?: AIProfile.DEFAULT_ID
+    ): AIProfile? {
         val name = nameField.text.toString().trim()
         val baseUrl = baseUrlField.text.toString().trim()
         val key = keyField.text.toString()
         val enteredModel = modelField.text.toString().trim()
         val model = enteredModel.ifBlank { if (requireModel) "" else "model-discovery" }
         return try {
-            AIProfile(name = name, baseUrl = baseUrl, model = model, apiKey = key)
+            AIProfile(id = id, name = name, baseUrl = baseUrl, model = model, apiKey = key)
         } catch (error: IllegalArgumentException) {
             status.text = "请检查配置：${error.message}"
             null
