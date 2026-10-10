@@ -21,7 +21,7 @@ class OpenAICompatibleConnector(
     private val activeCall = AtomicReference<Call?>(null)
 
     /** Cancels the active chat request, if one is currently executing. */
-    fun cancelCurrentRequest(): Boolean = activeCall.get()?.let { call ->
+    override fun cancelCurrentRequest(): Boolean = activeCall.get()?.let { call ->
         if (call.isCanceled()) return@let false
         call.cancel()
         true

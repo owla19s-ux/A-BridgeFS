@@ -28,4 +28,7 @@ data class AIResponse(
 
 interface AIConnector {
     suspend fun send(request: AIRequest): AIResponse
+
+    /** Returns true only when this connector accepted cancellation of an active request. */
+    fun cancelCurrentRequest(): Boolean = false
 }

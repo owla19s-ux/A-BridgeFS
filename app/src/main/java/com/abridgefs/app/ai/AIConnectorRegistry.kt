@@ -1,17 +1,20 @@
 package com.abridgefs.app.ai
 
 /**
- * Context Conversation 使用的最小 AI Connector 运行时解析边界。
- *
- * Registry 只负责根据 AI Connection ID 找到已经注册的 Connector。
- * 不负责 Provider、API Profile 或具体网络实现。
+ * Resolves runtime connectors by stable AI connection ID.
+ * Supports injected connectors and lazy construction from persisted profiles.
  */
 class AIConnectorRegistry(
-    connectors: Map<String, AIConnector>
+    connectors: Map<String, AIConnector> = emptyMap(),
+    private val profileProvider: ((String) -> AIProfile?)? = null,
+    private val factory: AIConnectorFactory = AIConnectorFactory()
 ) {
     private val connectorsById = connectors.toMap()
 
     fun resolve(connection: AIConnection): AIConnector =
         connectorsById[connection.id]
+            ?: profileProvider?.invoke(connection.id)?.let(factory::create)
             ?: error("未找到 AI Connection 对应的 Connector: " + connection.id)
+
+    fun connection(profile: AIProfile): AIConnection = factory.connection(profile)
 }

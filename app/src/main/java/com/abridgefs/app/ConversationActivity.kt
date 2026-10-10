@@ -60,13 +60,18 @@ class ConversationActivity : AppCompatActivity() {
     }
 
     private fun configureAI() {
-        val profile = com.abridgefs.app.ai.AIProfileStore(this).load()
-        aiConnection = AIConnection(
-            profile?.id ?: com.abridgefs.app.ai.AIProfile.DEFAULT_ID,
-            profile?.name ?: "AI"
+        val profileStore = com.abridgefs.app.ai.AIProfileStore(this)
+        val profile = profileStore.load()
+        val registry = com.abridgefs.app.ai.AIConnectorRegistry(
+            profileProvider = profileStore::load
         )
+        aiConnection = if (profile != null) {
+            registry.connection(profile)
+        } else {
+            AIConnection(com.abridgefs.app.ai.AIProfile.DEFAULT_ID, "AI")
+        }
         connector = if (profile != null) {
-            com.abridgefs.app.ai.OpenAICompatibleConnector(profile)
+            registry.resolve(aiConnection)
         } else {
             object : AIConnector {
                 override suspend fun send(request: AIRequest): AIResponse =
@@ -432,17 +437,11 @@ class ConversationActivity : AppCompatActivity() {
     private fun cancelCurrentRequest() {
         if (!requestInFlight) return
         cancelButton.isEnabled = false
-        val activeConnector = connector
-        if (activeConnector is com.abridgefs.app.ai.OpenAICompatibleConnector) {
-            requestCancelled = activeConnector.cancelCurrentRequest()
-            requestStatus.text = if (requestCancelled) {
-                "正在取消请求……"
-            } else {
-                "当前请求未能取消，等待请求结果……"
-            }
+        requestCancelled = connector.cancelCurrentRequest()
+        requestStatus.text = if (requestCancelled) {
+            "正在取消请求……"
         } else {
-            requestCancelled = false
-            requestStatus.text = "当前连接不支持中断网络请求"
+            "当前连接未能中断请求，等待请求结果……"
         }
     }
 
