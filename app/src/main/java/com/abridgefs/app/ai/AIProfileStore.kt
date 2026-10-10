@@ -21,28 +21,13 @@ import javax.crypto.spec.GCMParameterSpec
 class AIProfileStore(context: Context) {
     private val prefs = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
 
-    /** Returns all readable profiles in stable insertion order. */
+    /** Returns all readable profiles in stable insertion order. Unreadable metadata is retained. */
     fun loadAll(): List<AIProfile> {
         migrateLegacyProfileIfNeeded()
-        val metadata = prefs.getString(KEY_PROFILES_JSON, null) ?: return emptyList()
-        val array = runCatching { JSONArray(metadata) }.getOrNull() ?: return emptyList()
-        return buildList {
-            for (index in 0 until array.length()) {
-                val item = runCatching { array.getJSONObject(index) }.getOrNull() ?: continue
-                val id = item.optString("id").takeIf { it.isNotBlank() } ?: continue
-                val encryptedKey = prefs.getString(secretPreferenceKey(id), null) ?: continue
-                val apiKey = decrypt(encryptedKey, profileKeyAlias(id)) ?: continue
-                val profile = runCatching {
-                    AIProfile(
-                        id = id,
-                        name = item.getString("name"),
-                        baseUrl = item.getString("baseUrl"),
-                        model = item.getString("model"),
-                        apiKey = apiKey
-                    )
-                }.getOrNull() ?: continue
-                add(profile)
-            }
+        return readMetadata().mapNotNull { item ->
+            val encryptedKey = prefs.getString(secretPreferenceKey(item.id), null) ?: return@mapNotNull null
+            val apiKey = decrypt(encryptedKey, profileKeyAlias(item.id)) ?: return@mapNotNull null
+            runCatching { AIProfile(item.id, item.name, item.baseUrl, item.model, apiKey) }.getOrNull()
         }
     }
 
@@ -56,23 +41,26 @@ class AIProfileStore(context: Context) {
     fun load(id: String): AIProfile? = loadAll().firstOrNull { it.id == id }
 
     fun defaultProfileId(): String? {
-        val profiles = loadAll()
+        migrateLegacyProfileIfNeeded()
+        val metadata = readMetadata()
         return prefs.getString(KEY_DEFAULT_PROFILE_ID, null)
-            ?.takeIf { id -> profiles.any { it.id == id } }
-            ?: profiles.firstOrNull()?.id
+            ?.takeIf { id -> metadata.any { it.id == id } }
+            ?: metadata.firstOrNull()?.id
     }
 
     /** Saves or replaces a profile without making it default unless requested or none exists. */
     fun save(profile: AIProfile, makeDefault: Boolean = false) {
-        val existing = loadAll().toMutableList()
-        val oldIndex = existing.indexOfFirst { it.id == profile.id }
-        if (oldIndex >= 0) existing[oldIndex] = profile else existing.add(profile)
-
+        migrateLegacyProfileIfNeeded()
+        val metadata = readMetadata().toMutableList()
+        val replacement = ProfileMetadata(profile.id, profile.name, profile.normalizedBaseUrl, profile.model)
+        val oldIndex = metadata.indexOfFirst { it.id == profile.id }
+        if (oldIndex >= 0) metadata[oldIndex] = replacement else metadata.add(replacement)
         val encryptedKey = encrypt(profile.apiKey, profileKeyAlias(profile.id))
         val editor = prefs.edit()
             .putString(secretPreferenceKey(profile.id), encryptedKey)
-            .putString(KEY_PROFILES_JSON, encodeMetadata(existing))
-        if (makeDefault || prefs.getString(KEY_DEFAULT_PROFILE_ID, null).isNullOrBlank()) {
+            .putString(KEY_PROFILES_JSON, encodeMetadata(metadata))
+        val currentDefault = prefs.getString(KEY_DEFAULT_PROFILE_ID, null)
+        if (makeDefault || currentDefault.isNullOrBlank() || metadata.none { it.id == currentDefault }) {
             editor.putString(KEY_DEFAULT_PROFILE_ID, profile.id)
         }
         check(editor.commit()) { "API Profile 保存失败" }
@@ -86,9 +74,10 @@ class AIProfileStore(context: Context) {
     }
 
     fun delete(id: String) {
-        val profiles = loadAll()
-        val target = profiles.firstOrNull { it.id == id } ?: return
-        val remaining = profiles.filterNot { it.id == id }
+        migrateLegacyProfileIfNeeded()
+        val metadata = readMetadata()
+        if (metadata.none { it.id == id } && !prefs.contains(secretPreferenceKey(id))) return
+        val remaining = metadata.filterNot { it.id == id }
         val editor = prefs.edit()
             .remove(secretPreferenceKey(id))
             .putString(KEY_PROFILES_JSON, encodeMetadata(remaining))
@@ -97,23 +86,24 @@ class AIProfileStore(context: Context) {
             else editor.putString(KEY_DEFAULT_PROFILE_ID, remaining.first().id)
         }
         check(editor.commit()) { "API Profile 删除失败" }
-        deleteKeyAlias(profileKeyAlias(target.id))
+        deleteKeyAlias(profileKeyAlias(id))
     }
 
     fun clear() {
-        val profiles = loadAll()
-        check(
-            prefs.edit()
-                .remove(KEY_PROFILES_JSON)
-                .remove(KEY_DEFAULT_PROFILE_ID)
-                .remove(KEY_NAME)
-                .remove(KEY_BASE_URL)
-                .remove(KEY_MODEL)
-                .remove(KEY_API_KEY)
-                .also { editor -> profiles.forEach { editor.remove(secretPreferenceKey(it.id)) } }
-                .commit()
-        ) { "API Profile 删除失败" }
-        profiles.forEach { deleteKeyAlias(profileKeyAlias(it.id)) }
+        migrateLegacyProfileIfNeeded()
+        val ids = (readMetadata().map { it.id } + prefs.all.keys
+            .filter { it.startsWith(KEY_SECRET_PREFIX) }
+            .map { it.removePrefix(KEY_SECRET_PREFIX) }).toSet()
+        val editor = prefs.edit()
+            .remove(KEY_PROFILES_JSON)
+            .remove(KEY_DEFAULT_PROFILE_ID)
+            .remove(KEY_NAME)
+            .remove(KEY_BASE_URL)
+            .remove(KEY_MODEL)
+            .remove(KEY_API_KEY)
+        ids.forEach { editor.remove(secretPreferenceKey(it)) }
+        check(editor.commit()) { "API Profile 删除失败" }
+        ids.forEach { deleteKeyAlias(profileKeyAlias(it)) }
         deleteKeyAlias(LEGACY_KEY_ALIAS)
     }
 
@@ -148,13 +138,31 @@ class AIProfileStore(context: Context) {
         deleteKeyAlias(LEGACY_KEY_ALIAS)
     }
 
-    private fun encodeMetadata(profiles: List<AIProfile>): String =
+    private data class ProfileMetadata(val id: String, val name: String, val baseUrl: String, val model: String)
+
+    /** Reads metadata independently of secret decryption so unreadable profiles are not lost. */
+    private fun readMetadata(): List<ProfileMetadata> {
+        val raw = prefs.getString(KEY_PROFILES_JSON, null) ?: return emptyList()
+        val array = runCatching { JSONArray(raw) }.getOrNull() ?: return emptyList()
+        return buildList {
+            for (index in 0 until array.length()) {
+                val item = runCatching { array.getJSONObject(index) }.getOrNull() ?: continue
+                val id = item.optString("id").takeIf { it.isNotBlank() } ?: continue
+                val name = item.optString("name").takeIf { it.isNotBlank() } ?: continue
+                val baseUrl = item.optString("baseUrl").takeIf { it.isNotBlank() } ?: continue
+                val model = item.optString("model").takeIf { it.isNotBlank() } ?: continue
+                add(ProfileMetadata(id, name, baseUrl, model))
+            }
+        }
+    }
+
+    private fun encodeMetadata(profiles: List<ProfileMetadata>): String =
         JSONArray().apply {
             profiles.forEach { profile ->
                 put(JSONObject().apply {
                     put("id", profile.id)
                     put("name", profile.name)
-                    put("baseUrl", profile.normalizedBaseUrl)
+                    put("baseUrl", profile.baseUrl.trim().trimEnd('/'))
                     put("model", profile.model)
                 })
             }
