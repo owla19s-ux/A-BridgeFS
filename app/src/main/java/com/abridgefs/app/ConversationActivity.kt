@@ -582,7 +582,7 @@ class ConversationActivity : AppCompatActivity() {
                                 val writeResult = runCatching {
                                     kotlinx.coroutines.runBlocking {
                                         LocalFileConnector(connection, AndroidLocalDocumentGateway(this@ConversationActivity))
-                                            .writeText(entry, newText)
+                                            .writeText(entry, newText, expectedOriginalContent = fileText)
                                     }
                                 }
                                 runOnUiThread {
