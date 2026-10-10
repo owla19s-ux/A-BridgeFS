@@ -9,6 +9,7 @@
 当前专项规范：
 
 - `PROJECT/ARCHITECTURE/THIRD-PARTY-MODULE-COMPATIBILITY.md`：第三方开源模块接入、Connector 契约、兼容性、安全与验证标准。
+- `docs/THIRD-PARTY-MODULE-AUDIT.md`：基于当前源码和测试文件的 AI / GitHub / Local 接口兼容性盘点；静态审查结果，不代替实际测试。
 
 当前架构语义基线：
 
