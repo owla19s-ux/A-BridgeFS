@@ -1,11 +1,11 @@
 package com.abridgefs.app.ai
 
 import kotlinx.coroutines.runBlocking
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -13,7 +13,7 @@ import org.junit.Test
 
 class OpenAICompatibleConnectorTest {
     @Test
-    fun send_uses_configured_model_and_returns_assistant_content() = runBlocking {
+    fun send_uses_configured_model_and_prior_conversation_turns() = runBlocking {
         var captured: Request? = null
         val client = OkHttpClient.Builder().addInterceptor { chain ->
             captured = chain.request()
@@ -35,16 +35,28 @@ class OpenAICompatibleConnectorTest {
             apiKey = "secret-test"
         )
 
-        val response = OpenAICompatibleConnector(profile, client).send(\n            AIRequest(\n                null,\n                "Hello",\n                history = listOf(\n                    AIMessage(AIMessage.Role.USER, "Earlier question"),\n                    AIMessage(AIMessage.Role.ASSISTANT, "Earlier answer")\n                )\n            )\n        )
+        val response = OpenAICompatibleConnector(profile, client).send(
+            AIRequest(
+                null,
+                "Hello",
+                history = listOf(
+                    AIMessage(AIMessage.Role.USER, "Earlier question"),
+                    AIMessage(AIMessage.Role.ASSISTANT, "Earlier answer")
+                )
+            )
+        )
 
         assertEquals("Hello from API", response.text)
         assertEquals("https://api.example.com/v1/chat/completions", captured?.url.toString())
         assertEquals("Bearer secret-test", captured?.header("Authorization"))
-        assertTrue(captured?.body?.let { body ->
+        val requestBody = captured?.body?.let { body ->
             val buffer = okio.Buffer()
             body.writeTo(buffer)
-            buffer.readUtf8().contains("\"model\":\"model-test\"")
-        } == true)
+            buffer.readUtf8()
+        }.orEmpty()
+        assertTrue(requestBody.contains("\"model\":\"model-test\""))
+        assertTrue(requestBody.contains("\"role\":\"assistant\""))
+        assertTrue(requestBody.contains("Earlier answer"))
     }
 
     @Test
