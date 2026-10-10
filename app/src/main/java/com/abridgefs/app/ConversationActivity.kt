@@ -546,7 +546,7 @@ class ConversationActivity : AppCompatActivity() {
                         .setNegativeButton("关闭", null)
                         .show()
                 }.onFailure { error ->
-                    toast("读取目录失败：" + (error.message ?: "未知错误"))
+                    showLocalAccessFailure("无法访问本地目录", "读取目录", error)
                 }
             }
         }.start()
@@ -602,7 +602,12 @@ class ConversationActivity : AppCompatActivity() {
                                             toast("文件已写入")
                                             editorDialog.dismiss()
                                         }.onFailure { error ->
-                                            toast("写入失败：" + (error.message ?: "未知错误"))
+                                            showLocalAccessFailure(
+                                                "文件未能保存",
+                                                "保存文件",
+                                                error,
+                                                keepEditorOpen = true
+                                            )
                                         }
                                     }
                                 }.start()
@@ -611,10 +616,31 @@ class ConversationActivity : AppCompatActivity() {
                     }
                     editorDialog.show()
                 }.onFailure { error ->
-                    toast("无法读取文件：" + (error.message ?: "未知错误"))
+                    showLocalAccessFailure("无法打开本地文件", "读取文件", error)
                 }
             }
         }.start()
+    }
+
+    private fun showLocalAccessFailure(
+        title: String,
+        operation: String,
+        error: Throwable,
+        keepEditorOpen: Boolean = false
+    ) {
+        val detail = error.message?.takeIf { it.isNotBlank() }
+            ?: error.javaClass.simpleName
+        val recoveryNote = if (keepEditorOpen) {
+            "\n\n当前编辑器中的文本会保留。重新选择目录不会自动定位原文件；如需继续编辑，请重新打开目标文件。"
+        } else {
+            "\n\n这可能是目录授权失效，也可能是文档提供方暂时无法访问。重新选择目录不会自动定位原文件。"
+        }
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setMessage("$operation失败：$detail$recoveryNote")
+            .setPositiveButton("重新选择目录") { _, _ -> pickLocalDirectory() }
+            .setNegativeButton(if (keepEditorOpen) "保留编辑内容" else "关闭", null)
+            .show()
     }
 
     private fun promptCreateGroup() {
