@@ -70,6 +70,13 @@ class AndroidLocalDocumentGateway(context: Context) : LocalDocumentGateway {
             val output = resolver.openOutputStream(uri, "wt")
                 ?: throw IOException("无法打开本地文件进行写入")
             output.use { it.write(contentBytes) }
+
+            // Some providers may not surface a short or otherwise incomplete write as an
+            // exception. Read back the document before treating this attempt as successful.
+            val actualBytes = readBytes(uri, MAX_TEXT_BYTES)
+            if (!actualBytes.contentEquals(contentBytes)) {
+                throw IOException("写入后校验失败，文件内容与目标内容不一致")
+            }
         }
     }
 
