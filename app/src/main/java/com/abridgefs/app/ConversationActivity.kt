@@ -409,7 +409,7 @@ class ConversationActivity : AppCompatActivity() {
                     sendButton.isEnabled = true
                     cancelButton.isEnabled = false
                     cancelButton.visibility = View.GONE
-                    requestStatus.text = if (requestCancelled) "请求已取消" else "回复已收到并保存"
+                    requestStatus.text = "回复已收到并保存"
                     current = updated
                     refresh()
                 }
@@ -431,15 +431,17 @@ class ConversationActivity : AppCompatActivity() {
 
     private fun cancelCurrentRequest() {
         if (!requestInFlight) return
-        requestCancelled = true
         cancelButton.isEnabled = false
-        requestStatus.text = "正在取消请求……"
         val activeConnector = connector
         if (activeConnector is com.abridgefs.app.ai.OpenAICompatibleConnector) {
-            if (!activeConnector.cancelCurrentRequest()) {
-                requestStatus.text = "请求已进入结束阶段……"
+            requestCancelled = activeConnector.cancelCurrentRequest()
+            requestStatus.text = if (requestCancelled) {
+                "正在取消请求……"
+            } else {
+                "当前请求未能取消，等待请求结果……"
             }
         } else {
+            requestCancelled = false
             requestStatus.text = "当前连接不支持中断网络请求"
         }
     }
