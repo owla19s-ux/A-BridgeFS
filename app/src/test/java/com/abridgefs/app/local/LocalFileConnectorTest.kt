@@ -70,6 +70,25 @@ class LocalFileConnectorTest {
     }
 
     @Test
+    fun refusesToSaveWhenFileChangedSinceEditorOpened() = runBlocking {
+        val gateway = FakeGateway()
+        val connector = LocalFileConnector(connection(canWrite = true), gateway)
+
+        val error = assertThrows(java.io.IOException::class.java) {
+            runBlocking {
+                connector.writeText(
+                    gateway.entry,
+                    "user edit",
+                    expectedOriginalContent = "stale snapshot"
+                )
+            }
+        }
+
+        assertTrue(error.message!!.contains("编辑期间已发生变化"))
+        assertEquals(null, gateway.written)
+    }
+
+    @Test
     fun refusesBinaryFiles() = runBlocking {
         val gateway = FakeGateway()
         val connector = LocalFileConnector(connection(canWrite = true), gateway)
