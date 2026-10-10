@@ -35,7 +35,7 @@ class OpenAICompatibleConnectorTest {
             apiKey = "secret-test"
         )
 
-        val response = OpenAICompatibleConnector(profile, client).send(AIRequest(null, "Hello"))
+        val response = OpenAICompatibleConnector(profile, client).send(\n            AIRequest(\n                null,\n                "Hello",\n                history = listOf(\n                    AIMessage(AIMessage.Role.USER, "Earlier question"),\n                    AIMessage(AIMessage.Role.ASSISTANT, "Earlier answer")\n                )\n            )\n        )
 
         assertEquals("Hello from API", response.text)
         assertEquals("https://api.example.com/v1/chat/completions", captured?.url.toString())
