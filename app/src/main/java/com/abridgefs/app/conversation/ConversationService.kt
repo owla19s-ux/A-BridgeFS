@@ -42,12 +42,13 @@ class ConversationService(
     suspend fun sendAndSave(
         conversation: Conversation,
         userText: String,
-        store: ConversationStoreApi
+        store: ConversationStoreApi,
+        onDelta: (String) -> Unit = {}
     ): Conversation {
         val withUserMessage = conversation.addMessage(Message(Message.Role.USER, userText))
         store.saveConversation(withUserMessage)
 
-        val response = connector.send(
+        val response = connector.sendStreaming(
             AIRequest(
                 contextId = conversation.contextId,
                 userText = userText,
@@ -58,7 +59,8 @@ class ConversationService(
                         content = message.text
                     )
                 }
-            )
+            ),
+            onDelta = onDelta
         )
         val completed = withUserMessage.addMessage(Message(Message.Role.AI, response.text))
         store.saveConversation(completed)

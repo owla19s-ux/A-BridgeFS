@@ -75,6 +75,66 @@ class OpenAICompatibleConnector(
         }
     }
 
+    /** Streams text from an OpenAI-compatible Server-Sent Events chat completion. */
+    override suspend fun sendStreaming(request: AIRequest, onDelta: (String) -> Unit): AIResponse = withContext(Dispatchers.IO) {
+        val messages = JsonArray().apply {
+            request.history.forEach { message ->
+                add(JsonObject().apply {
+                    addProperty("role", message.role.apiValue)
+                    addProperty("content", message.content)
+                })
+            }
+            add(JsonObject().apply {
+                addProperty("role", "user")
+                addProperty("content", request.userText)
+            })
+        }
+        val payload = JsonObject().apply {
+            addProperty("model", request.modelId?.takeIf { it.isNotBlank() } ?: profile.model)
+            add("messages", messages)
+            addProperty("stream", true)
+        }
+        val httpRequest = Request.Builder()
+            .url(endpoint("chat/completions"))
+            .header("Authorization", "Bearer ${profile.apiKey}")
+            .header("Content-Type", "application/json")
+            .header("Accept", "text/event-stream")
+            .post(payload.toString().toRequestBody(JSON))
+            .build()
+        val call = client.newCall(httpRequest)
+        check(activeCall.compareAndSet(null, call)) { "已有 AI 请求正在执行" }
+        try {
+            call.execute().use { response ->
+                if (!response.isSuccessful) {
+                    val body = response.body?.string().orEmpty()
+                    throw IOException("AI API 流式请求失败（HTTP ${response.code}）：${safeError(body)}")
+                }
+                val source = response.body?.source() ?: throw IOException("AI API 流式响应没有响应体")
+                val result = StringBuilder()
+                while (!source.exhausted()) {
+                    val line = source.readUtf8Line() ?: break
+                    if (!line.startsWith("data:")) continue
+                    val data = line.removePrefix("data:").trim()
+                    if (data.isEmpty()) continue
+                    if (data == "[DONE]") break
+                    val delta = runCatching {
+                        val root = com.google.gson.JsonParser.parseString(data).asJsonObject
+                        root.getAsJsonArray("choices").get(0).asJsonObject
+                            .getAsJsonObject("delta").get("content")
+                            ?.takeIf { !it.isJsonNull }?.asString
+                    }.getOrNull().orEmpty()
+                    if (delta.isNotEmpty()) {
+                        result.append(delta)
+                        onDelta(delta)
+                    }
+                }
+                if (result.isEmpty()) throw IOException("AI API 流式响应中没有可用文本")
+                AIResponse(result.toString())
+            }
+        } finally {
+            activeCall.compareAndSet(call, null)
+        }
+    }
     /** Performs a real non-streaming chat completion to verify model access and chat permissions. */
     suspend fun testChatCompletion(): String {
         return send(AIRequest(

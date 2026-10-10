@@ -533,8 +533,21 @@ class ConversationActivity : AppCompatActivity() {
         input.text.clear()
         Thread {
             try {
+                var streamingMessageView: TextView? = null
+                val partialText = StringBuilder()
                 val updated = kotlinx.coroutines.runBlocking {
-                    ConversationService(connector).sendAndSave(conversation, text, store)
+                    ConversationService(connector).sendAndSave(conversation, text, store) { delta ->
+                        partialText.append(delta)
+                        val snapshot = partialText.toString()
+                        runOnUiThread {
+                            if (streamingMessageView == null) {
+                                streamingMessageView = TextView(this).apply { setPadding(8, 8, 8, 8) }
+                                messageList.addView(streamingMessageView)
+                            }
+                            streamingMessageView?.text = "AI: " + snapshot
+                            requestStatus.text = "AI 正在生成……"
+                        }
+                    }
                 }
                 runOnUiThread {
                     requestInFlight = false

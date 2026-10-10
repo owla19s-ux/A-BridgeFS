@@ -67,6 +67,51 @@ class OpenAICompatibleConnectorTest {
     }
 
     @Test
+    fun send_streaming_emits_chunks_and_sets_stream_flag() = runBlocking {
+        var captured: Request? = null
+        val eventBody = listOf(
+            """data: {"choices":[{"delta":{"content":"Hello"}}]}""",
+            "",
+            """data: {"choices":[{"delta":{"content":" world"}}]}""",
+            "",
+            "data: [DONE]",
+            ""
+        ).joinToString("\n")
+        val client = OkHttpClient.Builder().addInterceptor { chain ->
+            captured = chain.request()
+            Response.Builder()
+                .request(chain.request())
+                .protocol(Protocol.HTTP_1_1)
+                .code(200)
+                .message("OK")
+                .body(eventBody.toResponseBody("text/event-stream".toMediaType()))
+                .build()
+        }.build()
+        val profile = AIProfile(
+            name = "Test API",
+            baseUrl = "https://api.example.com/v1",
+            model = "model-a",
+            apiKey = "secret-test"
+        )
+        val chunks = mutableListOf<String>()
+
+        val response = OpenAICompatibleConnector(profile, client).sendStreaming(
+            AIRequest(null, "Say hello"),
+            onDelta = chunks::add
+        )
+
+        assertEquals("Hello world", response.text)
+        assertEquals(listOf("Hello", " world"), chunks)
+        assertEquals("text/event-stream", captured?.header("Accept"))
+        val requestBody = captured?.body?.let { body ->
+            val buffer = okio.Buffer()
+            body.writeTo(buffer)
+            buffer.readUtf8()
+        }.orEmpty()
+        assertTrue(requestBody.contains("\\"stream\\":true"))
+    }
+
+    @Test
     fun test_chat_completion_uses_chat_endpoint_and_returns_reply() = runBlocking {
         var captured: Request? = null
         val client = OkHttpClient.Builder().addInterceptor { chain ->

@@ -31,6 +31,13 @@ data class AIResponse(
 interface AIConnector {
     suspend fun send(request: AIRequest): AIResponse
 
+    /** Emits incremental chunks; connectors without streaming fall back to one completed chunk. */
+    suspend fun sendStreaming(request: AIRequest, onDelta: (String) -> Unit): AIResponse {
+        val response = send(request)
+        onDelta(response.text)
+        return response
+    }
+
     /** Returns true only when this connector accepted cancellation of an active request. */
     fun cancelCurrentRequest(): Boolean = false
 }
