@@ -41,7 +41,7 @@ class OpenAICompatibleConnector(
             })
         }
         val payload = JsonObject().apply {
-            addProperty("model", profile.model)
+            addProperty("model", request.modelId?.takeIf { it.isNotBlank() } ?: profile.model)
             add("messages", messages)
         }
         val httpRequest = Request.Builder()

@@ -29,6 +29,7 @@ class ConversationServiceTest {
 
         assertEquals("context-1", received?.contextId)
         assertEquals("读取当前 Context", received?.userText)
+        assertEquals(null, received?.modelId)
         assertEquals(
             listOf(Message.Role.USER, Message.Role.AI),
             updated.messages.map { it.role }

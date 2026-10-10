@@ -97,6 +97,7 @@ class ConversationStore(context: Context) : ConversationStoreApi {
         put("name", value.name)
         value.contextId?.let { put("contextId", it) }
         put("aiConnectionId", value.aiConnectionId)
+        value.aiModelId?.let { put("aiModelId", it) }
         value.groupId?.let { put("groupId", it) }
         put("createdAt", value.createdAt)
         put("updatedAt", value.updatedAt)
@@ -112,6 +113,7 @@ class ConversationStore(context: Context) : ConversationStoreApi {
             name = json.optString("name", "新对话"),
             contextId = json.optString("contextId").ifBlank { null },
             aiConnectionId = json.getString("aiConnectionId"),
+            aiModelId = json.optString("aiModelId").ifBlank { null },
             groupId = json.optString("groupId").ifBlank { null },
             createdAt = json.optLong("createdAt", System.currentTimeMillis()),
             updatedAt = json.optLong("updatedAt", System.currentTimeMillis()),

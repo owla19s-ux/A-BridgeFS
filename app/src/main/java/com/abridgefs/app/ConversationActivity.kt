@@ -41,6 +41,7 @@ class ConversationActivity : AppCompatActivity() {
 
     private lateinit var aiConnection: AIConnection
     private lateinit var connector: AIConnector
+    private lateinit var profileStore: com.abridgefs.app.ai.AIProfileStore
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,8 +61,9 @@ class ConversationActivity : AppCompatActivity() {
     }
 
     private fun configureAI() {
-        val profileStore = com.abridgefs.app.ai.AIProfileStore(this)
-        val profile = profileStore.load()
+        profileStore = com.abridgefs.app.ai.AIProfileStore(this)
+        val selectedId = current?.aiConnectionId
+        val profile = selectedId?.let(profileStore::load) ?: profileStore.load()
         val registry = com.abridgefs.app.ai.AIConnectorRegistry(
             profileProvider = profileStore::load
         )
@@ -91,6 +93,10 @@ class ConversationActivity : AppCompatActivity() {
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         }
         header.addView(title)
+        header.addView(Button(this).apply {
+            text = "连接 / 模型"
+            setOnClickListener { showConversationAiSettings() }
+        })
         header.addView(Button(this).apply {
             text = "API 设置"
             setOnClickListener {
@@ -176,6 +182,7 @@ class ConversationActivity : AppCompatActivity() {
             current = conversations.firstOrNull()
         }
         if (current == null) current = manager.createConversation(aiConnection.id)
+        configureAI()
         renderGroups()
         renderConversationList(store.allConversations())
         renderCurrent()
@@ -256,6 +263,7 @@ class ConversationActivity : AppCompatActivity() {
             gravity = Gravity.START or Gravity.CENTER_VERTICAL
             setOnClickListener {
                 current = store.getConversation(conversation.id)
+                configureAI()
                 renderConversationList(store.allConversations())
                 renderCurrent()
             }
@@ -276,6 +284,80 @@ class ConversationActivity : AppCompatActivity() {
                 setPadding(8, 8, 8, 8)
             })
         }
+    }
+
+    private fun showConversationAiSettings() {
+        val conversation = current ?: return
+        AlertDialog.Builder(this)
+            .setTitle("当前对话的 AI 设置")
+            .setItems(arrayOf("切换 API 连接", "设置当前对话模型")) { _, which ->
+                when (which) {
+                    0 -> chooseConversationConnection(conversation)
+                    1 -> editConversationModel(conversation)
+                }
+            }
+            .setNegativeButton("关闭", null)
+            .show()
+    }
+
+    private fun chooseConversationConnection(conversation: Conversation) {
+        val profiles = profileStore.loadAll()
+        if (profiles.isEmpty()) {
+            toast("请先在 API 设置中保存连接")
+            return
+        }
+        val defaultId = profileStore.defaultProfileId()
+        val labels = profiles.map { profile ->
+            (if (profile.id == conversation.aiConnectionId) "● " else "") +
+                (if (profile.id == defaultId) "默认 · " else "") +
+                profile.name + " · " + profile.model
+        }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle("选择当前对话的 API 连接")
+            .setItems(labels) { _, index ->
+                val selected = profiles[index]
+                current = conversation.copy(
+                    aiConnectionId = selected.id,
+                    aiModelId = null,
+                    updatedAt = System.currentTimeMillis()
+                )
+                store.saveConversation(current!!)
+                configureAI()
+                refresh()
+                toast("当前对话已切换连接；模型使用该连接的默认模型")
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    private fun editConversationModel(conversation: Conversation) {
+        val profile = profileStore.load(conversation.aiConnectionId)
+        if (profile == null) {
+            toast("当前对话的 API 连接不可用，请先切换连接")
+            return
+        }
+        val field = EditText(this).apply {
+            hint = "模型 ID"
+            setSingleLine(true)
+            setText(conversation.aiModelId ?: profile.model)
+            setSelection(text.length)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("设置当前对话模型")
+            .setMessage("仅影响当前对话；留空将使用连接默认模型。可填写 API 服务支持的模型 ID。")
+            .setView(field)
+            .setNegativeButton("取消", null)
+            .setPositiveButton("保存") { _, _ ->
+                val model = field.text.toString().trim().ifBlank { null }
+                current = conversation.copy(
+                    aiModelId = model,
+                    updatedAt = System.currentTimeMillis()
+                )
+                store.saveConversation(current!!)
+                refresh()
+                toast(if (model == null) "已恢复连接默认模型" else "当前对话模型已保存")
+            }
+            .show()
     }
 
     private fun promptCreateGroup() {

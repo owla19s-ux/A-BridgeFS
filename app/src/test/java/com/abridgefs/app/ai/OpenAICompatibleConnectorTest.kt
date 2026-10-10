@@ -31,7 +31,7 @@ class OpenAICompatibleConnectorTest {
         val profile = AIProfile(
             name = "Test API",
             baseUrl = "https://api.example.com/v1/",
-            model = "model-test",
+            model = "conversation-model",
             apiKey = "secret-test"
         )
 
@@ -39,6 +39,7 @@ class OpenAICompatibleConnectorTest {
             AIRequest(
                 null,
                 "Hello",
+                modelId = "conversation-model",
                 history = listOf(
                     AIMessage(AIMessage.Role.USER, "Earlier question"),
                     AIMessage(AIMessage.Role.ASSISTANT, "Earlier answer")

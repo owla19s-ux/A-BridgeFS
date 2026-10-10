@@ -5,6 +5,7 @@ data class Conversation(
     val name: String = "新对话",
     val contextId: String? = null,
     val aiConnectionId: String,
+    val aiModelId: String? = null,
     val groupId: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = createdAt,

@@ -13,6 +13,8 @@ data class AIMessage(
 data class AIRequest(
     val contextId: String?,
     val userText: String,
+    /** Optional per-conversation model override; null uses the connection's configured model. */
+    val modelId: String? = null,
     /** Prior turns in chronological order. The connector appends userText as the current turn. */
     val history: List<AIMessage> = emptyList()
 ) {

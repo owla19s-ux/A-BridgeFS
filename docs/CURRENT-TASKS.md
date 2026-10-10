@@ -129,7 +129,7 @@ Context 对话
 第一阶段施工顺序以当前 UI / 功能地图为索引，按“先打通用户高频入口和可复用连接能力，再接组织页与调度结构”推进：
 
 1. **Conversation 基础闭环**：对话独立创建 / 切换 / 管理、自动保存与恢复、错误处理；明确当前 UI 占位响应，不把它视为真实 AI 已接通。
-2. **AI / API / Model**：多 Profile 持久化、默认连接、旧配置迁移和连接管理 UI 已提交并通过对应工作流；当前统一 Connector Factory / Registry 已提交并通过 Verify #178、Android Tests #422、Build and Release #731。已修复 Profile Store 不能因某个密钥解密失败而丢失其他 Profile 元数据的问题；后续补对话级连接 / 模型选择、真实聊天连接测试、流式输出与运行中取消测试。
+2. **AI / API / Model**：多 Profile 持久化、默认连接、旧配置迁移和连接管理 UI 已提交并通过对应工作流；当前统一 Connector Factory / Registry 已提交并通过 Verify #178、Android Tests #422、Build and Release #731。已修复 Profile Store 不能因某个密钥解密失败而丢失其他 Profile 元数据的问题；对话级连接选择和模型 ID 覆盖已接入首版并持久化；后续补模型目录在对话内选择、真实聊天连接测试、流式输出与运行中取消测试。
 3. **Local / File Connector**：本地目录授权、读取 / 修改 / 保存、失败处理；可由普通对话页和 Context 工作面按授权复用。
 4. **GitHub 接入 UI 与真实读取**：复用已有凭证、Connector、API、并发读取和写入守卫；优先完成认证、仓库 / 分支 / 文件选择，以及普通对话真实读取链路。
 5. **Local ↔ GitHub 协作**：在两侧连接能力稳定后，再明确同步方向、覆盖 / 冲突处理和验证规则。
