@@ -571,33 +571,45 @@ class ConversationActivity : AppCompatActivity() {
                         setText(fileText)
                         isEnabled = connection.canWrite
                     }
-                    val dialog = AlertDialog.Builder(this)
+                    val dialogBuilder = AlertDialog.Builder(this)
                         .setTitle(entry.displayName)
                         .setView(editor)
                         .setNegativeButton("关闭", null)
                     if (connection.canWrite) {
-                        dialog.setPositiveButton("保存修改") { _, _ ->
-                            val newText = editor.text.toString()
-                            Thread {
-                                val writeResult = runCatching {
-                                    kotlinx.coroutines.runBlocking {
-                                        LocalFileConnector(connection, AndroidLocalDocumentGateway(this@ConversationActivity))
-                                            .writeText(entry, newText, expectedOriginalContent = fileText)
-                                    }
-                                }
-                                runOnUiThread {
-                                    writeResult.onSuccess {
-                                        toast("文件已写入")
-                                    }.onFailure { error ->
-                                        toast("写入失败：" + (error.message ?: "未知错误"))
-                                    }
-                                }
-                            }.start()
-                        }
+                        // Keep the editor open on conflict or write failure so unsaved edits
+                        // remain available for copying/reloading instead of being discarded.
+                        dialogBuilder.setPositiveButton("保存修改", null)
                     } else {
-                        dialog.setPositiveButton("完成", null)
+                        dialogBuilder.setPositiveButton("完成", null)
                     }
-                    dialog.show()
+                    val editorDialog = dialogBuilder.create()
+                    editorDialog.setOnShowListener {
+                        if (connection.canWrite) {
+                            val saveButton = editorDialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                            saveButton.setOnClickListener {
+                                val newText = editor.text.toString()
+                                saveButton.isEnabled = false
+                                Thread {
+                                    val writeResult = runCatching {
+                                        kotlinx.coroutines.runBlocking {
+                                            LocalFileConnector(connection, AndroidLocalDocumentGateway(this@ConversationActivity))
+                                                .writeText(entry, newText, expectedOriginalContent = fileText)
+                                        }
+                                    }
+                                    runOnUiThread {
+                                        saveButton.isEnabled = true
+                                        writeResult.onSuccess {
+                                            toast("文件已写入")
+                                            editorDialog.dismiss()
+                                        }.onFailure { error ->
+                                            toast("写入失败：" + (error.message ?: "未知错误"))
+                                        }
+                                    }
+                                }.start()
+                            }
+                        }
+                    }
+                    editorDialog.show()
                 }.onFailure { error ->
                     toast("无法读取文件：" + (error.message ?: "未知错误"))
                 }
