@@ -62,8 +62,48 @@ class AndroidLocalDocumentGateway(context: Context) : LocalDocumentGateway {
         val bytes = content.toByteArray(StandardCharsets.UTF_8)
         if (bytes.size > MAX_TEXT_BYTES) throw IOException("文件超过 2 MiB 文本写入上限")
         val uri = DocumentsContract.buildDocumentUriUsingTree(Uri.parse(treeUri), documentId)
-        val output = resolver.openOutputStream(uri, "wt") ?: throw IOException("无法打开本地文件进行写入")
-        output.use { it.write(bytes) }
+
+        // SAF providers do not universally support atomic replacement. Keep an exact byte
+        // snapshot so ordinary write/close failures can attempt to restore the original.
+        val originalBytes = readBytes(uri, MAX_TEXT_BYTES)
+        val output = resolver.openOutputStream(uri, "wt")
+            ?: throw IOException("无法打开本地文件进行写入")
+        try {
+            output.use { it.write(bytes) }
+        } catch (writeError: Exception) {
+            try {
+                val restore = resolver.openOutputStream(uri, "wt")
+                    ?: throw IOException("无法重新打开本地文件进行恢复")
+                restore.use { it.write(originalBytes) }
+            } catch (restoreError: Exception) {
+                val failure = IOException(
+                    "文件写入失败，且恢复原内容也失败；文件内容可能不完整。写入错误：${writeError.message ?: "未知错误"}；恢复错误：${restoreError.message ?: "未知错误"}",
+                    writeError
+                )
+                failure.addSuppressed(restoreError)
+                throw failure
+            }
+            throw writeError
+        }
+    }
+
+    private fun readBytes(uri: Uri, maxBytes: Int): ByteArray {
+        val input = resolver.openInputStream(uri) ?: throw IOException("无法读取原文件，已取消写入以保护现有内容")
+        input.use { stream ->
+            val output = ByteArrayOutputStream()
+            val buffer = ByteArray(8192)
+            var total = 0
+            while (true) {
+                val count = stream.read(buffer)
+                if (count < 0) break
+                total += count
+                if (total > maxBytes) {
+                    throw IOException("原文件超过 2 MiB 安全备份上限，已取消写入以保护现有内容")
+                }
+                output.write(buffer, 0, count)
+            }
+            return output.toByteArray()
+        }
     }
 
     private companion object {
