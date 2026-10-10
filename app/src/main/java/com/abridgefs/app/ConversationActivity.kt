@@ -181,7 +181,7 @@ class ConversationActivity : AppCompatActivity() {
         if (current == null || conversations.none { it.id == current?.id }) {
             current = conversations.firstOrNull()
         }
-        if (current == null) current = manager.createConversation(aiConnection.id)
+        if (current == null) current = manager.createConversation(defaultAIConnectionId())
         configureAI()
         renderGroups()
         renderConversationList(store.allConversations())
@@ -190,11 +190,14 @@ class ConversationActivity : AppCompatActivity() {
 
     private fun createConversation() {
         current = manager.createConversation(
-            aiConnectionId = aiConnection.id,
+            aiConnectionId = defaultAIConnectionId(),
             groupId = selectedGroupFilter?.takeUnless { it == UNGROUPED_FILTER }
         )
         refresh()
     }
+
+    private fun defaultAIConnectionId(): String =
+        profileStore.load()?.id ?: aiConnection.id
 
     private fun renderGroups() {
         groupList.removeAllViews()
