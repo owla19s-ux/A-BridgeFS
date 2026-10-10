@@ -6,6 +6,8 @@ interface Connection {
 
     enum class Type {
         GITHUB,
-        AI
+        AI,
+        LOCAL,
+        FILE
     }
 }
