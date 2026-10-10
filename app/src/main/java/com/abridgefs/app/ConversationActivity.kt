@@ -465,7 +465,11 @@ class ConversationActivity : AppCompatActivity() {
             if (existing != null) {
                 val oldFlags = (if (existing.canRead) Intent.FLAG_GRANT_READ_URI_PERMISSION else 0) or
                     (if (existing.canWrite) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0)
-                val removedFlags = oldFlags and grantFlags.inv()
+                val removedFlags = if (existing.treeUri != uri.toString()) {
+                    oldFlags
+                } else {
+                    oldFlags and grantFlags.inv()
+                }
                 if (removedFlags != 0) {
                     runCatching {
                         contentResolver.releasePersistableUriPermission(
