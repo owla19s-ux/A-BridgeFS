@@ -40,6 +40,20 @@ class ConversationActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         store = ConversationStore(this)
         manager = ConversationManager(store)
+        configureAI()
+        setContentView(buildUi())
+        refresh()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::store.isInitialized && ::manager.isInitialized && ::title.isInitialized) {
+            configureAI()
+            refresh()
+        }
+    }
+
+    private fun configureAI() {
         val profile = com.abridgefs.app.ai.AIProfileStore(this).load()
         aiConnection = AIConnection(
             profile?.id ?: com.abridgefs.app.ai.AIProfile.DEFAULT_ID,
@@ -53,8 +67,6 @@ class ConversationActivity : AppCompatActivity() {
                     AIResponse("尚未配置真实 AI API。请先打开「API 设置」填写地址、密钥和模型。")
             }
         }
-        setContentView(buildUi())
-        refresh()
     }
 
     private fun buildUi(): LinearLayout {
