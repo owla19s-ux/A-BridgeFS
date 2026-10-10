@@ -33,16 +33,26 @@ class ConversationActivity : AppCompatActivity() {
     private var current: Conversation? = null
     private var selectedGroupFilter: String? = null
 
-    private val aiConnection = AIConnection("default-ai", "AI")
-    private val connector = object : AIConnector {
-        override suspend fun send(request: AIRequest): AIResponse =
-            AIResponse("当前已连接对话运行层，等待接入实际 AI Connector。")
-    }
+    private lateinit var aiConnection: AIConnection
+    private lateinit var connector: AIConnector
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         store = ConversationStore(this)
         manager = ConversationManager(store)
+        val profile = com.abridgefs.app.ai.AIProfileStore(this).load()
+        aiConnection = AIConnection(
+            profile?.id ?: com.abridgefs.app.ai.AIProfile.DEFAULT_ID,
+            profile?.name ?: "AI"
+        )
+        connector = if (profile != null) {
+            com.abridgefs.app.ai.OpenAICompatibleConnector(profile)
+        } else {
+            object : AIConnector {
+                override suspend fun send(request: AIRequest): AIResponse =
+                    AIResponse("尚未配置真实 AI API。请先打开「API 设置」填写地址、密钥和模型。")
+            }
+        }
         setContentView(buildUi())
         refresh()
     }
@@ -58,6 +68,12 @@ class ConversationActivity : AppCompatActivity() {
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         }
         header.addView(title)
+        header.addView(Button(this).apply {
+            text = "API 设置"
+            setOnClickListener {
+                startActivity(android.content.Intent(this@ConversationActivity, AISettingsActivity::class.java))
+            }
+        })
         header.addView(Button(this).apply {
             text = "新对话"
             setOnClickListener { createConversation() }
