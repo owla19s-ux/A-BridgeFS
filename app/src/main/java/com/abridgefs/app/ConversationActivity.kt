@@ -30,6 +30,9 @@ class ConversationActivity : AppCompatActivity() {
     private lateinit var messageList: LinearLayout
     private lateinit var input: EditText
     private lateinit var title: TextView
+    private lateinit var sendButton: Button
+    private lateinit var requestStatus: TextView
+    private var requestInFlight = false
     private var current: Conversation? = null
     private var selectedGroupFilter: String? = null
 
@@ -128,6 +131,13 @@ class ConversationActivity : AppCompatActivity() {
             ViewGroup.LayoutParams.MATCH_PARENT, 0, 2f
         ))
 
+        requestStatus = TextView(this).apply {
+            text = "就绪"
+            textSize = 13f
+            setPadding(0, 8, 0, 4)
+        }
+        root.addView(requestStatus)
+
         val composer = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
         input = EditText(this).apply {
             hint = "输入消息"
@@ -136,10 +146,11 @@ class ConversationActivity : AppCompatActivity() {
         composer.addView(input, LinearLayout.LayoutParams(
             0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f
         ))
-        composer.addView(Button(this).apply {
+        sendButton = Button(this).apply {
             text = "发送"
             setOnClickListener { sendMessage() }
-        })
+        }
+        composer.addView(sendButton)
         root.addView(composer)
         return root
     }
@@ -367,9 +378,13 @@ class ConversationActivity : AppCompatActivity() {
     }
 
     private fun sendMessage() {
+        if (requestInFlight) return
         val conversation = current ?: return
         val text = input.text.toString().trim()
         if (text.isEmpty()) return
+        requestInFlight = true
+        sendButton.isEnabled = false
+        requestStatus.text = "正在请求 AI……"
         input.text.clear()
         Thread {
             try {
@@ -377,11 +392,17 @@ class ConversationActivity : AppCompatActivity() {
                     ConversationService(connector).sendAndSave(conversation, text, store)
                 }
                 runOnUiThread {
+                    requestInFlight = false
+                    sendButton.isEnabled = true
+                    requestStatus.text = "回复已收到并保存"
                     current = updated
                     refresh()
                 }
             } catch (error: Exception) {
                 runOnUiThread {
+                    requestInFlight = false
+                    sendButton.isEnabled = true
+                    requestStatus.text = "请求失败；用户消息已保留"
                     // sendAndSave 在请求前已保存用户消息；失败时重新加载并显示该记录。
                     current = store.getConversation(conversation.id)
                     refresh()
