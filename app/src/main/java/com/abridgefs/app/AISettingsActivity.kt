@@ -113,7 +113,7 @@ class AISettingsActivity : AppCompatActivity() {
     }
 
     private fun fetchModels() {
-        val profile = buildProfileOrNull() ?: return
+        val profile = buildProfileOrNull(requireModel = false) ?: return
         status.text = "状态：正在请求模型列表……"
         executor.execute {
             try {
@@ -150,11 +150,12 @@ class AISettingsActivity : AppCompatActivity() {
         }
     }
 
-    private fun buildProfileOrNull(): AIProfile? {
+    private fun buildProfileOrNull(requireModel: Boolean = true): AIProfile? {
         val name = nameField.text.toString().trim()
         val baseUrl = baseUrlField.text.toString().trim()
         val key = keyField.text.toString()
-        val model = modelField.text.toString().trim()
+        val enteredModel = modelField.text.toString().trim()
+        val model = enteredModel.ifBlank { if (requireModel) "" else "model-discovery" }
         return try {
             AIProfile(name = name, baseUrl = baseUrl, model = model, apiKey = key)
         } catch (error: IllegalArgumentException) {
