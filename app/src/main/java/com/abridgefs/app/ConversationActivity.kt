@@ -425,10 +425,16 @@ class ConversationActivity : AppCompatActivity() {
             pickLocalDirectory()
             return
         }
-        if (!hasPersistedReadGrant(connection.treeUri)) {
+        if (!hasPersistedGrants(connection)) {
             AlertDialog.Builder(this)
                 .setTitle("本地目录授权已失效")
-                .setMessage("系统当前没有该目录的持久读取授权。请重新选择目录并授权后继续使用。")
+                .setMessage(
+                    if (connection.canWrite) {
+                        "系统当前没有该目录所需的持久读写授权。请重新选择目录并授权后继续使用。"
+                    } else {
+                        "系统当前没有该目录的持久读取授权。请重新选择目录并授权后继续使用。"
+                    }
+                )
                 .setPositiveButton("重新授权") { _, _ -> pickLocalDirectory() }
                 .setNegativeButton("取消", null)
                 .show()
@@ -444,10 +450,12 @@ class ConversationActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun hasPersistedReadGrant(treeUri: String): Boolean {
-        val expectedUri = Uri.parse(treeUri)
-        return contentResolver.persistedUriPermissions.any {
-            it.uri == expectedUri && it.isReadPermission
+    private fun hasPersistedGrants(connection: LocalConnection): Boolean {
+        val expectedUri = Uri.parse(connection.treeUri)
+        return contentResolver.persistedUriPermissions.any { permission ->
+            permission.uri == expectedUri &&
+                permission.isReadPermission &&
+                (!connection.canWrite || permission.isWritePermission)
         }
     }
 
