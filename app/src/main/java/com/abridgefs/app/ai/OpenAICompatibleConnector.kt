@@ -5,17 +5,27 @@ import com.google.gson.JsonObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.Call
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 /** Connector for APIs that implement the OpenAI-compatible /chat/completions contract. */
 class OpenAICompatibleConnector(
     private val profile: AIProfile,
     private val client: OkHttpClient = defaultClient()
 ) : AIConnector {
+    private val activeCall = AtomicReference<Call?>(null)
+
+    /** Cancels the active chat request, if one is currently executing. */
+    fun cancelCurrentRequest(): Boolean = activeCall.get()?.let { call ->
+        if (call.isCanceled()) return@let false
+        call.cancel()
+        true
+    } ?: false
 
     override suspend fun send(request: AIRequest): AIResponse = withContext(Dispatchers.IO) {
         val messages = JsonArray().apply {
@@ -41,7 +51,10 @@ class OpenAICompatibleConnector(
             .post(payload.toString().toRequestBody(JSON))
             .build()
 
-        client.newCall(httpRequest).execute().use { response ->
+        val call = client.newCall(httpRequest)
+        check(activeCall.compareAndSet(null, call)) { "已有 AI 请求正在执行" }
+        try {
+            call.execute().use { response ->
             val body = response.body?.string().orEmpty()
             if (!response.isSuccessful) {
                 throw IOException("AI API 请求失败（HTTP ${response.code}）：${safeError(body)}")
@@ -55,7 +68,10 @@ class OpenAICompatibleConnector(
                     .get("content").asString
             }.getOrNull()?.takeIf { it.isNotBlank() }
                 ?: throw IOException("AI API 响应中没有可用的 choices[0].message.content")
-            AIResponse(content)
+                AIResponse(content)
+            }
+        } finally {
+            activeCall.compareAndSet(call, null)
         }
     }
 
