@@ -354,6 +354,9 @@ class ConversationActivity : AppCompatActivity() {
                 }
             } catch (error: Exception) {
                 runOnUiThread {
+                    // sendAndSave 在请求前已保存用户消息；失败时重新加载并显示该记录。
+                    current = store.getConversation(conversation.id)
+                    refresh()
                     toast("发送失败：" + (error.message ?: "未知错误"))
                 }
             }
