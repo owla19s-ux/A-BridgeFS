@@ -1,8 +1,11 @@
 package com.abridgefs.app.ai
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
+import java.io.IOException
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
@@ -10,11 +13,9 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.IOException
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 
 class OpenAICompatibleConnectorTest {
     @Test
@@ -117,26 +118,17 @@ class OpenAICompatibleConnectorTest {
         assertEquals(listOf("model-a", "model-b"), models)
     }
     @Test
-    fun cancelCurrentRequest_cancelsAnActiveChatCall() = runBlocking {
-        val enteredInterceptor = CountDownLatch(1)
-        val releaseInterceptor = CountDownLatch(1)
-        val client = OkHttpClient.Builder().addInterceptor { chain ->
-            enteredInterceptor.countDown()
-            if (!releaseInterceptor.await(5, TimeUnit.SECONDS)) {
-                throw IOException("Timed out waiting for cancellation test")
+    fun cancelCurrentRequest_cancelsAnActiveChatCall() {
+        val interceptorEntered = CountDownLatch(1)
+        val allowRequestToContinue = CountDownLatch(1)
+        val client = OkHttpClient.Builder()
+            .callTimeout(5, TimeUnit.SECONDS)
+            .addInterceptor { chain ->
+                interceptorEntered.countDown()
+                check(allowRequestToContinue.await(3, TimeUnit.SECONDS))
+                chain.proceed(chain.request())
             }
-            if (chain.call().isCanceled()) throw IOException("Canceled by test")
-            Response.Builder()
-                .request(chain.request())
-                .protocol(Protocol.HTTP_1_1)
-                .code(200)
-                .message("OK")
-                .body(
-                    """{"choices":[{"message":{"content":"should not arrive"}}]}"""
-                        .toResponseBody("application/json".toMediaType())
-                )
-                .build()
-        }.build()
+            .build()
         val profile = AIProfile(
             name = "Test API",
             baseUrl = "https://api.example.com/v1",
@@ -144,18 +136,25 @@ class OpenAICompatibleConnectorTest {
             apiKey = "secret-test"
         )
         val connector = OpenAICompatibleConnector(profile, client)
-        val pending = async(Dispatchers.Default) {
-            runCatching { connector.send(AIRequest(null, "Hello")) }
-        }
-
+        val executor = Executors.newSingleThreadExecutor()
         try {
-            assertTrue("Chat call should enter the interceptor", enteredInterceptor.await(5, TimeUnit.SECONDS))
+            val future = executor.submit<AIResponse> {
+                runBlocking { connector.send(AIRequest(null, "Cancel this request")) }
+            }
+            assertTrue("Chat request did not start", interceptorEntered.await(2, TimeUnit.SECONDS))
             assertTrue("Active request should accept cancellation", connector.cancelCurrentRequest())
+            allowRequestToContinue.countDown()
+            try {
+                future.get(3, TimeUnit.SECONDS)
+                throw AssertionError("Expected cancellation to abort the HTTP request")
+            } catch (error: ExecutionException) {
+                assertTrue("Expected IOException but was " + error.cause, error.cause is IOException)
+            }
+            assertFalse(connector.cancelCurrentRequest())
         } finally {
-            releaseInterceptor.countDown()
+            allowRequestToContinue.countDown()
+            executor.shutdownNow()
         }
-        assertTrue("Canceled request should not return a successful response", pending.await().isFailure)
-        assertEquals(false, connector.cancelCurrentRequest())
     }
 
     @Test
