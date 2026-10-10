@@ -57,15 +57,14 @@ Context 对话
 - 远程 Repository 作为 GitHub Connection 的 Resource 来源。
 
 ### T5 — Local Connector
-**状态：基础接口已提交，待 UI 接入与验证**
+**状态：基础接口与普通对话页入口已接入，三项 CI 通过**
 
 本地项目能力保留。
 
-当前已新增 Local Connection、元数据 Store、Android SAF Gateway 与 LocalFileConnector；可在授权的文档树范围内列目录、读取文本和写回文本，并由连接级读写开关守卫。
+当前已新增 Local Connection、元数据 Store、Android SAF Gateway 与 LocalFileConnector；普通对话页可以选择目录、浏览文件、读取文本、编辑并显式保存；连接级读写开关守卫实际操作。
 
 后续目标：
-- 接入系统目录选择与持久 URI 授权；
-- 在普通对话页提供文件选择、读取、编辑与显式保存入口；
+- 补撤权后的状态提示与重新授权；
 - 后续复用到 Context 工作面；
 - 补撤权、文件冲突、写入失败恢复及 Provider 差异测试；
 - 不恢复 BridgeFS 产品模型，不提前建立复杂本地执行引擎。

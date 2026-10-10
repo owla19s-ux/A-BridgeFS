@@ -114,7 +114,7 @@
 | ME-008 | GitHub 凭证加密与验证 | 凭证加密保存、加载/清除；验证 GitHub 身份与仓库访问 | 代码存在 | `GitHubCredentialStore.kt`、`GitHubCredentialVerifier.kt` 及相应测试；端到端设置流程未接 UI |
 | ME-009 | GitHub Resource 映射与并发读取 | Context 资源转 GitHub Connection；并发拉取仓库、分支、提交、文件快照 | 代码存在 | `GitHubConnectionFactory.kt`、`GitHubConcurrentReader.kt`；Resource 地址冲突及错误项处理需按实际场景验证 |
 | ME-010 | GitHub 写入权限守卫 | 远端写操作必须经过明确授权，默认关闭 | 部分实现 | `GitHubConnector.kt` 的 GitHubWritePolicy 默认 disabled，并守卫写文件/触发 workflow；授权配置和审计记录未接入 |
-| ME-011 | Local / File Connector | 选择本地资源、授权、读写、原子保存、冲突与失败处理 | 部分实现 | 新增 `local/LocalConnection.kt`、`LocalConnectionStore.kt`、`LocalFileConnector.kt` 与 `AndroidLocalDocumentGateway.kt`；支持 SAF 文档树读取、文本读取/写入、连接级读写开关和 2 MiB 限制，并有策略单测；尚未接入目录选择 UI / Context / 对话入口，SAF 写入不保证跨 Provider 原子性，撤权与失败恢复待补 |
+| ME-011 | Local / File Connector | 选择本地资源、授权、读写、原子保存、冲突与失败处理 | 部分实现 | `local/LocalConnection.kt`、`LocalConnectionStore.kt`、`LocalFileConnector.kt`、`AndroidLocalDocumentGateway.kt` 已支持 SAF 文档树列目录、文本读取/写入、连接级读写开关和 2 MiB 限制；普通对话页已接目录选择、文件浏览、编辑与显式保存入口，策略单测及三项 CI 通过；Context 工作面复用、撤权检测、冲突/失败恢复与跨 Provider 原子保存仍待补 |
 | ME-012 | 通用 Connection 授权机制 | 把 Android 系统授权、Connection 访问授权、AI Code 策略分层判断 | 未发现完整实现 | GitHub 存在局部写策略；统一授权对象、授权检查入口与撤销/过期流程待设计 |
 | ME-013 | Task / Dispatcher 状态机 | 任务排队、拆分/做/审查交接、单写入者、取消、重试、恢复与状态持久化 | 未发现完整实现 | 规范已有目标；当前可见源码尚未定位到可运行的统一调度机制 |
 | ME-014 | Verify / Evidence 机制 | 保存验证要求、实际结果、证据、失败/重试历史；状态以事实更新 | 未发现完整实现 | 规范已有关系定义；需要正式模型、接口、持久化与测试 |
