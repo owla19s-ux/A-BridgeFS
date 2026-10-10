@@ -7,6 +7,7 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.HorizontalScrollView
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
@@ -74,7 +75,7 @@ class ConversationActivity : AppCompatActivity() {
         })
         root.addView(groupHeader)
 
-        val groupScroll = ScrollView(this).apply {
+        val groupScroll = HorizontalScrollView(this).apply {
             isFillViewport = false
             isHorizontalScrollBarEnabled = false
         }
