@@ -462,6 +462,19 @@ class ConversationActivity : AppCompatActivity() {
         try {
             contentResolver.takePersistableUriPermission(uri, grantFlags)
             val existing = localConnectionStore.all().firstOrNull()
+            if (existing != null) {
+                val oldFlags = (if (existing.canRead) Intent.FLAG_GRANT_READ_URI_PERMISSION else 0) or
+                    (if (existing.canWrite) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0)
+                val removedFlags = oldFlags and grantFlags.inv()
+                if (removedFlags != 0) {
+                    runCatching {
+                        contentResolver.releasePersistableUriPermission(
+                            Uri.parse(existing.treeUri),
+                            removedFlags
+                        )
+                    }
+                }
+            }
             val connection = LocalConnection(
                 id = existing?.id ?: UUID.randomUUID().toString(),
                 name = "本地目录",
