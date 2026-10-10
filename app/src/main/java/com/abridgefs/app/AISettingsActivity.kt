@@ -79,8 +79,12 @@ class AISettingsActivity : AppCompatActivity() {
         root.addView(modelField, fieldParams())
 
         root.addView(Button(this).apply {
-            text = "获取模型列表 / 测试 API"
+            text = "获取模型列表"
             setOnClickListener { fetchModels() }
+        }, buttonParams())
+        root.addView(Button(this).apply {
+            text = "测试聊天请求"
+            setOnClickListener { testChatRequest() }
         }, buttonParams())
         status = TextView(this).apply {
             text = if (saved == null) "状态：尚未配置" else "状态：已保存配置；尚未测试连接"
@@ -138,6 +142,30 @@ class AISettingsActivity : AppCompatActivity() {
             } catch (error: Exception) {
                 runOnUiThread {
                     status.text = "连接失败：${error.message ?: error::class.simpleName ?: "未知错误"}"
+                }
+            }
+        }
+    }
+
+    private fun testChatRequest() {
+        val profile = buildProfileOrNull() ?: return
+        status.text = "状态：正在发送最小聊天测试请求……"
+        executor.execute {
+            try {
+                val response = runBlocking {
+                    OpenAICompatibleConnector(profile).send(
+                        com.abridgefs.app.ai.AIRequest(
+                            contextId = null,
+                            userText = "Reply with OK."
+                        )
+                    )
+                }
+                runOnUiThread {
+                    status.text = "聊天请求成功：服务已返回内容（${response.text.length} 个字符）。"
+                }
+            } catch (error: Exception) {
+                runOnUiThread {
+                    status.text = "聊天请求失败：${error.message ?: error::class.simpleName ?: "未知错误"}"
                 }
             }
         }

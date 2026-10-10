@@ -123,7 +123,7 @@
 | ME-017 | Connection 基础抽象 | 提供连接稳定 ID 与类型；具体 Connector 通过连接身份解析，不把 Connection 当成实际资源 | 部分实现 | `connection/Connection.kt` 目前只定义 GITHUB、AI 两种类型；Local、File、API/Service 等通用类型尚未纳入该接口，需按模块施工时扩展，不提前一次性实现全部类型 |
 | ME-018 | Context Conversation Runtime 组装 | 校验 Context、Conversation 与 AI Connection 的归属关系，并解析对应 Connector / ConversationService | 部分实现 | `conversation/ContextConversationRuntime.kt` 已有组装边界及测试；当前 ConversationActivity 未使用该 Runtime，且没有真实 Provider，不能据此认定 Context 对话链已打通 |
 | ME-019 | AI Profile 安全持久化 | 多连接分别保存 API 名称、Base URL、模型及加密 API Key；密钥不以明文写入偏好存储 | 部分实现 | `ai/AIProfileStore.kt` 按 Profile ID 使用独立 Android Keystore AES-GCM 密钥，并将非敏感元数据与密钥分开存储；加入旧单 Profile 迁移；保存/删除/清空不再依赖密钥成功解密才保留或清理元数据，仍需验证迁移、密钥隔离、损坏恢复与凭证轮换 |
-| ME-020 | OpenAI-compatible Provider | 使用已选模型调用 `/chat/completions` 并解析模型目录与响应 | 部分实现 | `ai/OpenAICompatibleConnector.kt` 已实现模型列表和非流式聊天请求；尚未进行真实供应商端到端验证，且不同供应商的兼容差异需要逐一验证 |
+| ME-020 | OpenAI-compatible Provider | 使用已选模型调用 `/chat/completions` 并解析模型目录与响应 | 部分实现 | `ai/OpenAICompatibleConnector.kt` 已实现模型列表和非流式聊天请求；设置页新增最小聊天请求测试入口，可验证配置是否能完成真实 /chat/completions 调用；当前 CI 仍只使用模拟 HTTP 响应，尚未验证真实供应商端到端兼容性，不同供应商差异需逐一验证 |
 
 ---
 
