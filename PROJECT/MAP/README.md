@@ -120,6 +120,8 @@
 | ME-014 | Verify / Evidence 机制 | 保存验证要求、实际结果、证据、失败/重试历史；状态以事实更新 | 未发现完整实现 | 规范已有关系定义；需要正式模型、接口、持久化与测试 |
 | ME-015 | 本地运行日志与诊断 | 按类型记录操作、错误、耗时、结果与恢复信息；和项目文件分开 | 待核实 | UI 文档定义 APS/ 运行数据位置；需检查现有日志代码并补真实证据，不以文档代替实现 |
 | ME-016 | 测试与验证证据 | 以测试、实际连接结果和必要的端到端证据核对功能状态 | 部分实现 | Conversation、Context、GitHub 有单元测试文件；每个业务闭环的测试覆盖与当前 Verify 状态需要逐项核对 |
+| ME-017 | Connection 基础抽象 | 提供连接稳定 ID 与类型；具体 Connector 通过连接身份解析，不把 Connection 当成实际资源 | 部分实现 | `connection/Connection.kt` 目前只定义 GITHUB、AI 两种类型；Local、File、API/Service 等通用类型尚未纳入该接口，需按模块施工时扩展，不提前一次性实现全部类型 |
+| ME-018 | Context Conversation Runtime 组装 | 校验 Context、Conversation 与 AI Connection 的归属关系，并解析对应 Connector / ConversationService | 部分实现 | `conversation/ContextConversationRuntime.kt` 已有组装边界及测试；当前 ConversationActivity 未使用该 Runtime，且没有真实 Provider，不能据此认定 Context 对话链已打通 |
 
 ---
 
@@ -184,6 +186,10 @@
 | FN-021 | ME-012 | depends_on | 系统权限与连接授权需要分层而不是混用 |
 | FN-023 | ME-015 | implements_through | 日志和诊断功能依赖运行日志机制 |
 | FN-023 | ME-016 | depends_on | 功能状态必须由对应测试或实际证据支撑 |
+| FN-008 | ME-017 | depends_on | AI Connection 需要稳定连接身份与类型 |
+| FN-009 | ME-018 | depends_on | Context 对话运行时需要校验 Context / Conversation / AI Connection 关系；真实 Provider 仍是独立缺口 |
+| FN-013 | ME-017 | depends_on | GitHub 连接实现使用统一 Connection 身份边界 |
+| FN-014 | ME-017 | depends_on | GitHub 资源读取通过 Connection / Connector 边界执行 |
 
 ---
 
