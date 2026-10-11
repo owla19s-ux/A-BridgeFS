@@ -1,6 +1,8 @@
 package com.abridgefs.app
 
 import android.app.AlertDialog
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.os.Bundle
 import android.text.InputType
 import android.view.ViewGroup
@@ -94,6 +96,11 @@ class AISettingsActivity : AppCompatActivity() {
         root.addView(status)
 
         root.addView(Button(this).apply {
+            text = "查看运行诊断日志"
+            setOnClickListener { showDiagnostics() }
+        }, buttonParams())
+
+        root.addView(Button(this).apply {
             text = "连接列表 / 切换连接"
             setOnClickListener { showProfiles() }
         }, buttonParams())
@@ -118,6 +125,29 @@ class AISettingsActivity : AppCompatActivity() {
             setOnClickListener { finish() }
         }, buttonParams())
         return ScrollView(this).apply { addView(root) }
+    }
+
+    private fun showDiagnostics() {
+        val logs = RuntimeDiagnostics.readRecentLogs(this)
+        val text = TextView(this).apply {
+            text = logs
+            textSize = 12f
+            setTextIsSelectable(true)
+            setPadding(dp(12), dp(8), dp(12), dp(8))
+        }
+        val scroll = ScrollView(this).apply {
+            addView(text)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("运行诊断日志")
+            .setView(scroll)
+            .setNeutralButton("复制日志") { _, _ ->
+                val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(ClipData.newPlainText("APS 诊断日志", logs))
+                Toast.makeText(this, "诊断日志已复制", Toast.LENGTH_SHORT).show()
+            }
+            .setPositiveButton("关闭", null)
+            .show()
     }
 
     private fun testChatConnection() {
