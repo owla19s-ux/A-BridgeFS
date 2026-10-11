@@ -51,6 +51,24 @@ class GitHubConversationReaderTest {
     }
 
     @Test
+    fun rejectsMalformedRepositoryAddressBeforeCallingApi() = runBlocking {
+        var apiCalled = false
+        val api = proxyApi { _, _ ->
+            apiCalled = true
+            Response.success(fileJson("content", "file"))
+        }
+        val rejected = runCatching {
+            GitHubConversationReader(api).readFile(
+                GitHubReadTarget("owner/repo/extra", "main"),
+                "README.md"
+            )
+        }.isFailure
+
+        assertTrue(rejected)
+        assertTrue(!apiCalled)
+    }
+
+    @Test
     fun rejectsNonFileAndOversizedContent() = runBlocking {
         val directoryApi = proxyApi { _, _ -> Response.success(fileJson("", "dir")) }
         val directoryRejected = runCatching {
