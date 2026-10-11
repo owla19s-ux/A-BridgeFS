@@ -59,7 +59,7 @@ class ConversationService(
                     contextId = conversation.contextId,
                     userText = additionalContext
                         ?.takeIf { it.isNotBlank() }
-                        ?.let { "$it\\n\\n用户问题：$userText" }
+                        ?.let { "$it\n\n用户问题：$userText" }
                         ?: userText,
                     modelId = conversation.aiModelId,
                     history = conversation.messages.map { message ->
