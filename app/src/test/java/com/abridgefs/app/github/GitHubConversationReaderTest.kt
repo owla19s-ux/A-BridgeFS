@@ -119,8 +119,11 @@ class GitHubConversationReaderTest {
                 (1..(GitHubConversationReader.MAX_FILES + 1)).map { "$it.txt" }
             )
         }.isFailure)
+        val largeApi = proxyApi { _, _ ->
+            Response.success(fileJson("x".repeat(40 * 1024), "file"))
+        }
         assertTrue(runCatching {
-            GitHubConversationReader(api, maxBytes = 40 * 1024).readFiles(
+            GitHubConversationReader(largeApi, maxBytes = 40 * 1024).readFiles(
                 GitHubReadTarget("owner/repo"),
                 listOf("a.txt", "b.txt")
             )
