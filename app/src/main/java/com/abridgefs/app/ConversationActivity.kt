@@ -470,12 +470,20 @@ class ConversationActivity : AppCompatActivity() {
             addView(branchField)
             addView(pathField)
         }
-        val dialog = AlertDialog.Builder(this)
+        val builder = AlertDialog.Builder(this)
             .setTitle("GitHub 只读")
             .setView(ScrollView(this).apply { addView(form) })
             .setNegativeButton("取消", null)
             .setPositiveButton("验证并读取", null)
-            .create()
+        if (savedCredential != null) {
+            builder.setNeutralButton("清除已保存令牌") { _, _ ->
+                githubCredentialStore.clear()
+                pendingGitHubContext = null
+                requestStatus.text = "已清除本机保存的 GitHub 凭证"
+                toast("已清除本机保存的 GitHub 令牌")
+            }
+        }
+        val dialog = builder.create()
         dialog.setOnShowListener {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val token = tokenField.text.toString().trim()
