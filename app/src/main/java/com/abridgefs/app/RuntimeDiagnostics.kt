@@ -96,7 +96,7 @@ object RuntimeDiagnostics {
             synchronized(lock) {
                 val directory = File(context.filesDir, LOG_DIRECTORY)
                 if (!directory.exists() && !directory.mkdirs()) return
-                val file = File(directory, "aps-\${fileDate()}.log")
+                val file = File(directory, "aps-" + fileDate() + ".log")
                 FileWriter(file, true).buffered().use { writer ->
                     writer.append(line)
                     writer.newLine()
