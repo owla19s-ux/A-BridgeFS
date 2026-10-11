@@ -1,5 +1,6 @@
 package com.abridgefs.app.ai
 
+import com.abridgefs.app.RuntimeDiagnostics
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import kotlinx.coroutines.Dispatchers
@@ -53,23 +54,34 @@ class OpenAICompatibleConnector(
 
         val call = client.newCall(httpRequest)
         check(activeCall.compareAndSet(null, call)) { "已有 AI 请求正在执行" }
+        val startedAt = System.nanoTime()
+        RuntimeDiagnostics.record("api.chat.request", "started")
         try {
-            call.execute().use { response ->
-            val body = response.body?.string().orEmpty()
-            if (!response.isSuccessful) {
-                throw IOException("AI API 请求失败（HTTP ${response.code}）：${safeError(body)}")
-            }
-            val root = runCatching { com.google.gson.JsonParser.parseString(body).asJsonObject }
-                .getOrElse { throw IOException("AI API 返回了无法解析的 JSON") }
-            val content = runCatching {
-                root.getAsJsonArray("choices")
-                    .get(0).asJsonObject
-                    .getAsJsonObject("message")
-                    .get("content").asString
-            }.getOrNull()?.takeIf { it.isNotBlank() }
-                ?: throw IOException("AI API 响应中没有可用的 choices[0].message.content")
+            val result = call.execute().use { response ->
+                val body = response.body?.string().orEmpty()
+                if (!response.isSuccessful) {
+                    throw IOException("AI API 请求失败（HTTP ${response.code}）：${safeError(body)}")
+                }
+                val root = runCatching { com.google.gson.JsonParser.parseString(body).asJsonObject }
+                    .getOrElse { throw IOException("AI API 返回了无法解析的 JSON") }
+                val content = runCatching {
+                    root.getAsJsonArray("choices")
+                        .get(0).asJsonObject
+                        .getAsJsonObject("message")
+                        .get("content").asString
+                }.getOrNull()?.takeIf { it.isNotBlank() }
+                    ?: throw IOException("AI API 响应中没有可用的 choices[0].message.content")
                 AIResponse(content)
             }
+            RuntimeDiagnostics.recordApiEvent(
+                "api.chat.request", "success", (System.nanoTime() - startedAt) / 1_000_000
+            )
+            result
+        } catch (error: Exception) {
+            RuntimeDiagnostics.recordApiEvent(
+                "api.chat.request", "failed", (System.nanoTime() - startedAt) / 1_000_000, error
+            )
+            throw error
         } finally {
             activeCall.compareAndSet(call, null)
         }
@@ -103,8 +115,10 @@ class OpenAICompatibleConnector(
             .build()
         val call = client.newCall(httpRequest)
         check(activeCall.compareAndSet(null, call)) { "已有 AI 请求正在执行" }
+        val startedAt = System.nanoTime()
+        RuntimeDiagnostics.record("api.chat.stream", "started")
         try {
-            call.execute().use { response ->
+            val responseResult = call.execute().use { response ->
                 if (!response.isSuccessful) {
                     val body = response.body?.string().orEmpty()
                     throw IOException("AI API 流式请求失败（HTTP ${response.code}）：${safeError(body)}")
@@ -131,6 +145,15 @@ class OpenAICompatibleConnector(
                 if (result.isEmpty()) throw IOException("AI API 流式响应中没有可用文本")
                 AIResponse(result.toString())
             }
+            RuntimeDiagnostics.recordApiEvent(
+                "api.chat.stream", "success", (System.nanoTime() - startedAt) / 1_000_000
+            )
+            responseResult
+        } catch (error: Exception) {
+            RuntimeDiagnostics.recordApiEvent(
+                "api.chat.stream", "failed", (System.nanoTime() - startedAt) / 1_000_000, error
+            )
+            throw error
         } finally {
             activeCall.compareAndSet(call, null)
         }
@@ -145,22 +168,35 @@ class OpenAICompatibleConnector(
 
     /** Fetches the provider's model catalog. The user still chooses and saves a model explicitly. */
     suspend fun listModels(): List<String> = withContext(Dispatchers.IO) {
-        val request = Request.Builder()
-            .url(endpoint("models"))
-            .header("Authorization", "Bearer ${profile.apiKey}")
-            .get()
-            .build()
-        client.newCall(request).execute().use { response ->
-            val body = response.body?.string().orEmpty()
-            if (!response.isSuccessful) {
-                throw IOException("获取模型列表失败（HTTP ${response.code}）：${safeError(body)}")
+        val startedAt = System.nanoTime()
+        RuntimeDiagnostics.record("api.models.list", "started")
+        try {
+            val request = Request.Builder()
+                .url(endpoint("models"))
+                .header("Authorization", "Bearer ${profile.apiKey}")
+                .get()
+                .build()
+            val models = client.newCall(request).execute().use { response ->
+                val body = response.body?.string().orEmpty()
+                if (!response.isSuccessful) {
+                    throw IOException("获取模型列表失败（HTTP ${response.code}）：${safeError(body)}")
+                }
+                val root = runCatching { com.google.gson.JsonParser.parseString(body).asJsonObject }
+                    .getOrElse { throw IOException("模型列表返回了无法解析的 JSON") }
+                val data = root.getAsJsonArray("data") ?: return@use emptyList()
+                data.mapNotNull { item ->
+                    runCatching { item.asJsonObject.get("id")?.asString }.getOrNull()
+                }.filter { it.isNotBlank() }.distinct().sorted()
             }
-            val root = runCatching { com.google.gson.JsonParser.parseString(body).asJsonObject }
-                .getOrElse { throw IOException("模型列表返回了无法解析的 JSON") }
-            val data = root.getAsJsonArray("data") ?: return@withContext emptyList()
-            data.mapNotNull { item ->
-                runCatching { item.asJsonObject.get("id")?.asString }.getOrNull()
-            }.filter { it.isNotBlank() }.distinct().sorted()
+            RuntimeDiagnostics.recordApiEvent(
+                "api.models.list", "success", (System.nanoTime() - startedAt) / 1_000_000
+            )
+            models
+        } catch (error: Exception) {
+            RuntimeDiagnostics.recordApiEvent(
+                "api.models.list", "failed", (System.nanoTime() - startedAt) / 1_000_000, error
+            )
+            throw error
         }
     }
 

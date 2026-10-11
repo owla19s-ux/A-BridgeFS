@@ -1,5 +1,6 @@
 package com.abridgefs.app.conversation
 
+import com.abridgefs.app.RuntimeDiagnostics
 import com.abridgefs.app.ai.AIConnector
 import com.abridgefs.app.ai.AIMessage
 import com.abridgefs.app.ai.AIRequest
@@ -45,25 +46,41 @@ class ConversationService(
         store: ConversationStoreApi,
         onDelta: (String) -> Unit = {}
     ): Conversation {
-        val withUserMessage = conversation.addMessage(Message(Message.Role.USER, userText))
-        store.saveConversation(withUserMessage)
+        val startedAt = System.nanoTime()
+        RuntimeDiagnostics.record("conversation.send", "started")
+        try {
+            val withUserMessage = conversation.addMessage(Message(Message.Role.USER, userText))
+            store.saveConversation(withUserMessage)
+            RuntimeDiagnostics.record("conversation.user_message.save", "success")
 
-        val response = connector.sendStreaming(
-            AIRequest(
-                contextId = conversation.contextId,
-                userText = userText,
-                modelId = conversation.aiModelId,
-                history = conversation.messages.map { message ->
-                    AIMessage(
-                        role = if (message.role == Message.Role.USER) AIMessage.Role.USER else AIMessage.Role.ASSISTANT,
-                        content = message.text
-                    )
-                }
-            ),
-            onDelta = onDelta
-        )
-        val completed = withUserMessage.addMessage(Message(Message.Role.AI, response.text))
-        store.saveConversation(completed)
-        return completed
+            val response = connector.sendStreaming(
+                AIRequest(
+                    contextId = conversation.contextId,
+                    userText = userText,
+                    modelId = conversation.aiModelId,
+                    history = conversation.messages.map { message ->
+                        AIMessage(
+                            role = if (message.role == Message.Role.USER) AIMessage.Role.USER else AIMessage.Role.ASSISTANT,
+                            content = message.text
+                        )
+                    }
+                ),
+                onDelta = onDelta
+            )
+            val completed = withUserMessage.addMessage(Message(Message.Role.AI, response.text))
+            store.saveConversation(completed)
+            RuntimeDiagnostics.record(
+                "conversation.send", "success",
+                durationMs = (System.nanoTime() - startedAt) / 1_000_000
+            )
+            return completed
+        } catch (error: Exception) {
+            RuntimeDiagnostics.record(
+                "conversation.send", "failed",
+                durationMs = (System.nanoTime() - startedAt) / 1_000_000,
+                errorType = error.javaClass.simpleName
+            )
+            throw error
+        }
     }
 }
