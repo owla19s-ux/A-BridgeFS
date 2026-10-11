@@ -473,6 +473,17 @@ class ConversationActivity : AppCompatActivity() {
             addView(repositoryField)
             addView(branchField)
             addView(pathField)
+            addView(Button(this@ConversationActivity).apply {
+                text = "浏览仓库目录"
+                setOnClickListener {
+                    browseGitHubRepository(
+                        tokenField.text.toString(),
+                        repositoryField.text.toString(),
+                        branchField.text.toString().trim().ifBlank { null },
+                        pathField
+                    )
+                }
+            })
         }
         val builder = AlertDialog.Builder(this)
             .setTitle("GitHub 只读")
@@ -565,6 +576,125 @@ class ConversationActivity : AppCompatActivity() {
             }
         }
         dialog.show()
+    }
+
+    private fun browseGitHubRepository(
+        enteredToken: String,
+        repository: String,
+        branch: String?,
+        pathField: EditText
+    ) {
+        val token = enteredToken.trim().ifBlank { githubCredentialStore.load()?.accessToken.orEmpty() }
+        if (token.isBlank()) {
+            toast("请先输入 GitHub 令牌或保存令牌")
+            return
+        }
+        val target = runCatching { GitHubReadTarget(repository.trim(), branch) }
+            .getOrElse {
+                toast(it.message ?: "请先填写有效的 owner/name")
+                return
+            }
+        requestStatus.text = "正在验证 GitHub 并读取仓库目录……"
+        Thread {
+            val result = runCatching {
+                val api = GitHubApiFactory.create(token)
+                val verification = kotlinx.coroutines.runBlocking { GitHubCredentialVerifier(api).verify() }
+                githubCredentialStore.save(GitHubCredential(verification.login, token))
+                githubReadConfigStore.save(target)
+                val entries = kotlinx.coroutines.runBlocking {
+                    GitHubConversationReader(api).listDirectory(target)
+                }
+                api to entries
+            }
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                result.onSuccess { (api, entries) ->
+                    requestStatus.text = "GitHub 仓库目录已连接"
+                    showGitHubDirectory(api, target, "", entries, pathField)
+                }.onFailure { error ->
+                    requestStatus.text = "GitHub 目录读取失败"
+                    toast("GitHub 目录读取失败：" + (error.message ?: error.javaClass.simpleName))
+                }
+            }
+        }.start()
+    }
+
+    private fun loadGitHubDirectory(
+        api: com.abridgefs.app.github.api.GitHubApi,
+        target: GitHubReadTarget,
+        path: String,
+        pathField: EditText
+    ) {
+        Thread {
+            val result = runCatching {
+                kotlinx.coroutines.runBlocking {
+                    GitHubConversationReader(api).listDirectory(target, path.ifBlank { null })
+                }
+            }
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                result.onSuccess { entries ->
+                    showGitHubDirectory(api, target, path, entries, pathField)
+                }.onFailure { error ->
+                    AlertDialog.Builder(this)
+                        .setTitle("目录读取失败")
+                        .setMessage(error.message ?: error.javaClass.simpleName)
+                        .setPositiveButton("返回", null)
+                        .show()
+                }
+            }
+        }.start()
+    }
+
+    private fun showGitHubDirectory(
+        api: com.abridgefs.app.github.api.GitHubApi,
+        target: GitHubReadTarget,
+        directoryPath: String,
+        entries: List<com.abridgefs.app.github.GitHubReadEntry>,
+        pathField: EditText
+    ) {
+        val labels = entries.map {
+            (if (it.isDirectory) "[目录] " else "[文件] ") + it.name
+        }.toTypedArray()
+        val title = if (directoryPath.isBlank()) {
+            "${target.repository} · 仓库根目录"
+        } else {
+            "${target.repository} · /$directoryPath"
+        }
+        val builder = AlertDialog.Builder(this)
+            .setTitle(title)
+            .setItems(labels) { _, index ->
+                val entry = entries[index]
+                if (entry.isDirectory) {
+                    loadGitHubDirectory(api, target, entry.path, pathField)
+                } else {
+                    val selected = pathField.text.toString().lineSequence()
+                        .map { it.trim() }
+                        .filter { it.isNotBlank() }
+                        .toMutableList()
+                    when {
+                        entry.path in selected -> toast("该文件路径已经添加")
+                        selected.size >= GitHubConversationReader.MAX_FILES ->
+                            toast("单次最多选择 ${GitHubConversationReader.MAX_FILES} 个文件")
+                        else -> {
+                            selected.add(entry.path)
+                            pathField.setText(selected.joinToString("\n"))
+                            pathField.setSelection(pathField.text.length)
+                            toast("已添加：${entry.path}")
+                        }
+                    }
+                    showGitHubDirectory(api, target, directoryPath, entries, pathField)
+                }
+            }
+            .setNegativeButton("完成", null)
+        if (directoryPath.isNotBlank()) {
+            val parent = directoryPath.substringBeforeLast('/', "")
+            builder.setNeutralButton("上级目录") { _, _ ->
+                loadGitHubDirectory(api, target, parent, pathField)
+            }
+        }
+        if (entries.isEmpty()) builder.setMessage("此目录没有可显示的文件或子目录")
+        builder.show()
     }
 
     private fun openLocalFiles() {
