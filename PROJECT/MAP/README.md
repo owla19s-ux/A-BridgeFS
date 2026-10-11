@@ -49,7 +49,7 @@
 | UI-008 | UI-006 | Address / Resource 区域 | 管理多个地址；选择资源；区分位置与实际内容 | FN-004,FN-011 | 已确认 | 部分实现：Context 目前可关联 GitHub ResourceRef；通用 Address 与 Local/File Resource 尚未发现 |
 | UI-009 | UI-006 | 连接与权限区域 | 选择 Context 可用连接并管理资源操作授权 | FN-022,FN-011,FN-020 | 已确认 | 部分实现：GitHub Connection 装配/写权限边界有代码；通用授权与 UI 未发现 |
 | UI-010 | UI-006 | 软件开发结构 | 结构树、施工表、验证视图；用户确认 UI 方案 | FN-017,FN-018,FN-019 | 已确认 | 未发现对应结构数据模型和 UI 实现 |
-| UI-011 | UI-001 | 普通对话页 | 独立对话，不强制关联 Context | FN-005,FN-006,FN-007,FN-008,FN-009 | 已确认 | 部分实现：ConversationActivity 存在并作为 Launcher；调用仍使用固定占位 Connector |
+| UI-011 | UI-001 | 普通对话页 | 独立对话，不强制关联 Context | FN-005,FN-006,FN-007,FN-008,FN-009,FN-013,FN-014 | 已确认 | 部分实现：ConversationActivity 是 Launcher，真实 AI 对话与本地文件入口已接入；新增 GitHub 只读文件入口，CI 已通过，真实设备端到端仍待验收 |
 | UI-012 | UI-011 | 对话分组 | 新建、重命名、删除分组；移动对话 | FN-006 | 已确认 | 已实现待验证：Activity 已接入分组筛选、新建/重命名/删除分组及移动对话入口；CI 已通过，仍需设备交互验收 |
 | UI-013 | UI-011 | 对话管理列表 | 新建、查看、切换、重命名、删除对话 | FN-005,FN-007 | 已确认 | 已实现待验证：Activity 已接入新建/切换/重命名/删除；保存失败边界与设备交互仍待验收 |
 | UI-014 | UI-011 | 消息与输入区 | 展示消息、输入、发送、显示调用状态 | FN-007,FN-009 | 已确认 | 部分实现：基础消息与发送 UI 存在；错误/取消/流式状态处理未发现完整实现 |
@@ -59,10 +59,11 @@
 | UI-018 | UI-001 | 设置页 | 连接与服务、权限、验证、系统 | FN-021,FN-022,FN-023 | 已确认 | 未发现页面实现 |
 | UI-019 | UI-018 | 连接与服务 | 添加、编辑、测试、启停各类连接 | FN-022 | 已确认 | 未发现统一设置 UI |
 | UI-020 | UI-019 | AI / API 配置 | 配置服务地址、认证、模型列表与默认模型 | FN-008 | 已确认 | 部分实现：AISettingsActivity 支持地址、API Key、模型目录、保存/删除；当前仅一个默认 Profile，统一设置入口与连接状态持久展示仍待补齐 |
-| UI-021 | UI-019 | GitHub 配置 | 凭证管理、验证、仓库/分支选择与测试 | FN-013,FN-014,FN-015,FN-016 | 已确认 | 代码存在未接 UI：认证、验证、Connector/API 组件存在；设置 UI 未发现 |
+| UI-021 | UI-019 | GitHub 配置 | 凭证管理、验证、仓库/分支选择与测试 | FN-013,FN-014,FN-015,FN-016 | 已确认 | 部分实现：普通对话页可验证凭证、加密保存令牌并选择仓库/分支/文件执行只读；全局连接设置、写入与 Actions 管理 UI 仍未接入 |
 | UI-022 | UI-019 | Local / File 配置 | 选择本地目录、授权读写、测试访问 | FN-012,FN-022 | 已确认 | 未发现 Local/File Connector 与设置 UI |
 | UI-023 | UI-018 | 系统权限与系统选项 | Android 权限、通知、后台及其他通用选项 | FN-021,FN-023 | 需细化 | 未发现设置 UI |
 | UI-024 | UI-018 | 验证能力 | 查看各连接支持的验证方式及其状态 | FN-019,FN-023 | 已确认 | 未发现统一验证设置实现；第一阶段不要求复杂通用自动验证 |
+| UI-025 | UI-011 | GitHub 只读文件入口 | 验证 GitHub 凭证，选择仓库/分支/文件，将文件作为下一条 AI 请求的一次性上下文 | FN-013,FN-014 | 已确认 | 已接入 ConversationActivity；单文件 UTF-8 文本、32 KiB 上限、只读；Android Tests #495 通过，真实设备链路待验收 |
 
 ---
 
@@ -84,8 +85,8 @@
 | FN-010 | AI 头像显示 | AI 连接可配置头像；对话标题/消息区按设计显示 | 已确认 | 部分实现 | AIConnection.avatar 字段存在；头像 UI/资源解析未发现 |
 | FN-011 | 连接选择与资料引用 | 用户明确选择资源；区分读取、生成、写入；遵守授权 | 已确认 | 未实现 | 未发现通用资源选择与连接调度 UI/链路 |
 | FN-012 | Local / File 文件读写 | 选择已授权目录；读取、修改、保存；返回实际结果；失败不伪报成功 | 已确认 | 未实现 | 未发现 Local/File Connector |
-| FN-013 | GitHub 凭证与连接验证 | 安全保存凭证；验证身份及仓库访问；明确报告失败 | 已确认 | 代码存在未接 UI | GitHubCredentialStore、GitHubCredentialVerifier 与测试存在；UI 未接入 |
-| FN-014 | GitHub 仓库资源读取 | 仓库/分支/提交/文件读取；支持按需并发读取并返回真实响应 | 已确认 | 代码存在未接 UI | GitHubApi、GitHubConnector、GitHubConcurrentReader 存在；未发现 UI 集成 |
+| FN-013 | GitHub 凭证与连接验证 | 安全保存凭证；验证身份及仓库访问；明确报告失败 | 已确认 | 部分实现 | 普通对话页可验证 GitHub 身份并通过 GitHubCredentialStore 加密保存令牌；全局连接管理 UI、凭证清除入口及设备端验收仍待补 |
+| FN-014 | GitHub 仓库资源读取 | 仓库/分支/提交/文件读取；支持按需并发读取并返回真实响应 | 已确认 | 部分实现 | GitHubApi/Connector/ConcurrentReader 已存在；普通对话页已接入独立于 Context 的单文件只读路径，并限制 UTF-8 文本为 32 KiB，将内容仅注入下一条 AI 请求；仓库浏览、多文件快照 UI、真实设备链路仍待验收 |
 | FN-015 | GitHub 写操作 | 明确授权后写文件或触发操作；默认拒绝未授权写入；记录实际返回 | 已确认 | 部分实现 | GitHubWritePolicy 默认 disabled；writeFile/dispatchWorkflow 有权限守卫；用户操作入口、写入后验证待接 |
 | FN-016 | GitHub Actions / 验证结果 | 查询 workflow runs、单次 run、artifacts；支持授权触发 workflow | 已确认 | 部分实现 | GitHub Connector/API 有查询与 dispatch 组件；结果解释、证据绑定、UI 未发现 |
 | FN-017 | 软件开发结构 | 维护 UI/功能/架构/施工点等节点，支持结构、施工、验证视图 | 已确认 | 未实现 | 当前主要存在规范文档；未发现对应实际数据模型/视图 |
@@ -107,12 +108,12 @@
 | ME-001 | 稳定 ID、父子关系与关系边 | 分离对象身份、树形归属、跨对象映射；关系不能从 ID 字符串推导 | 设计已明确，运行实现未发现 | `PROJECT/UI/README.md` 定义规则；实际通用节点/边存储待建 |
 | ME-002 | Context Store | 保存/加载/删除 Context；唯一维护 Context 本身状态 | 部分实现 | `context/Context.kt`、`context/ContextStore.kt`；目前 Context Resource 类型覆盖不足，且 Store 测试/错误恢复需补核 |
 | ME-003 | Conversation Store | 对话/消息/分组持久化；分组与对话记录分离；移动和删除边界清晰 | 部分实现 | `conversation/ConversationStore.kt` 使用 SharedPreferences + JSON；大数据量、迁移、写入失败保障需后续评估 |
-| ME-004 | Conversation Service | 把用户消息、AI 调用、响应消息和保存组合起来 | 部分实现 | `ConversationService.kt`、相关测试；完整错误/取消路径及失败前消息保存需补齐 |
+| ME-004 | Conversation Service | 把用户消息、AI 调用、响应消息和保存组合起来 | 部分实现 | `ConversationService.kt`、相关测试；用户消息先保存；可把显式选择的 GitHub 文件作为一次性 AI 请求上下文传入，但不写入对话消息；错误/取消边界仍需设备验收 |
 | ME-005 | AI Connector 抽象与 Registry | 将连接 ID 解析为可调用 Connector；不把抽象层误认为具体 Provider | 部分实现 | `ai/AIConnector.kt`、`AIConnectorRegistry.kt` 与 `OpenAICompatibleConnector.kt`；抽象、Registry 和一种兼容 Provider 已存在，其他 Provider 与多连接注册仍待扩展 |
 | ME-006 | API Profile、模型目录与密钥管理 | 维护多个端点、认证、模型与默认连接；密钥安全保存；连接与模型选择可分别调整 | 部分实现 | `AIProfile.kt`、`AIProfileStore.kt`、`AISettingsActivity.kt`；已加入多 Profile 存储、默认连接选择和旧单 Profile 迁移；保存/删除/清空按原始元数据与密钥条目分离处理，避免密钥解密失败时静默丢失其他连接配置；仍需验证迁移/密钥隔离，并补连接测试结果、模型能力和请求参数管理 |
-| ME-007 | GitHub REST API 与 Connector | 封装账号、仓库、分支、提交、内容、Actions 等远端调用 | 代码存在 | `github/api/GitHubApi.kt`、`GitHubConnector.kt`、对应 Factory；需持续补齐失败状态、速率限制和 UI 集成验证 |
-| ME-008 | GitHub 凭证加密与验证 | 凭证加密保存、加载/清除；验证 GitHub 身份与仓库访问 | 代码存在 | `GitHubCredentialStore.kt`、`GitHubCredentialVerifier.kt` 及相应测试；端到端设置流程未接 UI |
-| ME-009 | GitHub Resource 映射与并发读取 | Context 资源转 GitHub Connection；并发拉取仓库、分支、提交、文件快照 | 代码存在 | `GitHubConnectionFactory.kt`、`GitHubConcurrentReader.kt`；Resource 地址冲突及错误项处理需按实际场景验证 |
+| ME-007 | GitHub REST API 与 Connector | 封装账号、仓库、分支、提交、内容、Actions 等远端调用 | 部分实现 | `github/api/GitHubApi.kt`、`GitHubConnector.kt`、`GitHubConversationReader.kt` 与对应 Factory；普通对话只读文件调用已接入，仓库浏览、速率限制与更完整错误处理仍待补齐 |
+| ME-008 | GitHub 凭证加密与验证 | 凭证加密保存、加载/清除；验证 GitHub 身份与仓库访问 | 部分实现 | `GitHubCredentialStore.kt`、`GitHubCredentialVerifier.kt` 已由普通对话页只读入口调用；令牌加密存储，设备级凭证轮换/清除流程和端到端授权仍待验收 |
+| ME-009 | GitHub Resource 映射与并发读取 | Context 资源转 GitHub Connection；并发拉取仓库、分支、提交、文件快照 | 部分实现 | `GitHubConnectionFactory.kt`、`GitHubConcurrentReader.kt` 继续支持 Context 资源链；`GitHubConversationReader.kt` 增加独立对话单文件读取，路径校验、Base64/UTF-8 解码、二进制拒绝与 32 KiB 上限有单测；仓库资源映射和真实设备行为仍待验证 |
 | ME-010 | GitHub 写入权限守卫 | 远端写操作必须经过明确授权，默认关闭 | 部分实现 | `GitHubConnector.kt` 的 GitHubWritePolicy 默认 disabled，并守卫写文件/触发 workflow；授权配置和审计记录未接入 |
 | ME-011 | Local / File Connector | 选择本地资源、授权、读写、冲突检测与失败恢复 | 部分实现 | `local/LocalConnection.kt`、`LocalConnectionStore.kt`、`LocalFileConnector.kt`、`AndroidLocalDocumentGateway.kt` 已支持 SAF 文档树列目录、文本读取/写入、连接级读写开关和 2 MiB 限制；普通对话页已接目录选择、文件浏览、编辑与显式保存入口。编辑器保存时将打开文件时的原始内容传入 Connector，写入前比对当前内容，发现外部修改则取消保存并提示冲突；保存失败或冲突时编辑器保持打开，避免未保存文本因对话框自动关闭而丢失。随后再次检查以缩小检查与写入之间的竞态。写入后回读校验字节一致性，异常或校验不一致时通过 `LocalWriteRecovery` 尝试恢复；单测覆盖写入失败恢复、恢复失败、成功路径及过期编辑快照冲突。该机制不是原子保存，检查与写入之间仍有竞态，跨 Provider 行为及真实设备故障仍待验证；Context 工作面复用，以及显式冲突解决界面仍待补；目录列表、文件读取和保存失败时已提供重新选择目录引导。重新选择目录不会自动将旧文件映射到新目录，需重新打开目标文件；保存失败或冲突时编辑器保留当前文本 |
 | ME-012 | 通用 Connection 授权机制 | 把 Android 系统授权、Connection 访问授权、AI Code 策略分层判断 | 未发现完整实现 | GitHub 存在局部写策略；统一授权对象、授权检查入口与撤销/过期流程待设计 |
