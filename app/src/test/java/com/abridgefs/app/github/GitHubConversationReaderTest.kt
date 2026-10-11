@@ -87,6 +87,46 @@ class GitHubConversationReaderTest {
         assertTrue(largeRejected)
     }
 
+    @Test
+    fun readsSeveralFilesWithinCountAndAggregateLimits() = runBlocking {
+        val api = proxyApi { method, args ->
+            if (method.name == "file") {
+                val path = args[2].toString()
+                Response.success(fileJson("content:$path", "file"))
+            } else null
+        }
+
+        val files = GitHubConversationReader(api).readFiles(
+            GitHubReadTarget("owner/repo", "main"),
+            listOf("README.md", "docs/STATUS.md")
+        )
+
+        assertEquals(listOf("README.md", "docs/STATUS.md"), files.map { it.path })
+        assertEquals(listOf("content:README.md", "content:docs/STATUS.md"), files.map { it.text })
+    }
+
+    @Test
+    fun rejectsDuplicateTooManyAndAggregateOversizedFileSelections() = runBlocking {
+        val api = proxyApi { _, _ -> Response.success(fileJson("123456", "file")) }
+        val reader = GitHubConversationReader(api, maxBytes = 6)
+
+        assertTrue(runCatching {
+            reader.readFiles(GitHubReadTarget("owner/repo"), listOf("a.txt", "a.txt"))
+        }.isFailure)
+        assertTrue(runCatching {
+            reader.readFiles(
+                GitHubReadTarget("owner/repo"),
+                (1..(GitHubConversationReader.MAX_FILES + 1)).map { "$it.txt" }
+            )
+        }.isFailure)
+        assertTrue(runCatching {
+            GitHubConversationReader(api, maxBytes = 40 * 1024).readFiles(
+                GitHubReadTarget("owner/repo"),
+                listOf("a.txt", "b.txt")
+            )
+        }.isFailure)
+    }
+
     private fun fileJson(text: String, type: String): JsonObject = JsonObject().apply {
         addProperty("type", type)
         addProperty("encoding", "base64")
