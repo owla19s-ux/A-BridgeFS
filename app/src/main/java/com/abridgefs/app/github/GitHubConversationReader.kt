@@ -31,6 +31,22 @@ class GitHubConversationReader(
     private val api: GitHubApi,
     private val maxBytes: Int = DEFAULT_MAX_BYTES
 ) {
+    suspend fun readFiles(target: GitHubReadTarget, paths: List<String>): List<GitHubReadFile> {
+        val selectedPaths = paths.map { it.trim() }
+        require(selectedPaths.isNotEmpty()) { "至少指定一个 GitHub 文件路径" }
+        require(selectedPaths.size <= MAX_FILES) { "单次最多读取 ${MAX_FILES} 个文件" }
+        require(selectedPaths.all { it.isNotBlank() }) { "文件路径不能为空" }
+        require(selectedPaths.distinct().size == selectedPaths.size) { "文件路径不能重复" }
+
+        // Read sequentially to avoid bursting requests against GitHub's rate limits.
+        val files = selectedPaths.map { path -> readFile(target, path) }
+        val totalBytes = files.sumOf { it.text.toByteArray(StandardCharsets.UTF_8).size }
+        require(totalBytes <= MAX_TOTAL_BYTES) {
+            "文件总内容超过 ${MAX_TOTAL_BYTES / 1024} KiB，请减少文件数量或选择更小的文件"
+        }
+        return files
+    }
+
     suspend fun readFile(target: GitHubReadTarget, path: String): GitHubReadFile {
         val address = GitHubAddress(target.repository, target.branch?.trim()?.ifBlank { null })
         val safePath = path.trim()
@@ -60,5 +76,7 @@ class GitHubConversationReader(
 
     companion object {
         const val DEFAULT_MAX_BYTES = 32 * 1024
+        const val MAX_FILES = 5
+        const val MAX_TOTAL_BYTES = 64 * 1024
     }
 }
