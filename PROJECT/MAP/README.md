@@ -86,7 +86,7 @@
 | FN-011 | 连接选择与资料引用 | 用户明确选择资源；区分读取、生成、写入；遵守授权 | 已确认 | 未实现 | 未发现通用资源选择与连接调度 UI/链路 |
 | FN-012 | Local / File 文件读写 | 选择已授权目录；读取、修改、保存；返回实际结果；失败不伪报成功 | 已确认 | 未实现 | 未发现 Local/File Connector |
 | FN-013 | GitHub 凭证与连接验证 | 安全保存凭证；验证身份及仓库访问；明确报告失败 | 已确认 | 部分实现 | 普通对话页可验证 GitHub 身份并通过 GitHubCredentialStore 加密保存令牌；全局连接管理 UI、凭证清除入口及设备端验收仍待补 |
-| FN-014 | GitHub 仓库资源读取 | 仓库/分支/提交/文件读取；支持按需并发读取并返回真实响应 | 已确认 | 部分实现 | GitHubApi/Connector/ConcurrentReader 已存在；普通对话页已接入独立于 Context 的多文件只读路径（每次最多 5 个文件、单文件 32 KiB、总内容 64 KiB），顺序读取 UTF-8 文本并仅注入下一条 AI 请求；仓库目录浏览、真实设备链路仍待验收 |
+| FN-014 | GitHub 仓库资源读取 | 仓库/分支/提交/文件读取；支持按需并发读取并返回真实响应 | 已确认 | 部分实现 | GitHubApi/Connector/ConcurrentReader 已存在；普通对话页已接入独立于 Context 的多文件只读路径（每次最多 5 个文件、单文件 32 KiB、总内容 64 KiB），顺序读取 UTF-8 文本并仅注入下一条 AI 请求；仓库目录浏览入口已接入并待 CI 验证，真实设备链路仍待验收 |
 | FN-015 | GitHub 写操作 | 明确授权后写文件或触发操作；默认拒绝未授权写入；记录实际返回 | 已确认 | 部分实现 | GitHubWritePolicy 默认 disabled；writeFile/dispatchWorkflow 有权限守卫；用户操作入口、写入后验证待接 |
 | FN-016 | GitHub Actions / 验证结果 | 查询 workflow runs、单次 run、artifacts；支持授权触发 workflow | 已确认 | 部分实现 | GitHub Connector/API 有查询与 dispatch 组件；结果解释、证据绑定、UI 未发现 |
 | FN-017 | 软件开发结构 | 维护 UI/功能/架构/施工点等节点，支持结构、施工、验证视图 | 已确认 | 未实现 | 当前主要存在规范文档；未发现对应实际数据模型/视图 |
