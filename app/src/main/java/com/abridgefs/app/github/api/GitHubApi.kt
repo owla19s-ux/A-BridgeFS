@@ -15,6 +15,8 @@ interface GitHubApi {
     @GET("repos/{owner}/{repo}") suspend fun repository(@Path("owner") owner: String, @Path("repo") repo: String): Response<JsonObject>
     @GET("repos/{owner}/{repo}/branches") suspend fun branches(@Path("owner") owner: String, @Path("repo") repo: String): Response<List<JsonObject>>
     @GET("repos/{owner}/{repo}/branches/{branch}") suspend fun branch(@Path("owner") owner: String, @Path("repo") repo: String, @Path("branch") branch: String): Response<JsonObject>
+    @GET("repos/{owner}/{repo}/contents") suspend fun rootContents(@Path("owner") owner: String, @Path("repo") repo: String, @Query("ref") ref: String? = null): Response<List<JsonObject>>
+    @GET("repos/{owner}/{repo}/contents/{path}") suspend fun directoryContents(@Path("owner") owner: String, @Path("repo") repo: String, @Path("path", encoded = true) path: String, @Query("ref") ref: String? = null): Response<List<JsonObject>>
     @GET("repos/{owner}/{repo}/contents/{path}") suspend fun file(@Path("owner") owner: String, @Path("repo") repo: String, @Path("path", encoded = true) path: String, @Query("ref") ref: String? = null): Response<JsonObject>
     @GET("repos/{owner}/{repo}/commits/{ref}") suspend fun commit(@Path("owner") owner: String, @Path("repo") repo: String, @Path("ref") ref: String): Response<JsonObject>
     @GET("repos/{owner}/{repo}/actions/runs") suspend fun workflowRuns(@Path("owner") owner: String, @Path("repo") repo: String, @Query("branch") branch: String? = null, @Query("head_sha") headSha: String? = null, @Query("per_page") perPage: Int = 30): Response<JsonObject>

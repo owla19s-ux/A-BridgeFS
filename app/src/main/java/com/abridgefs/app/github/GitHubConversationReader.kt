@@ -26,11 +26,44 @@ data class GitHubReadFile(
     val text: String
 )
 
+data class GitHubReadEntry(
+    val name: String,
+    val path: String,
+    val isDirectory: Boolean
+)
+
 /** Read-only GitHub file reader for ordinary conversations, independent of a Context. */
 class GitHubConversationReader(
     private val api: GitHubApi,
     private val maxBytes: Int = DEFAULT_MAX_BYTES
 ) {
+    suspend fun listDirectory(target: GitHubReadTarget, path: String? = null): List<GitHubReadEntry> {
+        val address = GitHubAddress(target.repository, target.branch?.trim()?.ifBlank { null })
+        val safePath = path?.trim()?.ifBlank { null }
+        if (safePath != null) {
+            require(!safePath.startsWith("/") && safePath.split('/').none { it == ".." }) {
+                "GitHub 目录路径无效"
+            }
+            require(safePath.none { it.isISOControl() }) { "GitHub 目录路径包含无效字符" }
+        }
+        val response = if (safePath == null) {
+            api.rootContents(address.owner, address.repo, address.branch)
+        } else {
+            api.directoryContents(address.owner, address.repo, safePath, address.branch)
+        }
+        check(response.isSuccessful) { "GitHub 目录读取失败：HTTP ${response.code()}" }
+        val body = response.body() ?: error("GitHub 未返回目录内容")
+        return body.mapNotNull { item ->
+            val type = item.get("type")?.takeUnless { it.isJsonNull }?.asString
+            if (type != "file" && type != "dir") return@mapNotNull null
+            val name = item.get("name")?.takeUnless { it.isJsonNull }?.asString
+                ?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            val itemPath = item.get("path")?.takeUnless { it.isJsonNull }?.asString
+                ?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            GitHubReadEntry(name, itemPath, type == "dir")
+        }.sortedWith(compareBy<GitHubReadEntry> { !it.isDirectory }.thenBy { it.name.lowercase() })
+    }
+
     suspend fun readFiles(target: GitHubReadTarget, paths: List<String>): List<GitHubReadFile> {
         val selectedPaths = paths.map { it.trim() }
         require(selectedPaths.isNotEmpty()) { "至少指定一个 GitHub 文件路径" }

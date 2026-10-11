@@ -88,6 +88,54 @@ class GitHubConversationReaderTest {
     }
 
     @Test
+    fun listsDirectoryEntriesWithDirectoriesFirstAndIgnoresUnknownTypes() = runBlocking {
+        val api = proxyApi { method, _ ->
+            if (method.name == "rootContents") {
+                Response.success(listOf(
+                    JsonObject().apply {
+                        addProperty("name", "z-file.txt")
+                        addProperty("path", "z-file.txt")
+                        addProperty("type", "file")
+                    },
+                    JsonObject().apply {
+                        addProperty("name", "docs")
+                        addProperty("path", "docs")
+                        addProperty("type", "dir")
+                    },
+                    JsonObject().apply {
+                        addProperty("name", "ignored")
+                        addProperty("path", "ignored")
+                        addProperty("type", "symlink")
+                    }
+                ))
+            } else null
+        }
+
+        val entries = GitHubConversationReader(api).listDirectory(
+            GitHubReadTarget("owner/repo", "main")
+        )
+
+        assertEquals(listOf("docs", "z-file.txt"), entries.map { it.name })
+        assertEquals(listOf(true, false), entries.map { it.isDirectory })
+    }
+
+    @Test
+    fun rejectsDirectoryPathsThatEscapeRepository() = runBlocking {
+        var apiCalled = false
+        val api = proxyApi { _, _ ->
+            apiCalled = true
+            Response.success(emptyList<JsonObject>())
+        }
+        assertTrue(runCatching {
+            GitHubConversationReader(api).listDirectory(
+                GitHubReadTarget("owner/repo"),
+                "../outside"
+            )
+        }.isFailure)
+        assertTrue(!apiCalled)
+    }
+
+    @Test
     fun readsSeveralFilesWithinCountAndAggregateLimits() = runBlocking {
         val api = proxyApi { method, args ->
             if (method.name == "file") {
