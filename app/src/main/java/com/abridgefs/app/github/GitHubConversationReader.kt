@@ -7,7 +7,17 @@ import java.util.Base64
 data class GitHubReadTarget(
     val repository: String,
     val branch: String? = null
-)
+) {
+    init {
+        val parts = repository.trim().split('/')
+        require(parts.size == 2 && parts.all { it.isNotBlank() }) {
+            "GitHub Repository 格式应为 owner/name"
+        }
+        require(branch?.none { it.isISOControl() } != false) {
+            "GitHub Branch 包含无效字符"
+        }
+    }
+}
 
 data class GitHubReadFile(
     val repository: String,
