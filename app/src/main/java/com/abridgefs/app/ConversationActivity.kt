@@ -683,7 +683,7 @@ class ConversationActivity : AppCompatActivity() {
                             toast("已添加：${entry.path}")
                         }
                     }
-                    showGitHubDirectory(api, target, directoryPath, entries, pathField)
+                    pathField.post { showGitHubDirectory(api, target, directoryPath, entries, pathField) }
                 }
             }
             .setNegativeButton("完成", null)
