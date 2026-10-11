@@ -3,6 +3,10 @@ package com.abridgefs.app
 import android.content.Context
 import java.io.File
 import java.io.FileWriter
+import java.io.IOException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
+import java.io.InterruptedIOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -40,12 +44,21 @@ object RuntimeDiagnostics {
     ) {
         val httpStatus = error?.message
             ?.let { Regex("""HTTP\s+(\d{3})""").find(it)?.groupValues?.getOrNull(1) }
+        val failureCategory = when (error) {
+            null -> null
+            is SocketTimeoutException -> "timeout"
+            is UnknownHostException -> "dns_or_host"
+            is InterruptedIOException -> "timeout_or_cancelled"
+            is IOException -> if (httpStatus != null) "http_error" else "network_io"
+            else -> "unexpected_error"
+        }
         record(
             event = event,
             outcome = outcome,
             durationMs = durationMs,
             httpStatus = httpStatus,
-            errorType = error?.javaClass?.simpleName
+            errorType = error?.javaClass?.simpleName,
+            failureCategory = failureCategory
         )
     }
 
@@ -79,7 +92,8 @@ object RuntimeDiagnostics {
         outcome: String,
         durationMs: Long? = null,
         httpStatus: String? = null,
-        errorType: String? = null
+        errorType: String? = null,
+        failureCategory: String? = null
     ) {
         val safeEvent = safeLabel(event)
         val safeOutcome = safeLabel(outcome)
@@ -92,6 +106,7 @@ object RuntimeDiagnostics {
             httpStatus?.takeIf { it.matches(Regex("""\d{3}""")) }
                 ?.let { append(" http_status=").append(it) }
             errorType?.let { append(" error_type=").append(safeLabel(it)) }
+            failureCategory?.let { append(" failure_category=").append(safeLabel(it)) }
         }
         appendLineSafely(line)
     }
