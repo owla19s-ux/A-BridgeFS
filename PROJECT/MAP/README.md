@@ -94,7 +94,7 @@
 | FN-020 | AI Code 权限策略 | 普通对话页三级执行策略；同时受系统权限与 Connection 授权约束 | 已确认 | 未实现 | 未发现策略状态、执行守卫或对应 UI |
 | FN-021 | Android / APP 系统权限 | 处理运行所需系统授权，并与连接资源授权分离 | 需细化 | 待核实 | Manifest 当前可见声明较少；系统权限 UI/检查流程未发现 |
 | FN-022 | 通用 Connection 管理 | 统一列出连接，管理类型、启停、认证、测试与授权；不把 AI 固定为角色 | 已确认 | 部分实现 | Connection 接口及 AI/GitHub 组件存在；通用注册/配置/设置 UI 未发现 |
-| FN-023 | 运行日志、诊断与恢复 | 记录启动/运行异常、崩溃诊断线索、API 连接测试与请求失败类别、耗时和结果；与项目资料分离，凭证及敏感内容脱敏 | 已确认（最小范围） | 待核实 | 0.1.1 必须提供可检查的基础诊断线索；完整检索平台、远程监控、趋势分析和自动根因诊断列入后续版本 |
+| FN-023 | 运行日志、诊断与恢复 | 记录启动/运行异常、崩溃诊断线索、API 连接测试与请求失败类别、耗时和结果；与项目资料分离，凭证及敏感内容脱敏 | 已确认（最小范围） | 部分实现 | AI/API 设置页会向界面显示连接测试成功/失败，Provider 会抛出含 HTTP 状态的异常并对错误摘要做有限脱敏；当前活动 Manifest 未注册 Application 崩溃处理器，未发现活动代码将这些事件写入持久日志。旧 AppLogger/CrashHandler 位于 LEGACY/CODE，不能算作当前实现 |
 
 ---
 
@@ -118,7 +118,7 @@
 | ME-012 | 通用 Connection 授权机制 | 把 Android 系统授权、Connection 访问授权、AI Code 策略分层判断 | 未发现完整实现 | GitHub 存在局部写策略；统一授权对象、授权检查入口与撤销/过期流程待设计 |
 | ME-013 | Task / Dispatcher 状态机 | 任务排队、拆分/做/审查交接、单写入者、取消、重试、恢复与状态持久化 | 未发现完整实现 | 规范已有目标；当前可见源码尚未定位到可运行的统一调度机制 |
 | ME-014 | Verify / Evidence 机制 | 保存验证要求、实际结果、证据、失败/重试历史；状态以事实更新 | 未发现完整实现 | 规范已有关系定义；需要正式模型、接口、持久化与测试 |
-| ME-015 | 本地运行日志与诊断 | 0.1.1 最小要求：启动/运行关键阶段、可捕获崩溃/未捕获异常线索、API 连接测试与请求失败类别、耗时和结果；日志与项目文件分离，凭证/令牌/敏感请求内容脱敏；日志失败不得拖垮主流程 | 待核实 | 需核对现有日志与崩溃处理代码并补测试证据；完整日志检索、远程监控、趋势分析、自动根因诊断属于后续增强 |
+| ME-015 | 本地运行日志与诊断 | 0.1.1 最小要求：启动/运行关键阶段、可捕获崩溃/未捕获异常线索、API 连接测试与请求失败类别、耗时和结果；日志与项目文件分离，凭证/令牌/敏感请求内容脱敏；日志失败不得拖垮主流程 | 未实现（当前主线） | 活动 `AndroidManifest.xml` 未指定自定义 Application；当前 `OpenAICompatibleConnector` 主要通过异常返回 HTTP 状态/有限脱敏错误摘要，没有持久运行日志；`AISettingsActivity` 只显示连接测试结果。搜到的 `AppLogger`、`BridgeFSCrashHandler`、`BridgeFSApp` 均位于 `LEGACY/CODE`，不能直接视为当前能力。下一步需设计并测试最小本地日志与崩溃钩子；完整日志检索、远程监控、趋势分析、自动根因诊断属于后续增强 |
 | ME-016 | 测试与验证证据 | 以测试、实际连接结果和必要的端到端证据核对功能状态 | 部分实现 | Conversation、Context、GitHub 有单元测试文件；每个业务闭环的测试覆盖与当前 Verify 状态需要逐项核对 |
 | ME-017 | Connection 基础抽象 | 提供连接稳定 ID 与类型；具体 Connector 通过连接身份解析，不把 Connection 当成实际资源 | 部分实现 | `connection/Connection.kt` 目前只定义 GITHUB、AI 两种类型；Local、File、API/Service 等通用类型尚未纳入该接口，需按模块施工时扩展，不提前一次性实现全部类型 |
 | ME-018 | Context Conversation Runtime 组装 | 校验 Context、Conversation 与 AI Connection 的归属关系，并解析对应 Connector / ConversationService | 部分实现 | `conversation/ContextConversationRuntime.kt` 已有组装边界及测试；当前 ConversationActivity 未使用该 Runtime，且没有真实 Provider，不能据此认定 Context 对话链已打通 |
