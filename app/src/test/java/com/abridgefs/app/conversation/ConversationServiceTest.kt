@@ -88,6 +88,34 @@ class ConversationServiceTest {
     }
 
     @Test
+    fun send_and_save_passes_external_context_without_persisting_it_as_a_message() = runBlocking {
+        var received: AIRequest? = null
+        val connector = object : AIConnector {
+            override suspend fun send(request: AIRequest): AIResponse {
+                received = request
+                return AIResponse("已根据文件回答")
+            }
+        }
+        val store = InMemoryConversationStore()
+        val conversation = Conversation(
+            id = "conversation-github-context",
+            aiConnectionId = "ai-1"
+        )
+
+        ConversationService(connector).sendAndSave(
+            conversation = conversation,
+            userText = "解释这个文件",
+            store = store,
+            additionalContext = "仓库：owner/repo\\n文件：README.md\\n文件内容：hello"
+        )
+
+        assertTrue(received?.userText?.contains("仓库：owner/repo") == true)
+        assertTrue(received?.userText?.contains("用户问题：解释这个文件") == true)
+        val saved = store.getConversation(conversation.id)
+        assertEquals(listOf("解释这个文件", "已根据文件回答"), saved?.messages?.map { it.text })
+    }
+
+    @Test
     fun send_keeps_existing_messages() = runBlocking {
         val connector = object : AIConnector {
             override suspend fun send(request: AIRequest): AIResponse =
