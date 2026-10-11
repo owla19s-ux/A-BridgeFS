@@ -44,7 +44,8 @@ class ConversationService(
         conversation: Conversation,
         userText: String,
         store: ConversationStoreApi,
-        onDelta: (String) -> Unit = {}
+        onDelta: (String) -> Unit = {},
+        additionalContext: String? = null
     ): Conversation {
         val startedAt = System.nanoTime()
         RuntimeDiagnostics.record("conversation.send", "started")
@@ -56,7 +57,10 @@ class ConversationService(
             val response = connector.sendStreaming(
                 AIRequest(
                     contextId = conversation.contextId,
-                    userText = userText,
+                    userText = additionalContext
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let { "$it\n\n用户问题：$userText" }
+                        ?: userText,
                     modelId = conversation.aiModelId,
                     history = conversation.messages.map { message ->
                         AIMessage(
