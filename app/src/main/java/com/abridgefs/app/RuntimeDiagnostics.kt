@@ -19,6 +19,7 @@ import java.util.Locale
 object RuntimeDiagnostics {
     private const val LOG_DIRECTORY = "aps-diagnostics"
     private const val RETENTION_DAYS = 7L
+    private const val MAX_LOG_FILE_BYTES = 1_048_576L
     private val lock = Any()
 
     @Volatile
@@ -139,6 +140,10 @@ object RuntimeDiagnostics {
                 if (!directory.exists() && !directory.mkdirs()) return
                 pruneOldLogs(directory)
                 val file = File(directory, "aps-" + fileDate() + ".log")
+                if (file.exists() && file.length() >= MAX_LOG_FILE_BYTES) {
+                    file.writeText(timestamp() + " event=log.truncated outcome=size_limit")
+                    file.appendText(System.lineSeparator())
+                }
                 FileWriter(file, true).buffered().use { writer ->
                     writer.append(line)
                     writer.newLine()
