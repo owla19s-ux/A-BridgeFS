@@ -17,7 +17,7 @@ class GitHubConversationReaderTest {
         var observed: List<String?> = emptyList()
         val api = proxyApi { method, args ->
             if (method.name == "file") {
-                observed = args.map { it?.toString() }
+                observed = args.filterNotNull().dropLast(1).map { it.toString() }
                 Response.success(fileJson("你好 APS", "file"))
             } else null
         }
