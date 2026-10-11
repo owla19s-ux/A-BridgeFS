@@ -14,6 +14,7 @@ import java.util.Locale
  */
 object RuntimeDiagnostics {
     private const val LOG_DIRECTORY = "aps-diagnostics"
+    private const val RETENTION_DAYS = 7L
     private val lock = Any()
 
     @Volatile
@@ -46,6 +47,31 @@ object RuntimeDiagnostics {
             httpStatus = httpStatus,
             errorType = error?.javaClass?.simpleName
         )
+    }
+
+    fun readRecentLogs(context: Context, maxChars: Int = 24_000): String {
+        return try {
+            val directory = File(context.applicationContext.filesDir, LOG_DIRECTORY)
+            val files = directory.listFiles()
+                ?.filter { it.isFile && it.name.startsWith("aps-") && it.name.endsWith(".log") }
+                ?.sortedBy { it.lastModified() }
+                .orEmpty()
+            if (files.isEmpty()) return "暂无诊断日志。"
+
+            val output = StringBuilder()
+            files.forEach { file ->
+                val text = runCatching { file.readText(Charsets.UTF_8) }.getOrNull().orEmpty()
+                if (text.isNotEmpty()) {
+                    output.append(text).append('\n')
+                    if (output.length > maxChars * 2) {
+                        output.delete(0, output.length - maxChars)
+                    }
+                }
+            }
+            output.toString().takeLast(maxChars).ifBlank { "暂无诊断日志。" }
+        } catch (_: Exception) {
+            "读取诊断日志失败。"
+        }
     }
 
     fun record(
@@ -96,6 +122,7 @@ object RuntimeDiagnostics {
             synchronized(lock) {
                 val directory = File(context.filesDir, LOG_DIRECTORY)
                 if (!directory.exists() && !directory.mkdirs()) return
+                pruneOldLogs(directory)
                 val file = File(directory, "aps-" + fileDate() + ".log")
                 FileWriter(file, true).buffered().use { writer ->
                     writer.append(line)
@@ -105,6 +132,14 @@ object RuntimeDiagnostics {
         } catch (_: Exception) {
             // Diagnostics must never bring down the app's primary flow.
         }
+    }
+
+    private fun pruneOldLogs(directory: File) {
+        val cutoff = System.currentTimeMillis() - RETENTION_DAYS * 24 * 60 * 60 * 1000
+        directory.listFiles()
+            ?.filter { it.isFile && it.name.startsWith("aps-") && it.name.endsWith(".log") }
+            ?.filter { it.lastModified() < cutoff }
+            ?.forEach { it.delete() }
     }
 
     private fun safeLabel(value: String): String =
