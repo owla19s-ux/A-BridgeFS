@@ -124,6 +124,11 @@ private class RuntimeCrashHandler(
 ) : Thread.UncaughtExceptionHandler {
     override fun uncaughtException(thread: Thread, throwable: Throwable) {
         RuntimeDiagnostics.recordCrash(thread, throwable)
-        previous?.uncaughtException(thread, throwable)
+        if (previous != null) {
+            previous.uncaughtException(thread, throwable)
+        } else {
+            android.os.Process.killProcess(android.os.Process.myPid())
+            kotlin.system.exitProcess(10)
+        }
     }
 }
