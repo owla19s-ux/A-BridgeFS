@@ -163,6 +163,8 @@
 | UI-021 | FN-016 | exposes | GitHub Actions/验证结果入口 |
 | UI-022 | FN-012 | exposes | 本地目录和文件能力入口 |
 | UI-024 | FN-019 | exposes | 全局验证能力说明与连接支持情况 |
+| UI-025 | FN-013 | exposes | 普通对话页验证 GitHub 身份并保存令牌 |
+| UI-025 | FN-014 | exposes | 选择并读取单个 GitHub 文本文件 |
 | FN-002 | ME-002 | persists_with | Context 管理依赖 Context Store |
 | FN-004 | ME-001 | depends_on | Address/Resource 跨对象关联要遵循 ID/关系边规则 |
 | FN-004 | ME-002 | persists_with | 当前 Context Resource 通过 Context Store 持久化 |
